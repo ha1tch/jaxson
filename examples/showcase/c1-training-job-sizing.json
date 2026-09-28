@@ -1,0 +1,98 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "dataset_size_gb": 340,
+    "model_family": "gradient_boosted_trees",
+    "max_budget_per_hour": 6.5,
+    "metadata": {"team": "fraud-detection", "priority": "high", "cost_center": 4417}
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "dataset_size_gb": {"type": "number", "min": 0},
+      "model_family": {"type": "string", "enum": ["linear", "gradient_boosted_trees", "deep_neural_net"]},
+      "max_budget_per_hour": {"type": "number", "min": 0},
+      "metadata": {"type": "object", "fields": {}, "extra": "allow"}
+    },
+    "required": ["dataset_size_gb", "model_family", "max_budget_per_hour", "metadata"]
+  },
+  "program": [
+    {"op": "if", "cond": {"$compute": {"with": {"m": {"$path": ["input", "model_family"]}}, "expr": ["eq", {"$v": "m"}, "linear"]}},
+      "then": [
+        {"op": "set", "path": ["state", "instance_type"], "value": "cpu.small"},
+        {"op": "set", "path": ["state", "hourly_cost"], "value": 0.1}
+      ],
+      "else": [
+        {"op": "if", "cond": {"$compute": {"with": {"m": {"$path": ["input", "model_family"]}}, "expr": ["eq", {"$v": "m"}, "gradient_boosted_trees"]}},
+          "then": [
+            {"op": "if", "cond": {"$compute": {"with": {"s": {"$path": ["input", "dataset_size_gb"]}}, "expr": ["gt", {"$v": "s"}, 200]}},
+              "then": [
+                {"op": "set", "path": ["state", "instance_type"], "value": "cpu.xlarge"},
+                {"op": "set", "path": ["state", "hourly_cost"], "value": 1.8}
+              ],
+              "else": [
+                {"op": "set", "path": ["state", "instance_type"], "value": "cpu.medium"},
+                {"op": "set", "path": ["state", "hourly_cost"], "value": 0.45}
+              ]
+            }
+          ],
+          "else": [
+            {"op": "if", "cond": {"$compute": {"with": {"s": {"$path": ["input", "dataset_size_gb"]}}, "expr": ["gt", {"$v": "s"}, 100]}},
+              "then": [
+                {"op": "set", "path": ["state", "instance_type"], "value": "gpu.a10.large"},
+                {"op": "set", "path": ["state", "hourly_cost"], "value": 4.9}
+              ],
+              "else": [
+                {"op": "set", "path": ["state", "instance_type"], "value": "gpu.t4.small"},
+                {"op": "set", "path": ["state", "hourly_cost"], "value": 1.2}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {"op": "if", "cond": {"$compute": {
+        "with": {"c": {"$path": ["state", "hourly_cost"]}, "b": {"$path": ["input", "max_budget_per_hour"]}},
+        "expr": ["le", {"$v": "c"}, {"$v": "b"}]
+      }},
+      "then": [
+        {"op": "set", "path": ["output"], "value": {"$tpl": {
+          "status": "approved",
+          "instance_type": {"$path": ["state", "instance_type"]},
+          "hourly_cost": {"$path": ["state", "hourly_cost"]}
+        }}}
+      ],
+      "else": [
+        {"op": "set", "path": ["output"], "value": {"$tpl": {
+          "status": "denied",
+          "instance_type": {"$path": ["state", "instance_type"]},
+          "hourly_cost": {"$path": ["state", "hourly_cost"]},
+          "reason": "recommended instance exceeds max_budget_per_hour"
+        }}}
+      ]
+    }
+  ],
+  "outputSchema": {
+    "anyOf": [
+      {
+        "type": "object",
+        "fields": {
+          "status": {"type": "string", "enum": ["approved"]},
+          "instance_type": {"type": "string"},
+          "hourly_cost": {"type": "number", "min": 0}
+        },
+        "required": ["status", "instance_type", "hourly_cost"]
+      },
+      {
+        "type": "object",
+        "fields": {
+          "status": {"type": "string", "enum": ["denied"]},
+          "instance_type": {"type": "string"},
+          "hourly_cost": {"type": "number", "min": 0},
+          "reason": {"type": "string"}
+        },
+        "required": ["status", "instance_type", "hourly_cost", "reason"]
+      }
+    ]
+  }
+}

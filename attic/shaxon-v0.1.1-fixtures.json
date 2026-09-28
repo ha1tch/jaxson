@@ -1,0 +1,207 @@
+[
+  {
+    "name": "check-in-loop-must-charge-index-rebuild-steps",
+    "shaxon": "1.1",
+    "limits": { "steps": 10, "maxShapeDepth": 2 },
+    "input": {
+      "customers": [
+        {"id": 1}, {"id": 2}, {"id": 3}, {"id": 4},
+        {"id": 5}, {"id": 6}, {"id": 7}, {"id": 8}
+      ],
+      "current": 1,
+      "ticks": [1, 2]
+    },
+    "inputSchema": {
+      "type": "object",
+      "fields": {
+        "customers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "fields": { "id": { "type": "number" } },
+            "required": ["id"]
+          }
+        },
+        "current": { "type": "number" },
+        "ticks": { "type": "array", "items": { "type": "number" } }
+      },
+      "required": ["customers", "current", "ticks"]
+    },
+    "indices": {
+      "customersById": {
+        "source": { "$path": ["input", "customers"] },
+        "key": { "$path": ["local", "item", "id"] }
+      }
+    },
+    "shapes": {
+      "CurrentIsCustomer": { "kind": "reference", "index": "customersById" }
+    },
+    "program": [
+      { "op": "set", "path": ["state", "current"], "value": { "$path": ["input", "current"] } },
+      {
+        "op": "for",
+        "in": { "$path": ["input", "ticks"] },
+        "as": "tick",
+        "do": [
+          {
+            "op": "check",
+            "target": { "$path": ["state", "current"] },
+            "shape": "CurrentIsCustomer",
+            "mode": "gate"
+          }
+        ]
+      }
+    ],
+    "outputSchema": { "type": "any" },
+    "expect": { "error": { "category": "RESOURCE_ERROR", "code": "STEPS" } },
+    "note": "8-element index, rebuilt before each of 2 check calls. Program-instruction cost alone is ~5 steps, well under the declared limit of 10 — this fixture only fails to stay under budget if index (re)builds are charged one step per source element, per v0.1.1 section 3. An interpreter that treats index builds as free will produce 'output' instead of this error, which is exactly the gap this fixture exists to catch."
+  },
+  {
+    "name": "path-plus-closure-target-reports-violation-mid-chain",
+    "shaxon": "1.1",
+    "limits": { "steps": 500, "maxShapeDepth": 4 },
+    "input": {
+      "head": {
+        "value": 1,
+        "next": {
+          "value": 2,
+          "next": {
+            "value": -1,
+            "next": null
+          }
+        }
+      }
+    },
+    "inputSchema": {
+      "type": "object",
+      "fields": {
+        "head": { "type": "any" }
+      },
+      "required": ["head"]
+    },
+    "shapes": {
+      "PositiveNode": {
+        "kind": "object",
+        "fields": {
+          "value": { "kind": "number" }
+        },
+        "required": ["value"],
+        "check": {
+          "with": { "v": { "$path": ["local", "focus", "value"] } },
+          "expr": ["gt", { "$v": "v" }, 0]
+        },
+        "severity": "violation",
+        "message": "node value must be positive"
+      }
+    },
+    "program": [
+      {
+        "op": "check",
+        "target": {
+          "$path*": ["next"],
+          "from": { "$path": ["input", "head"] },
+          "maxDepth": 2
+        },
+        "shape": "PositiveNode",
+        "mode": "report",
+        "into": ["output", "nodeReport"]
+      }
+    ],
+    "outputSchema": { "type": "any" },
+    "expect": {
+      "output": {
+        "nodeReport": {
+          "conforms": false,
+          "violations": [
+            {
+              "focusPath": ["input", "head", "next", "next"],
+              "shape": "PositiveNode",
+              "severity": "violation",
+              "message": "node value must be positive",
+              "code": null
+            }
+          ]
+        }
+      }
+    },
+    "note": "Exercises $path* as a section-7 target form (v0.1.1 section 6/7): the closure {head, head.next, head.next.next} is visited (0..maxDepth=2 hops along the relative step ['next']), each node checked against PositiveNode, and only the depth-2 node (value -1) violates. Also exercises the explicit 'from' base a closure needs when used as a target, versus an ambient focus/item when embedded elsewhere."
+  },
+  {
+    "name": "relations-block-desugars-to-forward-reference-and-inverse-lookup",
+    "shaxon": "1.1",
+    "limits": { "steps": 200, "maxShapeDepth": 2 },
+    "input": {
+      "customers": [ {"id": 1}, {"id": 2} ],
+      "orders": [
+        {"id": 100, "customerId": 1},
+        {"id": 101, "customerId": 1},
+        {"id": 102, "customerId": 2}
+      ]
+    },
+    "inputSchema": {
+      "type": "object",
+      "fields": {
+        "customers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "fields": { "id": { "type": "number" } },
+            "required": ["id"]
+          }
+        },
+        "orders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "fields": {
+              "id": { "type": "number" },
+              "customerId": { "type": "number" }
+            },
+            "required": ["id", "customerId"]
+          }
+        }
+      },
+      "required": ["customers", "orders"]
+    },
+    "relations": {
+      "orderCustomer": {
+        "from": { "path": ["input", "orders"], "field": "customerId" },
+        "to": { "path": ["input", "customers"], "key": "id" },
+        "cardinality": "one-to-many"
+      }
+    },
+    "shapes": {
+      "Order": {
+        "kind": "object",
+        "fields": {
+          "id": { "kind": "number" },
+          "customerId": { "kind": "reference", "relation": "orderCustomer" }
+        },
+        "required": ["id", "customerId"]
+      }
+    },
+    "program": [
+      {
+        "op": "check",
+        "target": { "$each": ["input", "orders"] },
+        "shape": "Order",
+        "mode": "gate"
+      },
+      {
+        "op": "set",
+        "path": ["output", "customer1Orders"],
+        "value": { "$inverse": { "relation": "orderCustomer", "key": 1 } }
+      }
+    ],
+    "outputSchema": { "type": "any" },
+    "expect": {
+      "output": {
+        "customer1Orders": [
+          {"id": 100, "customerId": 1},
+          {"id": 101, "customerId": 1}
+        ]
+      }
+    },
+    "note": "One 'relations' entry stands in for the hand-written pair from v0.0.1 (a customersById index + reference field, plus a separate ordersByCustomer multi index + $inverse call). Confirms the forward direction (every order's customerId resolves against customers.id via 'relation', not a named index) and the reverse direction ($inverse by 'relation' returns exactly the orders for customer 1) round-trip correctly through the desugaring in v0.1.1's new relations section."
+  }
+]

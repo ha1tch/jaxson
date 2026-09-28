@@ -1,0 +1,2636 @@
+{
+ "jaxson": "1.0",
+ "limits": {
+  "steps": 20000
+ },
+ "input": {
+  "action": "new",
+  "seed": 0
+ },
+ "inputSchema": {
+  "type": "object",
+  "fields": {
+   "action": {
+    "type": "string",
+    "enum": [
+     "new",
+     "fire"
+    ]
+   },
+   "seed": {
+    "type": "number",
+    "int": true,
+    "min": 0,
+    "max": 2147483647
+   },
+   "x": {
+    "type": "number",
+    "int": true
+   },
+   "y": {
+    "type": "number",
+    "int": true
+   },
+   "game": {
+    "type": "object",
+    "fields": {
+     "seed": {
+      "type": "number",
+      "int": true,
+      "min": 0,
+      "max": 2147483647
+     },
+     "turn": {
+      "type": "number",
+      "int": true,
+      "min": 0
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "playing",
+       "won",
+       "lost"
+      ]
+     },
+     "eShots": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 1
+      },
+      "minItems": 36,
+      "maxItems": 36
+     },
+     "pShots": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 1
+      },
+      "minItems": 36,
+      "maxItems": 36
+     },
+     "eBoard": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 3
+      },
+      "minItems": 36,
+      "maxItems": 36
+     },
+     "pBoard": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 3
+      },
+      "minItems": 36,
+      "maxItems": 36
+     },
+     "eHP": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 3
+      },
+      "minItems": 3,
+      "maxItems": 3
+     },
+     "pHP": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 3
+      },
+      "minItems": 3,
+      "maxItems": 3
+     }
+    },
+    "required": [
+     "seed",
+     "turn",
+     "status",
+     "eShots",
+     "pShots",
+     "eBoard",
+     "pBoard",
+     "eHP",
+     "pHP"
+    ]
+   }
+  },
+  "required": [
+   "action"
+  ]
+ },
+ "program": [
+  {
+   "op": "set",
+   "path": [
+    "state",
+    "msgs"
+   ],
+   "value": []
+  },
+  {
+   "op": "set",
+   "path": [
+    "state",
+    "lines"
+   ],
+   "value": []
+  },
+  {
+   "op": "if",
+   "cond": {
+    "$compute": {
+     "expr": [
+      "eq",
+      {
+       "$v": "a"
+      },
+      "new"
+     ],
+     "with": {
+      "a": {
+       "$path": [
+        "input",
+        "action"
+       ]
+      }
+     }
+    }
+   },
+   "then": [
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "game"
+     ],
+     "value": {
+      "$tpl": {
+       "seed": {
+        "$path": [
+         "input",
+         "seed"
+        ]
+       },
+       "turn": 0,
+       "status": "playing",
+       "eShots": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ],
+       "pShots": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ],
+       "eBoard": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ],
+       "pBoard": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+       ],
+       "eHP": [
+        3,
+        2,
+        2
+       ],
+       "pHP": [
+        3,
+        2,
+        2
+       ]
+      }
+     }
+    },
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "tmp"
+     ],
+     "value": {
+      "$tpl": {
+       "el": {
+        "$compute": {
+         "expr": [
+          "mod",
+          {
+           "$v": "s"
+          },
+          4
+         ],
+         "with": {
+          "s": {
+           "$path": [
+            "input",
+            "seed"
+           ]
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "tmp",
+      "pl"
+     ],
+     "value": {
+      "$compute": {
+       "expr": [
+        "mod",
+        [
+         "add",
+         {
+          "$v": "e"
+         },
+         2
+        ],
+        4
+       ],
+       "with": {
+        "e": {
+         "$path": [
+          "state",
+          "tmp",
+          "el"
+         ]
+        }
+       }
+      }
+     }
+    },
+    {
+     "op": "for",
+     "in": {
+      "$compute": {
+       "expr": [
+        "get",
+        {
+         "$v": "L"
+        },
+        {
+         "$v": "i"
+        }
+       ],
+       "with": {
+        "L": {
+         "$lit": [
+          [
+           [
+            0,
+            1,
+            2
+           ],
+           [
+            11,
+            17
+           ],
+           [
+            26,
+            27
+           ]
+          ],
+          [
+           [
+            12,
+            18,
+            24
+           ],
+           [
+            4,
+            5
+           ],
+           [
+            33,
+            34
+           ]
+          ],
+          [
+           [
+            19,
+            20,
+            21
+           ],
+           [
+            23,
+            29
+           ],
+           [
+            0,
+            1
+           ]
+          ],
+          [
+           [
+            3,
+            9,
+            15
+           ],
+           [
+            30,
+            31
+           ],
+           [
+            23,
+            29
+           ]
+          ]
+         ]
+        },
+        "i": {
+         "$path": [
+          "state",
+          "tmp",
+          "el"
+         ]
+        }
+       }
+      }
+     },
+     "as": "ship",
+     "index": "s",
+     "do": [
+      {
+       "op": "for",
+       "in": {
+        "$path": [
+         "local",
+         "ship"
+        ]
+       },
+       "as": "c",
+       "do": [
+        {
+         "op": "set",
+         "path": [
+          "state",
+          "game",
+          "eBoard",
+          {
+           "$path": [
+            "local",
+            "c"
+           ]
+          }
+         ],
+         "value": {
+          "$compute": {
+           "expr": [
+            "add",
+            {
+             "$v": "s"
+            },
+            1
+           ],
+           "with": {
+            "s": {
+             "$path": [
+              "local",
+              "s"
+             ]
+            }
+           }
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "op": "for",
+     "in": {
+      "$compute": {
+       "expr": [
+        "get",
+        {
+         "$v": "L"
+        },
+        {
+         "$v": "i"
+        }
+       ],
+       "with": {
+        "L": {
+         "$lit": [
+          [
+           [
+            0,
+            1,
+            2
+           ],
+           [
+            11,
+            17
+           ],
+           [
+            26,
+            27
+           ]
+          ],
+          [
+           [
+            12,
+            18,
+            24
+           ],
+           [
+            4,
+            5
+           ],
+           [
+            33,
+            34
+           ]
+          ],
+          [
+           [
+            19,
+            20,
+            21
+           ],
+           [
+            23,
+            29
+           ],
+           [
+            0,
+            1
+           ]
+          ],
+          [
+           [
+            3,
+            9,
+            15
+           ],
+           [
+            30,
+            31
+           ],
+           [
+            23,
+            29
+           ]
+          ]
+         ]
+        },
+        "i": {
+         "$path": [
+          "state",
+          "tmp",
+          "pl"
+         ]
+        }
+       }
+      }
+     },
+     "as": "ship",
+     "index": "s",
+     "do": [
+      {
+       "op": "for",
+       "in": {
+        "$path": [
+         "local",
+         "ship"
+        ]
+       },
+       "as": "c",
+       "do": [
+        {
+         "op": "set",
+         "path": [
+          "state",
+          "game",
+          "pBoard",
+          {
+           "$path": [
+            "local",
+            "c"
+           ]
+          }
+         ],
+         "value": {
+          "$compute": {
+           "expr": [
+            "add",
+            {
+             "$v": "s"
+            },
+            1
+           ],
+           "with": {
+            "s": {
+             "$path": [
+              "local",
+              "s"
+             ]
+            }
+           }
+          }
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "op": "append",
+     "path": [
+      "state",
+      "msgs"
+     ],
+     "value": "New game. Sink the enemy fleet before it sinks yours."
+    },
+    {
+     "op": "append",
+     "path": [
+      "state",
+      "msgs"
+     ],
+     "value": "Fire with: x y   (both 0 to 5)"
+    }
+   ],
+   "else": [
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "game"
+     ],
+     "value": {
+      "$path": [
+       "input",
+       "game"
+      ]
+     }
+    },
+    {
+     "op": "assert",
+     "that": {
+      "$compute": {
+       "expr": [
+        "eq",
+        {
+         "$v": "s"
+        },
+        "playing"
+       ],
+       "with": {
+        "s": {
+         "$path": [
+          "state",
+          "game",
+          "status"
+         ]
+        }
+       }
+      }
+     },
+     "msg": "The game is over."
+    },
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "tmp"
+     ],
+     "value": {
+      "$tpl": {
+       "x": {
+        "$path": [
+         "input",
+         "x"
+        ]
+       },
+       "y": {
+        "$path": [
+         "input",
+         "y"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "op": "assert",
+     "that": {
+      "$compute": {
+       "expr": [
+        "and",
+        [
+         "ge",
+         {
+          "$v": "x"
+         },
+         0
+        ],
+        [
+         "le",
+         {
+          "$v": "x"
+         },
+         5
+        ],
+        [
+         "ge",
+         {
+          "$v": "y"
+         },
+         0
+        ],
+        [
+         "le",
+         {
+          "$v": "y"
+         },
+         5
+        ]
+       ],
+       "with": {
+        "x": {
+         "$path": [
+          "state",
+          "tmp",
+          "x"
+         ]
+        },
+        "y": {
+         "$path": [
+          "state",
+          "tmp",
+          "y"
+         ]
+        }
+       }
+      }
+     },
+     "msg": "Off the board: x and y must be between 0 and 5."
+    },
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "tmp",
+      "idx"
+     ],
+     "value": {
+      "$compute": {
+       "expr": [
+        "add",
+        [
+         "mul",
+         {
+          "$v": "y"
+         },
+         6
+        ],
+        {
+         "$v": "x"
+        }
+       ],
+       "with": {
+        "x": {
+         "$path": [
+          "state",
+          "tmp",
+          "x"
+         ]
+        },
+        "y": {
+         "$path": [
+          "state",
+          "tmp",
+          "y"
+         ]
+        }
+       }
+      }
+     }
+    },
+    {
+     "op": "assert",
+     "that": {
+      "$compute": {
+       "expr": [
+        "eq",
+        {
+         "$v": "s"
+        },
+        0
+       ],
+       "with": {
+        "s": {
+         "$path": [
+          "state",
+          "game",
+          "eShots",
+          {
+           "$path": [
+            "state",
+            "tmp",
+            "idx"
+           ]
+          }
+         ]
+        }
+       }
+      }
+     },
+     "msg": "You already fired there."
+    },
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "tmp",
+      "ship"
+     ],
+     "value": {
+      "$compute": {
+       "expr": [
+        "get",
+        {
+         "$v": "b"
+        },
+        {
+         "$v": "i"
+        }
+       ],
+       "with": {
+        "b": {
+         "$path": [
+          "state",
+          "game",
+          "eBoard"
+         ]
+        },
+        "i": {
+         "$path": [
+          "state",
+          "tmp",
+          "idx"
+         ]
+        }
+       }
+      }
+     }
+    },
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "game",
+      "eShots",
+      {
+       "$path": [
+        "state",
+        "tmp",
+        "idx"
+       ]
+      }
+     ],
+     "value": 1
+    },
+    {
+     "op": "if",
+     "cond": {
+      "$compute": {
+       "expr": [
+        "gt",
+        {
+         "$v": "s"
+        },
+        0
+       ],
+       "with": {
+        "s": {
+         "$path": [
+          "state",
+          "tmp",
+          "ship"
+         ]
+        }
+       }
+      }
+     },
+     "then": [
+      {
+       "op": "set",
+       "path": [
+        "state",
+        "game",
+        "eHP",
+        {
+         "$compute": {
+          "expr": [
+           "sub",
+           {
+            "$v": "s"
+           },
+           1
+          ],
+          "with": {
+           "s": {
+            "$path": [
+             "state",
+             "tmp",
+             "ship"
+            ]
+           }
+          }
+         }
+        }
+       ],
+       "value": {
+        "$compute": {
+         "expr": [
+          "sub",
+          {
+           "$v": "h"
+          },
+          1
+         ],
+         "with": {
+          "h": {
+           "$path": [
+            "state",
+            "game",
+            "eHP",
+            {
+             "$compute": {
+              "expr": [
+               "sub",
+               {
+                "$v": "s"
+               },
+               1
+              ],
+              "with": {
+               "s": {
+                "$path": [
+                 "state",
+                 "tmp",
+                 "ship"
+                ]
+               }
+              }
+             }
+            }
+           ]
+          }
+         }
+        }
+       }
+      },
+      {
+       "op": "append",
+       "path": [
+        "state",
+        "msgs"
+       ],
+       "value": {
+        "$compute": {
+         "expr": [
+          "concat",
+          "You fire at (",
+          [
+           "to_string",
+           {
+            "$v": "x"
+           }
+          ],
+          ",",
+          [
+           "to_string",
+           {
+            "$v": "y"
+           }
+          ],
+          "): ",
+          [
+           "select",
+           [
+            "eq",
+            {
+             "$v": "h"
+            },
+            0
+           ],
+           [
+            "concat",
+            "HIT! You sank the ",
+            [
+             "get",
+             {
+              "$v": "N"
+             },
+             [
+              "sub",
+              {
+               "$v": "s"
+              },
+              1
+             ]
+            ],
+            "!"
+           ],
+           "HIT!"
+          ]
+         ],
+         "with": {
+          "x": {
+           "$path": [
+            "state",
+            "tmp",
+            "x"
+           ]
+          },
+          "y": {
+           "$path": [
+            "state",
+            "tmp",
+            "y"
+           ]
+          },
+          "h": {
+           "$path": [
+            "state",
+            "game",
+            "eHP",
+            {
+             "$compute": {
+              "expr": [
+               "sub",
+               {
+                "$v": "s"
+               },
+               1
+              ],
+              "with": {
+               "s": {
+                "$path": [
+                 "state",
+                 "tmp",
+                 "ship"
+                ]
+               }
+              }
+             }
+            }
+           ]
+          },
+          "s": {
+           "$path": [
+            "state",
+            "tmp",
+            "ship"
+           ]
+          },
+          "N": {
+           "$lit": [
+            "Cruiser",
+            "Destroyer",
+            "Patrol boat"
+           ]
+          }
+         }
+        }
+       }
+      }
+     ],
+     "else": [
+      {
+       "op": "append",
+       "path": [
+        "state",
+        "msgs"
+       ],
+       "value": {
+        "$compute": {
+         "expr": [
+          "concat",
+          "You fire at (",
+          [
+           "to_string",
+           {
+            "$v": "x"
+           }
+          ],
+          ",",
+          [
+           "to_string",
+           {
+            "$v": "y"
+           }
+          ],
+          "): MISS."
+         ],
+         "with": {
+          "x": {
+           "$path": [
+            "state",
+            "tmp",
+            "x"
+           ]
+          },
+          "y": {
+           "$path": [
+            "state",
+            "tmp",
+            "y"
+           ]
+          }
+         }
+        }
+       }
+      }
+     ]
+    },
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "tmp",
+      "eDead"
+     ],
+     "value": {
+      "$compute": {
+       "expr": [
+        "eq",
+        [
+         "add",
+         [
+          "get",
+          {
+           "$v": "h"
+          },
+          0
+         ],
+         [
+          "get",
+          {
+           "$v": "h"
+          },
+          1
+         ],
+         [
+          "get",
+          {
+           "$v": "h"
+          },
+          2
+         ]
+        ],
+        0
+       ],
+       "with": {
+        "h": {
+         "$path": [
+          "state",
+          "game",
+          "eHP"
+         ]
+        }
+       }
+      }
+     }
+    },
+    {
+     "op": "if",
+     "cond": {
+      "$path": [
+       "state",
+       "tmp",
+       "eDead"
+      ]
+     },
+     "then": [
+      {
+       "op": "set",
+       "path": [
+        "state",
+        "game",
+        "status"
+       ],
+       "value": "won"
+      },
+      {
+       "op": "append",
+       "path": [
+        "state",
+        "msgs"
+       ],
+       "value": "VICTORY! You sank the entire enemy fleet."
+      }
+     ],
+     "else": [
+      {
+       "op": "set",
+       "path": [
+        "state",
+        "game",
+        "seed"
+       ],
+       "value": {
+        "$compute": {
+         "expr": [
+          "mod",
+          [
+           "add",
+           [
+            "mul",
+            {
+             "$v": "s"
+            },
+            1103515245
+           ],
+           12345
+          ],
+          2147483648
+         ],
+         "with": {
+          "s": {
+           "$path": [
+            "state",
+            "game",
+            "seed"
+           ]
+          }
+         }
+        }
+       }
+      },
+      {
+       "op": "set",
+       "path": [
+        "state",
+        "tmp",
+        "start"
+       ],
+       "value": {
+        "$compute": {
+         "expr": [
+          "mod",
+          {
+           "$v": "s"
+          },
+          36
+         ],
+         "with": {
+          "s": {
+           "$path": [
+            "state",
+            "game",
+            "seed"
+           ]
+          }
+         }
+        }
+       }
+      },
+      {
+       "op": "set",
+       "path": [
+        "state",
+        "tmp",
+        "done"
+       ],
+       "value": false
+      },
+      {
+       "op": "for",
+       "in": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35
+       ],
+       "as": "k",
+       "do": [
+        {
+         "op": "set",
+         "path": [
+          "state",
+          "tmp",
+          "c"
+         ],
+         "value": {
+          "$compute": {
+           "expr": [
+            "mod",
+            [
+             "add",
+             {
+              "$v": "s"
+             },
+             {
+              "$v": "k"
+             }
+            ],
+            36
+           ],
+           "with": {
+            "s": {
+             "$path": [
+              "state",
+              "tmp",
+              "start"
+             ]
+            },
+            "k": {
+             "$path": [
+              "local",
+              "k"
+             ]
+            }
+           }
+          }
+         }
+        },
+        {
+         "op": "if",
+         "cond": {
+          "$compute": {
+           "expr": [
+            "and",
+            [
+             "not",
+             {
+              "$v": "d"
+             }
+            ],
+            [
+             "eq",
+             {
+              "$v": "sh"
+             },
+             0
+            ]
+           ],
+           "with": {
+            "d": {
+             "$path": [
+              "state",
+              "tmp",
+              "done"
+             ]
+            },
+            "sh": {
+             "$path": [
+              "state",
+              "game",
+              "pShots",
+              {
+               "$path": [
+                "state",
+                "tmp",
+                "c"
+               ]
+              }
+             ]
+            }
+           }
+          }
+         },
+         "then": [
+          {
+           "op": "set",
+           "path": [
+            "state",
+            "tmp",
+            "done"
+           ],
+           "value": true
+          },
+          {
+           "op": "set",
+           "path": [
+            "state",
+            "game",
+            "pShots",
+            {
+             "$path": [
+              "state",
+              "tmp",
+              "c"
+             ]
+            }
+           ],
+           "value": 1
+          },
+          {
+           "op": "set",
+           "path": [
+            "state",
+            "tmp",
+            "es"
+           ],
+           "value": {
+            "$compute": {
+             "expr": [
+              "get",
+              {
+               "$v": "b"
+              },
+              {
+               "$v": "i"
+              }
+             ],
+             "with": {
+              "b": {
+               "$path": [
+                "state",
+                "game",
+                "pBoard"
+               ]
+              },
+              "i": {
+               "$path": [
+                "state",
+                "tmp",
+                "c"
+               ]
+              }
+             }
+            }
+           }
+          },
+          {
+           "op": "set",
+           "path": [
+            "state",
+            "tmp",
+            "ex"
+           ],
+           "value": {
+            "$compute": {
+             "expr": [
+              "mod",
+              {
+               "$v": "c"
+              },
+              6
+             ],
+             "with": {
+              "c": {
+               "$path": [
+                "state",
+                "tmp",
+                "c"
+               ]
+              }
+             }
+            }
+           }
+          },
+          {
+           "op": "set",
+           "path": [
+            "state",
+            "tmp",
+            "ey"
+           ],
+           "value": {
+            "$compute": {
+             "expr": [
+              "div",
+              {
+               "$v": "c"
+              },
+              6,
+              0,
+              "down"
+             ],
+             "with": {
+              "c": {
+               "$path": [
+                "state",
+                "tmp",
+                "c"
+               ]
+              }
+             }
+            }
+           }
+          },
+          {
+           "op": "if",
+           "cond": {
+            "$compute": {
+             "expr": [
+              "gt",
+              {
+               "$v": "s"
+              },
+              0
+             ],
+             "with": {
+              "s": {
+               "$path": [
+                "state",
+                "tmp",
+                "es"
+               ]
+              }
+             }
+            }
+           },
+           "then": [
+            {
+             "op": "set",
+             "path": [
+              "state",
+              "game",
+              "pHP",
+              {
+               "$compute": {
+                "expr": [
+                 "sub",
+                 {
+                  "$v": "s"
+                 },
+                 1
+                ],
+                "with": {
+                 "s": {
+                  "$path": [
+                   "state",
+                   "tmp",
+                   "es"
+                  ]
+                 }
+                }
+               }
+              }
+             ],
+             "value": {
+              "$compute": {
+               "expr": [
+                "sub",
+                {
+                 "$v": "h"
+                },
+                1
+               ],
+               "with": {
+                "h": {
+                 "$path": [
+                  "state",
+                  "game",
+                  "pHP",
+                  {
+                   "$compute": {
+                    "expr": [
+                     "sub",
+                     {
+                      "$v": "s"
+                     },
+                     1
+                    ],
+                    "with": {
+                     "s": {
+                      "$path": [
+                       "state",
+                       "tmp",
+                       "es"
+                      ]
+                     }
+                    }
+                   }
+                  }
+                 ]
+                }
+               }
+              }
+             }
+            },
+            {
+             "op": "append",
+             "path": [
+              "state",
+              "msgs"
+             ],
+             "value": {
+              "$compute": {
+               "expr": [
+                "concat",
+                "Enemy fires at (",
+                [
+                 "to_string",
+                 {
+                  "$v": "x"
+                 }
+                ],
+                ",",
+                [
+                 "to_string",
+                 {
+                  "$v": "y"
+                 }
+                ],
+                "): HIT! Your ",
+                [
+                 "get",
+                 {
+                  "$v": "N"
+                 },
+                 [
+                  "sub",
+                  {
+                   "$v": "s"
+                  },
+                  1
+                 ]
+                ],
+                [
+                 "select",
+                 [
+                  "eq",
+                  {
+                   "$v": "h"
+                  },
+                  0
+                 ],
+                 " was sunk!",
+                 " was hit!"
+                ]
+               ],
+               "with": {
+                "x": {
+                 "$path": [
+                  "state",
+                  "tmp",
+                  "ex"
+                 ]
+                },
+                "y": {
+                 "$path": [
+                  "state",
+                  "tmp",
+                  "ey"
+                 ]
+                },
+                "s": {
+                 "$path": [
+                  "state",
+                  "tmp",
+                  "es"
+                 ]
+                },
+                "h": {
+                 "$path": [
+                  "state",
+                  "game",
+                  "pHP",
+                  {
+                   "$compute": {
+                    "expr": [
+                     "sub",
+                     {
+                      "$v": "s"
+                     },
+                     1
+                    ],
+                    "with": {
+                     "s": {
+                      "$path": [
+                       "state",
+                       "tmp",
+                       "es"
+                      ]
+                     }
+                    }
+                   }
+                  }
+                 ]
+                },
+                "N": {
+                 "$lit": [
+                  "Cruiser",
+                  "Destroyer",
+                  "Patrol boat"
+                 ]
+                }
+               }
+              }
+             }
+            }
+           ],
+           "else": [
+            {
+             "op": "append",
+             "path": [
+              "state",
+              "msgs"
+             ],
+             "value": {
+              "$compute": {
+               "expr": [
+                "concat",
+                "Enemy fires at (",
+                [
+                 "to_string",
+                 {
+                  "$v": "x"
+                 }
+                ],
+                ",",
+                [
+                 "to_string",
+                 {
+                  "$v": "y"
+                 }
+                ],
+                "): MISS."
+               ],
+               "with": {
+                "x": {
+                 "$path": [
+                  "state",
+                  "tmp",
+                  "ex"
+                 ]
+                },
+                "y": {
+                 "$path": [
+                  "state",
+                  "tmp",
+                  "ey"
+                 ]
+                }
+               }
+              }
+             }
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "op": "set",
+       "path": [
+        "state",
+        "tmp",
+        "pDead"
+       ],
+       "value": {
+        "$compute": {
+         "expr": [
+          "eq",
+          [
+           "add",
+           [
+            "get",
+            {
+             "$v": "h"
+            },
+            0
+           ],
+           [
+            "get",
+            {
+             "$v": "h"
+            },
+            1
+           ],
+           [
+            "get",
+            {
+             "$v": "h"
+            },
+            2
+           ]
+          ],
+          0
+         ],
+         "with": {
+          "h": {
+           "$path": [
+            "state",
+            "game",
+            "pHP"
+           ]
+          }
+         }
+        }
+       }
+      },
+      {
+       "op": "if",
+       "cond": {
+        "$path": [
+         "state",
+         "tmp",
+         "pDead"
+        ]
+       },
+       "then": [
+        {
+         "op": "set",
+         "path": [
+          "state",
+          "game",
+          "status"
+         ],
+         "value": "lost"
+        },
+        {
+         "op": "append",
+         "path": [
+          "state",
+          "msgs"
+         ],
+         "value": "DEFEAT! Your fleet has been sunk."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "game",
+      "turn"
+     ],
+     "value": {
+      "$compute": {
+       "expr": [
+        "add",
+        {
+         "$v": "t"
+        },
+        1
+       ],
+       "with": {
+        "t": {
+         "$path": [
+          "state",
+          "game",
+          "turn"
+         ]
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "op": "append",
+   "path": [
+    "state",
+    "lines"
+   ],
+   "value": "      ENEMY WATERS              YOUR FLEET"
+  },
+  {
+   "op": "append",
+   "path": [
+    "state",
+    "lines"
+   ],
+   "value": "    0 1 2 3 4 5          0 1 2 3 4 5"
+  },
+  {
+   "op": "for",
+   "in": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "as": "r",
+   "do": [
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "tmp",
+      "left"
+     ],
+     "value": ""
+    },
+    {
+     "op": "set",
+     "path": [
+      "state",
+      "tmp",
+      "right"
+     ],
+     "value": ""
+    },
+    {
+     "op": "for",
+     "in": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "as": "c",
+     "do": [
+      {
+       "op": "set",
+       "path": [
+        "state",
+        "tmp",
+        "i"
+       ],
+       "value": {
+        "$compute": {
+         "expr": [
+          "add",
+          [
+           "mul",
+           {
+            "$v": "r"
+           },
+           6
+          ],
+          {
+           "$v": "c"
+          }
+         ],
+         "with": {
+          "r": {
+           "$path": [
+            "local",
+            "r"
+           ]
+          },
+          "c": {
+           "$path": [
+            "local",
+            "c"
+           ]
+          }
+         }
+        }
+       }
+      },
+      {
+       "op": "set",
+       "path": [
+        "state",
+        "tmp",
+        "left"
+       ],
+       "value": {
+        "$compute": {
+         "expr": [
+          "concat",
+          {
+           "$v": "l"
+          },
+          [
+           "select",
+           [
+            "eq",
+            {
+             "$v": "sh"
+            },
+            0
+           ],
+           [
+            "select",
+            [
+             "and",
+             [
+              "ne",
+              {
+               "$v": "st"
+              },
+              "playing"
+             ],
+             [
+              "gt",
+              {
+               "$v": "sp"
+              },
+              0
+             ]
+            ],
+            "#",
+            "~"
+           ],
+           [
+            "select",
+            [
+             "gt",
+             {
+              "$v": "sp"
+             },
+             0
+            ],
+            "X",
+            "o"
+           ]
+          ],
+          " "
+         ],
+         "with": {
+          "l": {
+           "$path": [
+            "state",
+            "tmp",
+            "left"
+           ]
+          },
+          "sh": {
+           "$path": [
+            "state",
+            "game",
+            "eShots",
+            {
+             "$path": [
+              "state",
+              "tmp",
+              "i"
+             ]
+            }
+           ]
+          },
+          "sp": {
+           "$path": [
+            "state",
+            "game",
+            "eBoard",
+            {
+             "$path": [
+              "state",
+              "tmp",
+              "i"
+             ]
+            }
+           ]
+          },
+          "st": {
+           "$path": [
+            "state",
+            "game",
+            "status"
+           ]
+          }
+         }
+        }
+       }
+      },
+      {
+       "op": "set",
+       "path": [
+        "state",
+        "tmp",
+        "right"
+       ],
+       "value": {
+        "$compute": {
+         "expr": [
+          "concat",
+          {
+           "$v": "l"
+          },
+          [
+           "select",
+           [
+            "eq",
+            {
+             "$v": "sh"
+            },
+            0
+           ],
+           [
+            "select",
+            [
+             "gt",
+             {
+              "$v": "sp"
+             },
+             0
+            ],
+            "#",
+            "~"
+           ],
+           [
+            "select",
+            [
+             "gt",
+             {
+              "$v": "sp"
+             },
+             0
+            ],
+            "X",
+            "o"
+           ]
+          ],
+          " "
+         ],
+         "with": {
+          "l": {
+           "$path": [
+            "state",
+            "tmp",
+            "right"
+           ]
+          },
+          "sh": {
+           "$path": [
+            "state",
+            "game",
+            "pShots",
+            {
+             "$path": [
+              "state",
+              "tmp",
+              "i"
+             ]
+            }
+           ]
+          },
+          "sp": {
+           "$path": [
+            "state",
+            "game",
+            "pBoard",
+            {
+             "$path": [
+              "state",
+              "tmp",
+              "i"
+             ]
+            }
+           ]
+          }
+         }
+        }
+       }
+      }
+     ]
+    },
+    {
+     "op": "append",
+     "path": [
+      "state",
+      "lines"
+     ],
+     "value": {
+      "$compute": {
+       "expr": [
+        "concat",
+        [
+         "to_string",
+         {
+          "$v": "r"
+         }
+        ],
+        "   ",
+        {
+         "$v": "l"
+        },
+        "        ",
+        [
+         "to_string",
+         {
+          "$v": "r"
+         }
+        ],
+        "   ",
+        {
+         "$v": "rt"
+        }
+       ],
+       "with": {
+        "r": {
+         "$path": [
+          "local",
+          "r"
+         ]
+        },
+        "l": {
+         "$path": [
+          "state",
+          "tmp",
+          "left"
+         ]
+        },
+        "rt": {
+         "$path": [
+          "state",
+          "tmp",
+          "right"
+         ]
+        }
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "op": "append",
+   "path": [
+    "state",
+    "lines"
+   ],
+   "value": {
+    "$compute": {
+     "expr": [
+      "concat",
+      "Ships afloat - enemy: ",
+      [
+       "to_string",
+       [
+        "add",
+        [
+         "select",
+         [
+          "gt",
+          [
+           "get",
+           {
+            "$v": "e"
+           },
+           0
+          ],
+          0
+         ],
+         1,
+         0
+        ],
+        [
+         "select",
+         [
+          "gt",
+          [
+           "get",
+           {
+            "$v": "e"
+           },
+           1
+          ],
+          0
+         ],
+         1,
+         0
+        ],
+        [
+         "select",
+         [
+          "gt",
+          [
+           "get",
+           {
+            "$v": "e"
+           },
+           2
+          ],
+          0
+         ],
+         1,
+         0
+        ]
+       ]
+      ],
+      "   you: ",
+      [
+       "to_string",
+       [
+        "add",
+        [
+         "select",
+         [
+          "gt",
+          [
+           "get",
+           {
+            "$v": "p"
+           },
+           0
+          ],
+          0
+         ],
+         1,
+         0
+        ],
+        [
+         "select",
+         [
+          "gt",
+          [
+           "get",
+           {
+            "$v": "p"
+           },
+           1
+          ],
+          0
+         ],
+         1,
+         0
+        ],
+        [
+         "select",
+         [
+          "gt",
+          [
+           "get",
+           {
+            "$v": "p"
+           },
+           2
+          ],
+          0
+         ],
+         1,
+         0
+        ]
+       ]
+      ],
+      "   turn: ",
+      [
+       "to_string",
+       {
+        "$v": "t"
+       }
+      ]
+     ],
+     "with": {
+      "e": {
+       "$path": [
+        "state",
+        "game",
+        "eHP"
+       ]
+      },
+      "p": {
+       "$path": [
+        "state",
+        "game",
+        "pHP"
+       ]
+      },
+      "t": {
+       "$path": [
+        "state",
+        "game",
+        "turn"
+       ]
+      }
+     }
+    }
+   }
+  },
+  {
+   "op": "set",
+   "path": [
+    "output"
+   ],
+   "value": {
+    "$tpl": {
+     "game": {
+      "$path": [
+       "state",
+       "game"
+      ]
+     },
+     "view": {
+      "$path": [
+       "state",
+       "lines"
+      ]
+     },
+     "messages": {
+      "$path": [
+       "state",
+       "msgs"
+      ]
+     }
+    }
+   }
+  }
+ ],
+ "outputSchema": {
+  "type": "object",
+  "fields": {
+   "game": {
+    "type": "object",
+    "fields": {
+     "seed": {
+      "type": "number",
+      "int": true,
+      "min": 0,
+      "max": 2147483647
+     },
+     "turn": {
+      "type": "number",
+      "int": true,
+      "min": 0
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "playing",
+       "won",
+       "lost"
+      ]
+     },
+     "eShots": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 1
+      },
+      "minItems": 36,
+      "maxItems": 36
+     },
+     "pShots": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 1
+      },
+      "minItems": 36,
+      "maxItems": 36
+     },
+     "eBoard": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 3
+      },
+      "minItems": 36,
+      "maxItems": 36
+     },
+     "pBoard": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 3
+      },
+      "minItems": 36,
+      "maxItems": 36
+     },
+     "eHP": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 3
+      },
+      "minItems": 3,
+      "maxItems": 3
+     },
+     "pHP": {
+      "type": "array",
+      "items": {
+       "type": "number",
+       "int": true,
+       "min": 0,
+       "max": 3
+      },
+      "minItems": 3,
+      "maxItems": 3
+     }
+    },
+    "required": [
+     "seed",
+     "turn",
+     "status",
+     "eShots",
+     "pShots",
+     "eBoard",
+     "pBoard",
+     "eHP",
+     "pHP"
+    ]
+   },
+   "view": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   },
+   "messages": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    }
+   }
+  },
+  "required": [
+   "game",
+   "view",
+   "messages"
+  ]
+ }
+}

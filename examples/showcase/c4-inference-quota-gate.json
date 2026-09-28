@@ -1,0 +1,67 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "requests_this_window": 940,
+    "window_limit": 1000,
+    "request_units": 75,
+    "admin_override": false
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "requests_this_window": {"type": "number", "int": true, "min": 0},
+      "window_limit": {"type": "number", "int": true, "min": 1},
+      "request_units": {"type": "number", "int": true, "min": 0},
+      "admin_override": {"type": "boolean"}
+    },
+    "required": ["requests_this_window", "window_limit", "request_units", "admin_override"]
+  },
+  "program": [
+    {"op": "set", "path": ["state", "projected"], "value": {"$compute": {
+      "with": {"r": {"$path": ["input", "requests_this_window"]}, "u": {"$path": ["input", "request_units"]}},
+      "expr": ["add", {"$v": "r"}, {"$v": "u"}]
+    }}},
+    {"op": "set", "path": ["state", "over_limit"], "value": {"$compute": {
+      "with": {"p": {"$path": ["state", "projected"]}, "w": {"$path": ["input", "window_limit"]}},
+      "expr": ["gt", {"$v": "p"}, {"$v": "w"}]
+    }}},
+    {"op": "set", "path": ["state", "allowed"], "value": {"$compute": {
+      "with": {"o": {"$path": ["state", "over_limit"]}, "a": {"$path": ["input", "admin_override"]}},
+      "expr": ["or", ["not", {"$v": "o"}], {"$v": "a"}]
+    }}},
+    {"op": "set", "path": ["state", "remaining"], "value": {"$compute": {
+      "with": {"w": {"$path": ["input", "window_limit"]}, "p": {"$path": ["state", "projected"]}},
+      "expr": ["max", ["sub", {"$v": "w"}, {"$v": "p"}], 0]
+    }}},
+    {"op": "if", "cond": {"$path": ["state", "allowed"]},
+      "then": [
+        {"op": "if", "cond": {"$compute": {
+            "with": {"o": {"$path": ["state", "over_limit"]}, "a": {"$path": ["input", "admin_override"]}},
+            "expr": ["and", {"$v": "o"}, {"$v": "a"}]
+          }},
+          "then": [{"op": "set", "path": ["state", "reason"], "value": "allowed via admin_override despite exceeding window_limit"}],
+          "else": [{"op": "set", "path": ["state", "reason"], "value": "within window_limit"}]
+        }
+      ],
+      "else": [
+        {"op": "set", "path": ["state", "reason"], "value": "window_limit would be exceeded and admin_override is not set"}
+      ]
+    },
+    {"op": "set", "path": ["output"], "value": {"$tpl": {
+      "allowed": {"$path": ["state", "allowed"]},
+      "projected_requests": {"$path": ["state", "projected"]},
+      "remaining_budget": {"$path": ["state", "remaining"]},
+      "reason": {"$path": ["state", "reason"]}
+    }}}
+  ],
+  "outputSchema": {
+    "type": "object",
+    "fields": {
+      "allowed": {"type": "boolean"},
+      "projected_requests": {"type": "number", "int": true, "min": 0},
+      "remaining_budget": {"type": "number", "int": true, "min": 0},
+      "reason": {"type": "string"}
+    },
+    "required": ["allowed", "projected_requests", "remaining_budget", "reason"]
+  }
+}

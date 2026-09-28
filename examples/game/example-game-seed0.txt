@@ -1,0 +1,120 @@
+NAVY WARS   (seed 0; replay with -seed 0)
+
+      ENEMY WATERS              YOUR FLEET
+    0 1 2 3 4 5          0 1 2 3 4 5
+0   ~ ~ ~ ~ ~ ~         0   # # ~ ~ ~ ~ 
+1   ~ ~ ~ ~ ~ ~         1   ~ ~ ~ ~ ~ ~ 
+2   ~ ~ ~ ~ ~ ~         2   ~ ~ ~ ~ ~ ~ 
+3   ~ ~ ~ ~ ~ ~         3   ~ # # # ~ # 
+4   ~ ~ ~ ~ ~ ~         4   ~ ~ ~ ~ ~ # 
+5   ~ ~ ~ ~ ~ ~         5   ~ ~ ~ ~ ~ ~ 
+Ships afloat - enemy: 3   you: 3   turn: 0
+
+  New game. Sink the enemy fleet before it sinks yours.
+  Fire with: x y   (both 0 to 5)
+
+fire (x y, or q)> Illegal move: Off the board: x and y must be between 0 and 5.
+
+fire (x y, or q)> 
+      ENEMY WATERS              YOUR FLEET
+    0 1 2 3 4 5          0 1 2 3 4 5
+0   X ~ ~ ~ ~ ~         0   # # ~ ~ ~ ~ 
+1   ~ ~ ~ ~ ~ ~         1   ~ ~ ~ ~ ~ ~ 
+2   ~ ~ ~ ~ ~ ~         2   ~ ~ ~ ~ ~ ~ 
+3   ~ ~ ~ ~ ~ ~         3   ~ # # # ~ # 
+4   ~ ~ ~ ~ ~ ~         4   ~ ~ ~ ~ ~ # 
+5   ~ ~ ~ ~ ~ ~         5   ~ ~ ~ o ~ ~ 
+Ships afloat - enemy: 3   you: 3   turn: 1
+
+  You fire at (0,0): HIT!
+  Enemy fires at (3,5): MISS.
+
+fire (x y, or q)> Illegal move: You already fired there.
+
+fire (x y, or q)> Type two numbers, for example: 3 4
+
+fire (x y, or q)> 
+      ENEMY WATERS              YOUR FLEET
+    0 1 2 3 4 5          0 1 2 3 4 5
+0   X X ~ ~ ~ ~         0   # # ~ ~ ~ ~ 
+1   ~ ~ ~ ~ ~ ~         1   ~ ~ ~ ~ o ~ 
+2   ~ ~ ~ ~ ~ ~         2   ~ ~ ~ ~ ~ ~ 
+3   ~ ~ ~ ~ ~ ~         3   ~ # # # ~ # 
+4   ~ ~ ~ ~ ~ ~         4   ~ ~ ~ ~ ~ # 
+5   ~ ~ ~ ~ ~ ~         5   ~ ~ ~ o ~ ~ 
+Ships afloat - enemy: 3   you: 3   turn: 2
+
+  You fire at (1,0): HIT!
+  Enemy fires at (4,1): MISS.
+
+fire (x y, or q)> 
+      ENEMY WATERS              YOUR FLEET
+    0 1 2 3 4 5          0 1 2 3 4 5
+0   X X X ~ ~ ~         0   # # ~ ~ ~ ~ 
+1   ~ ~ ~ ~ ~ ~         1   ~ ~ ~ ~ o ~ 
+2   ~ ~ ~ ~ ~ ~         2   ~ ~ ~ ~ ~ ~ 
+3   ~ ~ ~ ~ ~ ~         3   ~ # # # ~ X 
+4   ~ ~ ~ ~ ~ ~         4   ~ ~ ~ ~ ~ # 
+5   ~ ~ ~ ~ ~ ~         5   ~ ~ ~ o ~ ~ 
+Ships afloat - enemy: 2   you: 3   turn: 3
+
+  You fire at (2,0): HIT! You sank the Cruiser!
+  Enemy fires at (5,3): HIT! Your Destroyer was hit!
+
+fire (x y, or q)> 
+      ENEMY WATERS              YOUR FLEET
+    0 1 2 3 4 5          0 1 2 3 4 5
+0   X X X ~ ~ ~         0   # # ~ ~ o ~ 
+1   ~ ~ ~ ~ ~ X         1   ~ ~ ~ ~ o ~ 
+2   ~ ~ ~ ~ ~ ~         2   ~ ~ ~ ~ ~ ~ 
+3   ~ ~ ~ ~ ~ ~         3   ~ # # # ~ X 
+4   ~ ~ ~ ~ ~ ~         4   ~ ~ ~ ~ ~ # 
+5   ~ ~ ~ ~ ~ ~         5   ~ ~ ~ o ~ ~ 
+Ships afloat - enemy: 2   you: 3   turn: 4
+
+  You fire at (5,1): HIT!
+  Enemy fires at (4,0): MISS.
+
+fire (x y, or q)> 
+      ENEMY WATERS              YOUR FLEET
+    0 1 2 3 4 5          0 1 2 3 4 5
+0   X X X ~ ~ ~         0   # # ~ ~ o o 
+1   ~ ~ ~ ~ ~ X         1   ~ ~ ~ ~ o ~ 
+2   ~ ~ ~ ~ ~ X         2   ~ ~ ~ ~ ~ ~ 
+3   ~ ~ ~ ~ ~ ~         3   ~ # # # ~ X 
+4   ~ ~ ~ ~ ~ ~         4   ~ ~ ~ ~ ~ # 
+5   ~ ~ ~ ~ ~ ~         5   ~ ~ ~ o ~ ~ 
+Ships afloat - enemy: 1   you: 3   turn: 5
+
+  You fire at (5,2): HIT! You sank the Destroyer!
+  Enemy fires at (5,0): MISS.
+
+fire (x y, or q)> 
+      ENEMY WATERS              YOUR FLEET
+    0 1 2 3 4 5          0 1 2 3 4 5
+0   X X X ~ ~ ~         0   # # o ~ o o 
+1   ~ ~ ~ ~ ~ X         1   ~ ~ ~ ~ o ~ 
+2   ~ ~ ~ ~ ~ X         2   ~ ~ ~ ~ ~ ~ 
+3   ~ ~ ~ ~ ~ ~         3   ~ # # # ~ X 
+4   ~ ~ X ~ ~ ~         4   ~ ~ ~ ~ ~ # 
+5   ~ ~ ~ ~ ~ ~         5   ~ ~ ~ o ~ ~ 
+Ships afloat - enemy: 1   you: 3   turn: 6
+
+  You fire at (2,4): HIT!
+  Enemy fires at (2,0): MISS.
+
+fire (x y, or q)> 
+      ENEMY WATERS              YOUR FLEET
+    0 1 2 3 4 5          0 1 2 3 4 5
+0   X X X ~ ~ ~         0   # # o ~ o o 
+1   ~ ~ ~ ~ ~ X         1   ~ ~ ~ ~ o ~ 
+2   ~ ~ ~ ~ ~ X         2   ~ ~ ~ ~ ~ ~ 
+3   ~ ~ ~ ~ ~ ~         3   ~ # # # ~ X 
+4   ~ ~ X X ~ ~         4   ~ ~ ~ ~ ~ # 
+5   ~ ~ ~ ~ ~ ~         5   ~ ~ ~ o ~ ~ 
+Ships afloat - enemy: 0   you: 3   turn: 7
+
+  You fire at (3,4): HIT! You sank the Patrol boat!
+  VICTORY! You sank the entire enemy fleet.
+
+Game over after 7 turns.

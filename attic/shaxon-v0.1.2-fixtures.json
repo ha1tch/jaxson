@@ -1,0 +1,211 @@
+[
+  {
+    "name": "extends-pools-xone-alternatives-not-just-childs-own",
+    "shaxon": "1.2",
+    "limits": { "steps": 200, "maxShapeDepth": 2 },
+    "input": { "n": 4 },
+    "inputSchema": {
+      "type": "object",
+      "fields": { "n": { "type": "number" } },
+      "required": ["n"]
+    },
+    "shapes": {
+      "IsEven": {
+        "kind": "number",
+        "check": {
+          "with": { "v": { "$path": ["local", "focus"] } },
+          "expr": ["eq", ["mod", { "$v": "v" }, 2], 0]
+        },
+        "severity": "violation",
+        "message": "must be even"
+      },
+      "IsPositive": {
+        "kind": "number",
+        "check": {
+          "with": { "v": { "$path": ["local", "focus"] } },
+          "expr": ["gt", { "$v": "v" }, 0]
+        },
+        "severity": "violation",
+        "message": "must be positive"
+      },
+      "HasXone": {
+        "kind": "node",
+        "xone": [ { "shape": "IsEven" } ]
+      },
+      "StrictPositive": {
+        "kind": "node",
+        "extends": "HasXone",
+        "xone": [ { "shape": "IsPositive" } ],
+        "severity": "violation",
+        "message": "must be exactly one of even or positive, pooled with what extends contributes"
+      }
+    },
+    "program": [
+      {
+        "op": "check",
+        "target": { "$path": ["input", "n"] },
+        "shape": "StrictPositive",
+        "mode": "report",
+        "into": ["output", "result"]
+      }
+    ],
+    "outputSchema": { "type": "any" },
+    "expect": {
+      "output": {
+        "result": {
+          "conforms": false,
+          "violations": [
+            {
+              "focusPath": ["input", "n"],
+              "shape": "StrictPositive",
+              "severity": "violation",
+              "message": "must be exactly one of even or positive, pooled with what extends contributes",
+              "code": null
+            }
+          ]
+        }
+      }
+    },
+    "note": "n=4 matches both IsEven and IsPositive. Against StrictPositive's own xone list alone (just IsPositive) this would trivially pass — nothing else in a one-element list to conflict with. Once extends pools HasXone's alternative in (section 4), the merged xone list is [IsEven, IsPositive], both match, and 'exactly one' fails. An interpreter that merges only fields/closed per the old v0.0.1 wording and treats xone as child-only would report conforms:true here instead — the gap this fixture exists to catch."
+  },
+  {
+    "name": "array-of-references-reports-one-violation-per-dangling-element",
+    "shaxon": "1.2",
+    "limits": { "steps": 200, "maxShapeDepth": 2 },
+    "input": {
+      "tags": [ {"id": 1}, {"id": 2} ],
+      "order": { "tagIds": [1, 2, 5, 7] }
+    },
+    "inputSchema": {
+      "type": "object",
+      "fields": {
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "fields": { "id": { "type": "number" } },
+            "required": ["id"]
+          }
+        },
+        "order": {
+          "type": "object",
+          "fields": {
+            "tagIds": { "type": "array", "items": { "type": "number" } }
+          },
+          "required": ["tagIds"]
+        }
+      },
+      "required": ["tags", "order"]
+    },
+    "indices": {
+      "tagsById": {
+        "source": { "$path": ["input", "tags"] },
+        "key": { "$path": ["local", "item", "id"] }
+      }
+    },
+    "shapes": {
+      "Order": {
+        "kind": "object",
+        "fields": {
+          "tagIds": {
+            "kind": "array",
+            "items": { "kind": "reference", "index": "tagsById" }
+          }
+        },
+        "required": ["tagIds"]
+      }
+    },
+    "program": [
+      {
+        "op": "check",
+        "target": { "$path": ["input", "order"] },
+        "shape": "Order",
+        "mode": "report",
+        "into": ["output", "report"]
+      }
+    ],
+    "outputSchema": { "type": "any" },
+    "expect": {
+      "output": {
+        "report": {
+          "conforms": false,
+          "violations": [
+            {
+              "focusPath": ["input", "order", "tagIds", 2],
+              "shape": "Order",
+              "severity": "violation",
+              "message": "referenced value is not present in the named index",
+              "code": "DANGLING_REFERENCE"
+            },
+            {
+              "focusPath": ["input", "order", "tagIds", 3],
+              "shape": "Order",
+              "severity": "violation",
+              "message": "referenced value is not present in the named index",
+              "code": "DANGLING_REFERENCE"
+            }
+          ]
+        }
+      }
+    },
+    "note": "tagIds has 4 entries; only 5 and 7 (indices 2 and 3) are dangling against tagsById={1,2}. report mode must produce two separate violations at their own array-index focusPaths, not one aggregate finding for the field — section 5's reporting-granularity rule."
+  },
+  {
+    "name": "redundant-relation-and-shorthand-rejected-at-load",
+    "shaxon": "1.2",
+    "limits": { "steps": 50, "maxShapeDepth": 2 },
+    "input": {
+      "customers": [ {"id": 1} ],
+      "orders": [ {"id": 10, "customerId": 1} ]
+    },
+    "inputSchema": {
+      "type": "object",
+      "fields": {
+        "customers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "fields": { "id": { "type": "number" } },
+            "required": ["id"]
+          }
+        },
+        "orders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "fields": {
+              "id": { "type": "number" },
+              "customerId": { "type": "number" }
+            },
+            "required": ["id", "customerId"]
+          }
+        }
+      },
+      "required": ["customers", "orders"]
+    },
+    "relations": {
+      "orderCustomer": {
+        "from": { "path": ["input", "orders"], "field": "customerId" },
+        "to": { "path": ["input", "customers"], "key": "id" }
+      }
+    },
+    "shapes": {
+      "Order": {
+        "kind": "object",
+        "fields": {
+          "id": { "kind": "number" },
+          "customerId": {
+            "kind": "reference",
+            "of": { "$path": ["input", "customers"] },
+            "by": ["id"]
+          }
+        },
+        "required": ["id", "customerId"]
+      }
+    },
+    "program": [],
+    "outputSchema": { "type": "any" },
+    "expect": { "error": { "category": "SHAPE_ERROR" } },
+    "note": "customerId's inline reference shorthand (of: input.customers, by: [id]) normalizes to the identical (path, key) pair as orderCustomer's 'to' side. Rejected at package load, before program (which is empty here) ever runs — section 4c's static duplicate-declaration check."
+  }
+]

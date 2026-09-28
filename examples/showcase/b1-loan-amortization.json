@@ -1,0 +1,87 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "principal": 10000,
+    "annual_rate": 0.06,
+    "payment_schedule": [1200, 1200, 1200, 1200, 1200, 1200]
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "principal": {"type": "number", "min": 0},
+      "annual_rate": {"type": "number", "min": 0, "max": 1},
+      "payment_schedule": {"type": "array", "minItems": 1, "maxItems": 360, "items": {"type": "number", "min": 0}}
+    },
+    "required": ["principal", "annual_rate", "payment_schedule"]
+  },
+  "program": [
+    {"op": "set", "path": ["state", "monthly_rate"], "value": {"$compute": {
+      "with": {"a": {"$path": ["input", "annual_rate"]}}, "expr": ["div", {"$v": "a"}, 12, 8]
+    }}},
+    {"op": "set", "path": ["state", "balance"], "value": {"$path": ["input", "principal"]}},
+    {"op": "set", "path": ["state", "schedule"], "value": []},
+    {"op": "for", "in": {"$path": ["input", "payment_schedule"]}, "as": "payment", "index": "i", "do": [
+      {"op": "set", "path": ["state", "interest"], "value": {"$compute": {
+        "with": {"b": {"$path": ["state", "balance"]}, "r": {"$path": ["state", "monthly_rate"]}},
+        "expr": ["round", ["mul", {"$v": "b"}, {"$v": "r"}], 2, "half_up"]
+      }}},
+      {"op": "set", "path": ["state", "principal_paid"], "value": {"$compute": {
+        "with": {"p": {"$path": ["local", "payment"]}, "intr": {"$path": ["state", "interest"]}},
+        "expr": ["sub", {"$v": "p"}, {"$v": "intr"}]
+      }}},
+      {"op": "set", "path": ["state", "balance"], "value": {"$compute": {
+        "with": {"b": {"$path": ["state", "balance"]}, "pp": {"$path": ["state", "principal_paid"]}},
+        "expr": ["sub", {"$v": "b"}, {"$v": "pp"}]
+      }}},
+      {"op": "assert", "that": {"$compute": {
+        "with": {"b": {"$path": ["state", "balance"]}}, "expr": ["ge", {"$v": "b"}, 0]
+      }}, "msg": "balance went negative -- payment_schedule overshoots remaining principal"},
+      {"op": "append", "path": ["state", "schedule"], "value": {"$tpl": {
+        "period": {"$compute": {"with": {"i": {"$path": ["local", "i"]}}, "expr": ["add", {"$v": "i"}, 1]}},
+        "interest": {"$path": ["state", "interest"]},
+        "principal": {"$path": ["state", "principal_paid"]},
+        "balance": {"$path": ["state", "balance"]},
+        "cash_flow": {"$compute": {"with": {"p": {"$path": ["local", "payment"]}}, "expr": ["neg", {"$v": "p"}]}},
+        "note": "scheduled payment"
+      }}}
+    ]},
+    {"op": "insert", "path": ["state", "schedule"], "at": 0, "value": {"$tpl": {
+      "period": 0,
+      "interest": 0,
+      "principal": 0,
+      "balance": {"$path": ["input", "principal"]},
+      "cash_flow": {"$path": ["input", "principal"]},
+      "note": "loan origination"
+    }}},
+    {"op": "set", "path": ["output"], "value": {"$tpl": {
+      "principal": {"$path": ["input", "principal"]},
+      "monthly_rate": {"$path": ["state", "monthly_rate"]},
+      "schedule": {"$path": ["state", "schedule"]},
+      "ending_balance": {"$path": ["state", "balance"]}
+    }}}
+  ],
+  "outputSchema": {
+    "type": "object",
+    "fields": {
+      "principal": {"type": "number"},
+      "monthly_rate": {"type": "number"},
+      "schedule": {
+        "type": "array", "minItems": 7, "maxItems": 7,
+        "items": {
+          "type": "object",
+          "fields": {
+            "period": {"type": "number", "int": true, "min": 0},
+            "interest": {"type": "number", "min": 0},
+            "principal": {"type": "number"},
+            "balance": {"type": "number", "min": 0},
+            "cash_flow": {"type": "number"},
+            "note": {"type": "string"}
+          },
+          "required": ["period", "interest", "principal", "balance", "cash_flow", "note"]
+        }
+      },
+      "ending_balance": {"type": "number", "min": 0}
+    },
+    "required": ["principal", "monthly_rate", "schedule", "ending_balance"]
+  }
+}

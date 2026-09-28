@@ -1,0 +1,115 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "currency": "USD",
+    "tax_rate": 0.08,
+    "line_items": [
+      {"sku": "WIDGET-1", "description": "Widget, blue", "unit_price": 19.99, "quantity": "12"},
+      {"sku": "WIDGET-2", "description": "Widget, red", "unit_price": 19.99, "quantity": "3"},
+      {"sku": "GADGET-9", "description": "Gadget deluxe", "unit_price": 149.5, "quantity": "1"}
+    ]
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]},
+      "tax_rate": {"type": "number", "min": 0, "max": 1},
+      "line_items": {
+        "type": "array", "minItems": 1,
+        "items": {
+          "type": "object",
+          "fields": {
+            "sku": {"type": "string", "minLen": 1, "maxLen": 30},
+            "description": {"type": "string", "minLen": 1, "maxLen": 120},
+            "unit_price": {"type": "number", "min": 0},
+            "quantity": {"type": "string", "minLen": 1, "maxLen": 6}
+          },
+          "required": ["sku", "description", "unit_price", "quantity"]
+        }
+      }
+    },
+    "required": ["currency", "tax_rate", "line_items"]
+  },
+  "program": [
+    {"op": "set", "path": ["state", "lines"], "value": []},
+    {"op": "set", "path": ["state", "invoice_subtotal"], "value": 0},
+    {"op": "for", "in": {"$path": ["input", "line_items"]}, "as": "item", "do": [
+      {"op": "set", "path": ["state", "qty"], "value": {"$compute": {
+        "with": {"q": {"$path": ["local", "item", "quantity"]}}, "expr": ["to_number", {"$v": "q"}]
+      }}},
+      {"op": "set", "path": ["state", "line_raw"], "value": {"$compute": {
+        "with": {"p": {"$path": ["local", "item", "unit_price"]}, "q": {"$path": ["state", "qty"]}},
+        "expr": ["mul", {"$v": "p"}, {"$v": "q"}]
+      }}},
+      {"op": "if", "cond": {"$compute": {"with": {"q": {"$path": ["state", "qty"]}}, "expr": ["ge", {"$v": "q"}, 10]}},
+        "then": [{"op": "set", "path": ["state", "discount_rate"], "value": 0.1}],
+        "else": [
+          {"op": "if", "cond": {"$compute": {"with": {"q": {"$path": ["state", "qty"]}}, "expr": ["ge", {"$v": "q"}, 5]}},
+            "then": [{"op": "set", "path": ["state", "discount_rate"], "value": 0.05}],
+            "else": [{"op": "set", "path": ["state", "discount_rate"], "value": 0}]
+          }
+        ]
+      },
+      {"op": "set", "path": ["state", "discount_amount"], "value": {"$compute": {
+        "with": {"raw": {"$path": ["state", "line_raw"]}, "dr": {"$path": ["state", "discount_rate"]}},
+        "expr": ["round", ["mul", {"$v": "raw"}, {"$v": "dr"}], 2, "half_up"]
+      }}},
+      {"op": "set", "path": ["state", "line_total"], "value": {"$compute": {
+        "with": {"raw": {"$path": ["state", "line_raw"]}, "disc": {"$path": ["state", "discount_amount"]}},
+        "expr": ["round", ["sub", {"$v": "raw"}, {"$v": "disc"}], 2, "half_up"]
+      }}},
+      {"op": "append", "path": ["state", "lines"], "value": {"$tpl": {
+        "sku": {"$path": ["local", "item", "sku"]},
+        "quantity": {"$path": ["state", "qty"]},
+        "unit_price": {"$path": ["local", "item", "unit_price"]},
+        "discount_rate": {"$path": ["state", "discount_rate"]},
+        "discount_amount": {"$path": ["state", "discount_amount"]},
+        "line_total": {"$path": ["state", "line_total"]}
+      }}},
+      {"op": "set", "path": ["state", "invoice_subtotal"], "value": {"$compute": {
+        "with": {"s": {"$path": ["state", "invoice_subtotal"]}, "lt": {"$path": ["state", "line_total"]}},
+        "expr": ["add", {"$v": "s"}, {"$v": "lt"}]
+      }}}
+    ]},
+    {"op": "set", "path": ["state", "tax_amount"], "value": {"$compute": {
+      "with": {"s": {"$path": ["state", "invoice_subtotal"]}, "t": {"$path": ["input", "tax_rate"]}},
+      "expr": ["round", ["mul", {"$v": "s"}, {"$v": "t"}], 2, "half_up"]
+    }}},
+    {"op": "set", "path": ["state", "grand_total"], "value": {"$compute": {
+      "with": {"s": {"$path": ["state", "invoice_subtotal"]}, "tax": {"$path": ["state", "tax_amount"]}},
+      "expr": ["add", {"$v": "s"}, {"$v": "tax"}]
+    }}},
+    {"op": "set", "path": ["output"], "value": {"$tpl": {
+      "currency": {"$path": ["input", "currency"]},
+      "lines": {"$path": ["state", "lines"]},
+      "subtotal": {"$path": ["state", "invoice_subtotal"]},
+      "tax_amount": {"$path": ["state", "tax_amount"]},
+      "grand_total": {"$path": ["state", "grand_total"]}
+    }}}
+  ],
+  "outputSchema": {
+    "type": "object",
+    "fields": {
+      "currency": {"type": "string"},
+      "lines": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "fields": {
+            "sku": {"type": "string"},
+            "quantity": {"type": "number", "int": true, "min": 0},
+            "unit_price": {"type": "number", "min": 0},
+            "discount_rate": {"type": "number", "min": 0},
+            "discount_amount": {"type": "number", "min": 0},
+            "line_total": {"type": "number", "min": 0}
+          },
+          "required": ["sku", "quantity", "unit_price", "discount_rate", "discount_amount", "line_total"]
+        }
+      },
+      "subtotal": {"type": "number", "min": 0},
+      "tax_amount": {"type": "number", "min": 0},
+      "grand_total": {"type": "number", "min": 0}
+    },
+    "required": ["currency", "lines", "subtotal", "tax_amount", "grand_total"]
+  }
+}

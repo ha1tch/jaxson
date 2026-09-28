@@ -1,0 +1,73 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "learning_rates": [0.1, 0.01, 0.001],
+    "batch_sizes": [32, 64],
+    "baseline": {"learning_rate": 0.01, "batch_size": 32},
+    "max_jobs": 10
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "learning_rates": {"type": "array", "minItems": 1, "items": {"type": "number", "min": 0}},
+      "batch_sizes": {"type": "array", "minItems": 1, "items": {"type": "number", "int": true, "min": 1}},
+      "baseline": {
+        "type": "object",
+        "fields": {
+          "learning_rate": {"type": "number", "min": 0},
+          "batch_size": {"type": "number", "int": true, "min": 1}
+        },
+        "required": ["learning_rate", "batch_size"]
+      },
+      "max_jobs": {"type": "number", "int": true, "min": 1}
+    },
+    "required": ["learning_rates", "batch_sizes", "baseline", "max_jobs"]
+  },
+  "program": [
+    {"op": "set", "path": ["state", "jobs"], "value": []},
+    {"op": "for", "in": {"$path": ["input", "learning_rates"]}, "as": "lr", "do": [
+      {"op": "for", "in": {"$path": ["input", "batch_sizes"]}, "as": "bs", "do": [
+        {"op": "append", "path": ["state", "jobs"], "value": {"$tpl": {
+          "learning_rate": {"$path": ["local", "lr"]},
+          "batch_size": {"$path": ["local", "bs"]},
+          "source": "grid"
+        }}}
+      ]}
+    ]},
+    {"op": "insert", "path": ["state", "jobs"], "at": 0, "value": {"$tpl": {
+      "learning_rate": {"$path": ["input", "baseline", "learning_rate"]},
+      "batch_size": {"$path": ["input", "baseline", "batch_size"]},
+      "source": "baseline"
+    }}},
+    {"op": "set", "path": ["state", "total_jobs"], "value": {"$compute": {
+      "with": {"j": {"$path": ["state", "jobs"]}}, "expr": ["len", {"$v": "j"}]
+    }}},
+    {"op": "assert", "that": {"$compute": {
+      "with": {"t": {"$path": ["state", "total_jobs"]}, "m": {"$path": ["input", "max_jobs"]}},
+      "expr": ["le", {"$v": "t"}, {"$v": "m"}]
+    }}, "msg": "grid expansion exceeds max_jobs quota"},
+    {"op": "set", "path": ["output"], "value": {"$tpl": {
+      "total_jobs": {"$path": ["state", "total_jobs"]},
+      "jobs": {"$path": ["state", "jobs"]}
+    }}}
+  ],
+  "outputSchema": {
+    "type": "object",
+    "fields": {
+      "total_jobs": {"type": "number", "int": true, "min": 1},
+      "jobs": {
+        "type": "array", "minItems": 1,
+        "items": {
+          "type": "object",
+          "fields": {
+            "learning_rate": {"type": "number"},
+            "batch_size": {"type": "number", "int": true},
+            "source": {"type": "string", "enum": ["grid", "baseline"]}
+          },
+          "required": ["learning_rate", "batch_size", "source"]
+        }
+      }
+    },
+    "required": ["total_jobs", "jobs"]
+  }
+}

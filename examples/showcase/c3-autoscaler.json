@@ -1,0 +1,101 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "current_replicas": 4,
+    "current_utilization": 0.82,
+    "target_utilization": 0.6,
+    "min_replicas": 2,
+    "max_replicas": 10,
+    "deadband": 0.05
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "current_replicas": {"type": "number", "int": true, "min": 0},
+      "current_utilization": {"type": "number", "min": 0, "max": 1},
+      "target_utilization": {"type": "number", "min": 0, "max": 1},
+      "min_replicas": {"type": "number", "int": true, "min": 0},
+      "max_replicas": {"type": "number", "int": true, "min": 0},
+      "deadband": {"type": "number", "min": 0}
+    },
+    "required": ["current_replicas", "current_utilization", "target_utilization", "min_replicas", "max_replicas", "deadband"]
+  },
+  "program": [
+    {"op": "assert", "that": {"$compute": {
+      "with": {"mn": {"$path": ["input", "min_replicas"]}, "mx": {"$path": ["input", "max_replicas"]}},
+      "expr": ["le", {"$v": "mn"}, {"$v": "mx"}]
+    }}, "msg": "min_replicas must not exceed max_replicas"},
+    {"op": "assert", "that": {"$compute": {
+      "with": {"t": {"$path": ["input", "target_utilization"]}}, "expr": ["gt", {"$v": "t"}, 0]
+    }}, "msg": "target_utilization must be positive"},
+    {"op": "set", "path": ["state", "diff"], "value": {"$compute": {
+      "with": {"c": {"$path": ["input", "current_utilization"]}, "t": {"$path": ["input", "target_utilization"]}},
+      "expr": ["abs", ["sub", {"$v": "c"}, {"$v": "t"}]]
+    }}},
+    {"op": "if", "cond": {"$compute": {
+        "with": {"d": {"$path": ["state", "diff"]}, "db": {"$path": ["input", "deadband"]}},
+        "expr": ["le", {"$v": "d"}, {"$v": "db"}]
+      }},
+      "then": [
+        {"op": "set", "path": ["output"], "value": {"$tpl": {
+          "current_replicas": {"$path": ["input", "current_replicas"]},
+          "desired_replicas": {"$path": ["input", "current_replicas"]},
+          "action": "none",
+          "bounds": {"$compute": {
+            "with": {"mn": {"$path": ["input", "min_replicas"]}, "mx": {"$path": ["input", "max_replicas"]}},
+            "expr": ["list", {"$v": "mn"}, {"$v": "mx"}]
+          }}
+        }}},
+        {"op": "halt"}
+      ],
+      "else": [
+        {"op": "set", "path": ["state", "ratio"], "value": {"$compute": {
+          "with": {"c": {"$path": ["input", "current_utilization"]}, "t": {"$path": ["input", "target_utilization"]}},
+          "expr": ["div", {"$v": "c"}, {"$v": "t"}, 6]
+        }}},
+        {"op": "set", "path": ["state", "raw_desired"], "value": {"$compute": {
+          "with": {"r": {"$path": ["input", "current_replicas"]}, "ra": {"$path": ["state", "ratio"]}},
+          "expr": ["round", ["mul", {"$v": "r"}, {"$v": "ra"}], 0, "half_up"]
+        }}},
+        {"op": "set", "path": ["state", "desired"], "value": {"$compute": {
+          "with": {"rd": {"$path": ["state", "raw_desired"]}, "mn": {"$path": ["input", "min_replicas"]}, "mx": {"$path": ["input", "max_replicas"]}},
+          "expr": ["min", ["max", {"$v": "rd"}, {"$v": "mn"}], {"$v": "mx"}]
+        }}},
+        {"op": "if", "cond": {"$compute": {
+            "with": {"d": {"$path": ["state", "desired"]}, "c": {"$path": ["input", "current_replicas"]}},
+            "expr": ["ne", {"$v": "d"}, {"$v": "c"}]
+          }},
+          "then": [
+            {"op": "if", "cond": {"$compute": {
+                "with": {"d": {"$path": ["state", "desired"]}, "c": {"$path": ["input", "current_replicas"]}},
+                "expr": ["gt", {"$v": "d"}, {"$v": "c"}]
+              }},
+              "then": [{"op": "set", "path": ["state", "action"], "value": "scale_up"}],
+              "else": [{"op": "set", "path": ["state", "action"], "value": "scale_down"}]
+            }
+          ],
+          "else": [{"op": "set", "path": ["state", "action"], "value": "none"}]
+        }
+      ]
+    },
+    {"op": "set", "path": ["output"], "value": {"$tpl": {
+      "current_replicas": {"$path": ["input", "current_replicas"]},
+      "desired_replicas": {"$path": ["state", "desired"]},
+      "action": {"$path": ["state", "action"]},
+      "bounds": {"$compute": {
+        "with": {"mn": {"$path": ["input", "min_replicas"]}, "mx": {"$path": ["input", "max_replicas"]}},
+        "expr": ["list", {"$v": "mn"}, {"$v": "mx"}]
+      }}
+    }}}
+  ],
+  "outputSchema": {
+    "type": "object",
+    "fields": {
+      "current_replicas": {"type": "number", "int": true, "min": 0},
+      "desired_replicas": {"type": "number", "int": true, "min": 0},
+      "action": {"type": "string", "enum": ["none", "scale_up", "scale_down"]},
+      "bounds": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number", "int": true, "min": 0}}
+    },
+    "required": ["current_replicas", "desired_replicas", "action", "bounds"]
+  }
+}

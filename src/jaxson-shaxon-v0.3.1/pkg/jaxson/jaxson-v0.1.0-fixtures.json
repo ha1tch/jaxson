@@ -1,0 +1,335 @@
+[
+  {
+    "name": "sum-of-prices",
+    "jaxson": "1.0",
+    "input": {"items": [{"price": 10}, {"price": 20}, {"price": 30}]},
+    "inputSchema": {"type": "object", "fields": {"items": {"type": "array", "items": {"type": "object", "fields": {"price": {"type": "number"}}, "required": ["price"]}}}, "required": ["items"]},
+    "program": [
+      {"op": "set", "path": ["state", "total"], "value": 0},
+      {"op": "for", "in": {"$path": ["input", "items"]}, "as": "item", "do": [
+        {"op": "set", "path": ["state", "total"], "value": {"$compute": {
+          "with": {"t": {"$path": ["state", "total"]}, "p": {"$path": ["local", "item", "price"]}},
+          "expr": ["add", {"$v": "t"}, {"$v": "p"}]}}}
+      ]},
+      {"op": "set", "path": ["output"], "value": {"$tpl": {"total": {"$path": ["state", "total"]}}}}
+    ],
+    "outputSchema": {"type": "object", "fields": {"total": {"type": "number"}}, "required": ["total"]},
+    "expect": {"output": {"total": 60}}
+  },
+  {
+    "name": "template-opt-omits-absent-keeps-null",
+    "jaxson": "1.0",
+    "input": {"name": "Ada", "nickname": null},
+    "inputSchema": {"type": "object", "fields": {"name": {"type": "string"}, "nickname": {"type": "string", "nullable": true}, "age": {"type": "number"}, "tag": {"type": "string"}}, "required": ["name"]},
+    "program": [
+      {"op": "set", "path": ["output"], "value": {"$tpl": {
+        "name": {"$path": ["input", "name"]},
+        "nickname": {"$opt": ["input", "nickname"]},
+        "age": {"$opt": ["input", "age"]},
+        "tags": ["a", {"$opt": ["input", "tag"]}]}}}
+    ],
+    "outputSchema": {"type": "object", "fields": {"name": {"type": "string"}, "nickname": {"type": "string", "nullable": true}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["name", "nickname", "tags"]},
+    "expect": {"output": {"name": "Ada", "nickname": null, "tags": ["a"]}}
+  },
+  {
+    "name": "null-is-not-missing",
+    "jaxson": "1.0",
+    "input": {"a": null},
+    "inputSchema": {"type": "object", "fields": {"a": {"type": "any"}, "b": {"type": "any"}}, "required": ["a"]},
+    "program": [
+      {"op": "set", "path": ["output"], "value": {"$tpl": {
+        "has_a": {"$compute": {"with": {"i": {"$path": ["input"]}}, "expr": ["has", {"$v": "i"}, "a"]}},
+        "has_b": {"$compute": {"with": {"i": {"$path": ["input"]}}, "expr": ["has", {"$v": "i"}, "b"]}},
+        "a_is_null": {"$compute": {"with": {"a": {"$path": ["input", "a"]}}, "expr": ["eq", {"$v": "a"}, null]}},
+        "b_or_default": {"$compute": {"with": {"i": {"$path": ["input"]}}, "expr": ["get_or", {"$v": "i"}, "b", "none"]}}}}}
+    ],
+    "outputSchema": {"type": "object", "fields": {"has_a": {"type": "boolean"}, "has_b": {"type": "boolean"}, "a_is_null": {"type": "boolean"}, "b_or_default": {"type": "string"}}, "required": ["has_a", "has_b", "a_is_null", "b_or_default"]},
+    "expect": {"output": {"has_a": true, "has_b": false, "a_is_null": true, "b_or_default": "none"}}
+  },
+  {
+    "name": "decimal-arithmetic-is-exact",
+    "jaxson": "1.0",
+    "input": {"a": 0.1, "b": 0.2},
+    "inputSchema": {"type": "object", "fields": {"a": {"type": "number"}, "b": {"type": "number"}}, "required": ["a", "b"]},
+    "program": [
+      {"op": "set", "path": ["output"], "value": {"$tpl": {
+        "sum": {"$compute": {"with": {"a": {"$path": ["input", "a"]}, "b": {"$path": ["input", "b"]}}, "expr": ["add", {"$v": "a"}, {"$v": "b"}]}},
+        "third": {"$compute": {"expr": ["div", 10, 3, 2]}},
+        "r_even": {"$compute": {"expr": ["round", 2.5, 0]}},
+        "r_up": {"$compute": {"expr": ["round", 2.5, 0, "half_up"]}},
+        "r_neg_even": {"$compute": {"expr": ["round", -2.5, 0]}},
+        "down": {"$compute": {"expr": ["round", -2.7, 0, "down"]}}}}}
+    ],
+    "outputSchema": {"type": "object", "fields": {"sum": {"type": "number"}, "third": {"type": "number"}, "r_even": {"type": "number", "int": true}, "r_up": {"type": "number", "int": true}, "r_neg_even": {"type": "number", "int": true}, "down": {"type": "number", "int": true}}, "required": ["sum", "third", "r_even", "r_up", "r_neg_even", "down"]},
+    "expect": {"output": {"sum": 0.3, "third": 3.33, "r_even": 2, "r_up": 3, "r_neg_even": -2, "down": -2}}
+  },
+  {
+    "name": "missing-path-is-an-error",
+    "jaxson": "1.0",
+    "input": {},
+    "inputSchema": {"type": "object", "fields": {}},
+    "program": [{"op": "set", "path": ["output"], "value": {"$path": ["input", "nope"]}}],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "EXECUTION_ERROR", "code": "MISSING_PATH"}}
+  },
+  {
+    "name": "division-by-zero",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [{"op": "set", "path": ["output"], "value": {"$compute": {"expr": ["div", 1, 0, 2]}}}],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "EXECUTION_ERROR", "code": "DIV_ZERO"}}
+  },
+  {
+    "name": "objects-are-closed-by-default",
+    "jaxson": "1.0",
+    "input": {"a": 1, "b": 2},
+    "inputSchema": {"type": "object", "fields": {"a": {"type": "number"}}, "required": ["a"]},
+    "program": [],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "INPUT_ERROR"}}
+  },
+  {
+    "name": "output-contract-is-enforced",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [{"op": "set", "path": ["output"], "value": "text"}],
+    "outputSchema": {"type": "number"},
+    "expect": {"error": {"category": "OUTPUT_ERROR"}}
+  },
+  {
+    "name": "loop-iterates-a-snapshot",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [
+      {"op": "set", "path": ["state", "xs"], "value": [1, 2, 3]},
+      {"op": "for", "in": {"$path": ["state", "xs"]}, "as": "x", "do": [
+        {"op": "append", "path": ["state", "xs"], "value": {"$path": ["local", "x"]}}
+      ]},
+      {"op": "set", "path": ["output"], "value": {"$path": ["state", "xs"]}}
+    ],
+    "outputSchema": {"type": "array", "items": {"type": "number"}},
+    "expect": {"output": [1, 2, 3, 1, 2, 3]}
+  },
+  {
+    "name": "nested-loops-with-index",
+    "jaxson": "1.0",
+    "input": {"rows": [[1, 2], [3, 4]]},
+    "inputSchema": {"type": "object", "fields": {"rows": {"type": "array", "items": {"type": "array", "items": {"type": "number"}}}}, "required": ["rows"]},
+    "program": [
+      {"op": "set", "path": ["state", "out"], "value": []},
+      {"op": "for", "in": {"$path": ["input", "rows"]}, "as": "row", "index": "i", "do": [
+        {"op": "for", "in": {"$path": ["local", "row"]}, "as": "v", "index": "j", "do": [
+          {"op": "append", "path": ["state", "out"], "value": {"$compute": {
+            "with": {"i": {"$path": ["local", "i"]}, "j": {"$path": ["local", "j"]}, "v": {"$path": ["local", "v"]}},
+            "expr": ["concat", ["to_string", {"$v": "i"}], ":", ["to_string", {"$v": "j"}], "=", ["to_string", {"$v": "v"}]]}}}
+        ]}
+      ]},
+      {"op": "set", "path": ["output"], "value": {"$path": ["state", "out"]}}
+    ],
+    "outputSchema": {"type": "array", "items": {"type": "string"}},
+    "expect": {"output": ["0:0=1", "0:1=2", "1:0=3", "1:1=4"]}
+  },
+  {
+    "name": "shadowed-loop-binding-is-rejected",
+    "jaxson": "1.0",
+    "input": {"xs": [1]},
+    "inputSchema": {"type": "object", "fields": {"xs": {"type": "array"}}, "required": ["xs"]},
+    "program": [
+      {"op": "for", "in": {"$path": ["input", "xs"]}, "as": "x", "do": [
+        {"op": "for", "in": [1], "as": "x", "do": []}
+      ]}
+    ],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "PROGRAM_ERROR"}}
+  },
+  {
+    "name": "literal-containing-a-form-is-rejected",
+    "jaxson": "1.0",
+    "input": {"x": 1},
+    "inputSchema": {"type": "any"},
+    "program": [{"op": "set", "path": ["output"], "value": {"a": {"$path": ["input", "x"]}}}],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "PROGRAM_ERROR"}}
+  },
+  {
+    "name": "lit-escapes-a-form-shaped-value",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [{"op": "set", "path": ["output"], "value": {"$lit": {"$path": ["x"]}}}],
+    "outputSchema": {"type": "any"},
+    "expect": {"output": {"$path": ["x"]}}
+  },
+  {
+    "name": "declared-step-limit-is-enforced",
+    "jaxson": "1.0",
+    "limits": {"steps": 20},
+    "input": {"xs": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]},
+    "inputSchema": {"type": "object", "fields": {"xs": {"type": "array", "items": {"type": "number"}}}, "required": ["xs"]},
+    "program": [
+      {"op": "set", "path": ["state", "n"], "value": 0},
+      {"op": "for", "in": {"$path": ["input", "xs"]}, "as": "x", "do": [
+        {"op": "set", "path": ["state", "n"], "value": {"$compute": {"with": {"n": {"$path": ["state", "n"]}}, "expr": ["add", {"$v": "n"}, 1]}}}
+      ]}
+    ],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "RESOURCE_ERROR", "code": "STEPS"}}
+  },
+  {
+    "name": "array-delete-shifts-later-elements",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [
+      {"op": "set", "path": ["state", "xs"], "value": ["a", "b", "c"]},
+      {"op": "delete", "path": ["state", "xs", 0]},
+      {"op": "set", "path": ["output"], "value": {"$tpl": {
+        "first": {"$path": ["state", "xs", 0]},
+        "len": {"$compute": {"with": {"x": {"$path": ["state", "xs"]}}, "expr": ["len", {"$v": "x"}]}}}}}
+    ],
+    "outputSchema": {"type": "object", "fields": {"first": {"type": "string"}, "len": {"type": "number", "int": true}}, "required": ["first", "len"]},
+    "expect": {"output": {"first": "b", "len": 2}}
+  },
+  {
+    "name": "short-circuit-and-lazy-select",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [
+      {"op": "set", "path": ["output"], "value": {"$tpl": {
+        "or": {"$compute": {"expr": ["or", true, ["eq", ["div", 1, 0, 0], 1]]}},
+        "and": {"$compute": {"expr": ["and", false, ["eq", ["div", 1, 0, 0], 1]]}},
+        "sel": {"$compute": {"expr": ["select", true, "ok", ["div", 1, 0, 0]]}}}}}
+    ],
+    "outputSchema": {"type": "object", "fields": {"or": {"type": "boolean"}, "and": {"type": "boolean"}, "sel": {"type": "string"}}, "required": ["or", "and", "sel"]},
+    "expect": {"output": {"or": true, "and": false, "sel": "ok"}}
+  },
+  {
+    "name": "dynamic-path-segment",
+    "jaxson": "1.0",
+    "input": {"xs": [5, 6, 7], "i": 1},
+    "inputSchema": {"type": "object", "fields": {"xs": {"type": "array", "items": {"type": "number"}}, "i": {"type": "number", "int": true}}, "required": ["xs", "i"]},
+    "program": [
+      {"op": "set", "path": ["output"], "value": {"$path": ["input", "xs", {"$compute": {"with": {"i": {"$path": ["input", "i"]}}, "expr": ["add", {"$v": "i"}, 1]}}]}}
+    ],
+    "outputSchema": {"type": "number"},
+    "expect": {"output": 7}
+  },
+  {
+    "name": "halt-stops-execution",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [
+      {"op": "set", "path": ["output"], "value": "early"},
+      {"op": "halt"},
+      {"op": "set", "path": ["output"], "value": "late"}
+    ],
+    "outputSchema": {"type": "string"},
+    "expect": {"output": "early"}
+  },
+  {
+    "name": "string-length-counts-code-points",
+    "jaxson": "1.0",
+    "input": {"s": "h\u00e9llo\ud83d\ude00"},
+    "inputSchema": {"type": "object", "fields": {"s": {"type": "string"}}, "required": ["s"]},
+    "program": [
+      {"op": "set", "path": ["output"], "value": {"$compute": {"with": {"s": {"$path": ["input", "s"]}}, "expr": ["len", {"$v": "s"}]}}}
+    ],
+    "outputSchema": {"type": "number"},
+    "expect": {"output": 6}
+  },
+  {
+    "name": "root-array-input-is-addressable",
+    "jaxson": "1.0",
+    "input": [10, 20, 30],
+    "inputSchema": {"type": "array", "items": {"type": "number"}},
+    "program": [
+      {"op": "set", "path": ["output"], "value": {"$tpl": {"first": {"$path": ["input", 0]}, "last": {"$path": ["input", 2]}}}}
+    ],
+    "outputSchema": {"type": "object", "fields": {"first": {"type": "number"}, "last": {"type": "number"}}, "required": ["first", "last"]},
+    "expect": {"output": {"first": 10, "last": 30}}
+  },
+  {
+    "name": "keys-that-a-string-path-could-not-name",
+    "jaxson": "1.0",
+    "input": {"first-name": "Ada", "2024": "y", "a.b": "dotted", "": "empty"},
+    "inputSchema": {"type": "any"},
+    "program": [
+      {"op": "set", "path": ["output"], "value": {"$tpl": {
+        "hyphen": {"$path": ["input", "first-name"]},
+        "digits": {"$path": ["input", "2024"]},
+        "dotted": {"$path": ["input", "a.b"]},
+        "empty": {"$path": ["input", ""]}}}}
+    ],
+    "outputSchema": {"type": "any"},
+    "expect": {"output": {"hyphen": "Ada", "digits": "y", "dotted": "dotted", "empty": "empty"}}
+  },
+  {
+    "name": "writing-to-input-is-rejected",
+    "jaxson": "1.0",
+    "input": {"a": 1},
+    "inputSchema": {"type": "any"},
+    "program": [{"op": "set", "path": ["input", "a"], "value": 2}],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "PROGRAM_ERROR"}}
+  },
+  {
+    "name": "unknown-instruction-is-rejected",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [{"op": "jump", "to": "somewhere"}],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "PROGRAM_ERROR"}}
+  },
+  {
+    "name": "unsupported-version",
+    "jaxson": "9.9",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "VERSION_ERROR"}}
+  },
+  {
+    "name": "malformed-contract-schema",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "decimal"},
+    "program": [],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "SCHEMA_ERROR"}}
+  },
+  {
+    "name": "no-implicit-coercion",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [{"op": "set", "path": ["output"], "value": {"$compute": {"expr": ["add", "1", 2]}}}],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "EXECUTION_ERROR", "code": "TYPE_ERROR"}}
+  },
+  {
+    "name": "numeric-overflow-is-an-error-not-rounding",
+    "jaxson": "1.0",
+    "input": null,
+    "inputSchema": {"type": "null"},
+    "program": [{"op": "set", "path": ["output"], "value": {"$compute": {"expr": ["mul", 1000000000000000000000000000000, 1000000000000000000000000000000]}}}],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "EXECUTION_ERROR", "code": "NUMERIC_OVERFLOW"}}
+  },
+  {
+    "name": "opt-outside-a-template-is-rejected",
+    "jaxson": "1.0",
+    "input": {"x": 1},
+    "inputSchema": {"type": "any"},
+    "program": [{"op": "set", "path": ["output"], "value": {"$opt": ["input", "x"]}}],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "PROGRAM_ERROR"}}
+  }
+]

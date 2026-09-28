@@ -1,0 +1,69 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "board": ["X", "O", "X", "O", "X", "O", null, null, null],
+    "player": "O",
+    "position": 8,
+    "blocked_cells": {"4": "reserved -- power tile in this variant"}
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "board": {"type": "array", "minItems": 9, "maxItems": 9, "items": {"type": "string", "enum": ["X", "O"], "nullable": true}},
+      "player": {"type": "string", "enum": ["X", "O"]},
+      "position": {"type": "number", "int": true, "min": 0, "max": 8},
+      "blocked_cells": {"type": "object", "fields": {}, "extra": "allow"}
+    },
+    "required": ["board", "player", "position", "blocked_cells"]
+  },
+  "program": [
+    {"op": "set", "path": ["state", "pos_key"], "value": {"$compute": {
+      "with": {"p": {"$path": ["input", "position"]}}, "expr": ["to_string", {"$v": "p"}]
+    }}},
+    {"op": "set", "path": ["state", "cell"], "value": {"$path": ["input", "board", {"$path": ["input", "position"]}]}},
+    {"op": "set", "path": ["state", "in_range"], "value": {"$compute": {
+      "with": {"p": {"$path": ["input", "position"]}}, "expr": ["and", ["ge", {"$v": "p"}, 0], ["le", {"$v": "p"}, 8]]
+    }}},
+    {"op": "set", "path": ["state", "is_blocked"], "value": {"$compute": {
+      "with": {"b": {"$path": ["input", "blocked_cells"]}, "k": {"$path": ["state", "pos_key"]}},
+      "expr": ["has", {"$v": "b"}, {"$v": "k"}]
+    }}},
+    {"op": "set", "path": ["state", "is_empty"], "value": {"$compute": {
+      "with": {"c": {"$path": ["state", "cell"]}}, "expr": ["eq", ["type_of", {"$v": "c"}], "null"]
+    }}},
+    {"op": "set", "path": ["state", "valid"], "value": {"$compute": {
+      "with": {"r": {"$path": ["state", "in_range"]}, "bl": {"$path": ["state", "is_blocked"]}, "e": {"$path": ["state", "is_empty"]}},
+      "expr": ["and", {"$v": "r"}, {"$v": "e"}, ["not", {"$v": "bl"}]]
+    }}},
+    {"op": "if", "cond": {"$path": ["state", "valid"]},
+      "then": [{"op": "set", "path": ["state", "reason"], "value": "ok"}],
+      "else": [
+        {"op": "if", "cond": {"$compute": {"with": {"r": {"$path": ["state", "in_range"]}}, "expr": ["not", {"$v": "r"}]}},
+          "then": [{"op": "set", "path": ["state", "reason"], "value": "position out of range"}],
+          "else": [
+            {"op": "if", "cond": {"$path": ["state", "is_blocked"]},
+              "then": [{"op": "set", "path": ["state", "reason"], "value": "cell is blocked"}],
+              "else": [{"op": "set", "path": ["state", "reason"], "value": "cell already occupied"}]
+            }
+          ]
+        }
+      ]
+    },
+    {"op": "set", "path": ["output"], "value": {"$tpl": {
+      "player": {"$path": ["input", "player"]},
+      "position": {"$path": ["input", "position"]},
+      "valid": {"$path": ["state", "valid"]},
+      "reason": {"$path": ["state", "reason"]}
+    }}}
+  ],
+  "outputSchema": {
+    "type": "object",
+    "fields": {
+      "player": {"type": "string", "enum": ["X", "O"]},
+      "position": {"type": "number", "int": true, "min": 0, "max": 8},
+      "valid": {"type": "boolean"},
+      "reason": {"type": "string"}
+    },
+    "required": ["player", "position", "valid", "reason"]
+  }
+}

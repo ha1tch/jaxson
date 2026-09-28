@@ -1,0 +1,97 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "gross_monthly_income": 6200,
+    "monthly_debts": {"rent": 1500, "car_loan": 320, "student_loan": 210},
+    "requested_payment": 450
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "gross_monthly_income": {"type": "number", "min": 0},
+      "monthly_debts": {"type": "object", "fields": {}, "extra": "allow"},
+      "requested_payment": {"type": "number", "min": 0},
+      "additional_monthly_obligations": {"type": "number", "min": 0}
+    },
+    "required": ["gross_monthly_income", "monthly_debts", "requested_payment"]
+  },
+  "program": [
+    {"op": "assert", "that": {"$compute": {
+      "with": {"g": {"$path": ["input", "gross_monthly_income"]}}, "expr": ["gt", {"$v": "g"}, 0]
+    }}, "msg": "gross monthly income must be positive"},
+    {"op": "set", "path": ["state", "named_debt_total"], "value": 0},
+    {"op": "for", "in": {"$compute": {"with": {"d": {"$path": ["input", "monthly_debts"]}}, "expr": ["keys", {"$v": "d"}]}}, "as": "k", "do": [
+      {"op": "set", "path": ["state", "named_debt_total"], "value": {"$compute": {
+        "with": {"sum": {"$path": ["state", "named_debt_total"]}, "d": {"$path": ["input", "monthly_debts"]}, "k": {"$path": ["local", "k"]}},
+        "expr": ["add", {"$v": "sum"}, ["get", {"$v": "d"}, {"$v": "k"}]]
+      }}}
+    ]},
+    {"op": "set", "path": ["state", "additional"], "value": {"$compute": {
+      "with": {"i": {"$path": ["input"]}}, "expr": ["get_or", {"$v": "i"}, "additional_monthly_obligations", 0]
+    }}},
+    {"op": "set", "path": ["state", "total_debt"], "value": {"$compute": {
+      "with": {"n": {"$path": ["state", "named_debt_total"]}, "a": {"$path": ["state", "additional"]}, "p": {"$path": ["input", "requested_payment"]}},
+      "expr": ["add", {"$v": "n"}, {"$v": "a"}, {"$v": "p"}]
+    }}},
+    {"op": "set", "path": ["state", "dti_ratio"], "value": {"$compute": {
+      "with": {"t": {"$path": ["state", "total_debt"]}, "g": {"$path": ["input", "gross_monthly_income"]}},
+      "expr": ["div", {"$v": "t"}, {"$v": "g"}, 4]
+    }}},
+    {"op": "set", "path": ["state", "dti_pct"], "value": {"$compute": {
+      "with": {"r": {"$path": ["state", "dti_ratio"]}}, "expr": ["round", ["mul", {"$v": "r"}, 100], 1, "half_up"]
+    }}},
+    {"op": "if", "cond": {"$compute": {"with": {"r": {"$path": ["state", "dti_ratio"]}}, "expr": ["le", {"$v": "r"}, 0.36]}},
+      "then": [{"op": "set", "path": ["state", "decision"], "value": "approved"}],
+      "else": [
+        {"op": "if", "cond": {"$compute": {"with": {"r": {"$path": ["state", "dti_ratio"]}}, "expr": ["le", {"$v": "r"}, 0.43]}},
+          "then": [{"op": "set", "path": ["state", "decision"], "value": "conditional"}],
+          "else": [{"op": "set", "path": ["state", "decision"], "value": "denied"}]
+        }
+      ]
+    },
+    {"op": "if", "cond": {"$compute": {"with": {"d": {"$path": ["state", "decision"]}}, "expr": ["eq", {"$v": "d"}, "denied"]}},
+      "then": [
+        {"op": "set", "path": ["output"], "value": {"$tpl": {
+          "decision": {"$path": ["state", "decision"]},
+          "dti_ratio_percent": {"$path": ["state", "dti_pct"]},
+          "monthly_debt_total": {"$path": ["state", "total_debt"]},
+          "gross_monthly_income": {"$path": ["input", "gross_monthly_income"]},
+          "reason": "debt-to-income ratio exceeds the maximum eligible threshold"
+        }}}
+      ],
+      "else": [
+        {"op": "set", "path": ["output"], "value": {"$tpl": {
+          "decision": {"$path": ["state", "decision"]},
+          "dti_ratio_percent": {"$path": ["state", "dti_pct"]},
+          "monthly_debt_total": {"$path": ["state", "total_debt"]},
+          "gross_monthly_income": {"$path": ["input", "gross_monthly_income"]}
+        }}}
+      ]
+    }
+  ],
+  "outputSchema": {
+    "anyOf": [
+      {
+        "type": "object",
+        "fields": {
+          "decision": {"type": "string", "enum": ["approved", "conditional"]},
+          "dti_ratio_percent": {"type": "number"},
+          "monthly_debt_total": {"type": "number", "min": 0},
+          "gross_monthly_income": {"type": "number", "min": 0}
+        },
+        "required": ["decision", "dti_ratio_percent", "monthly_debt_total", "gross_monthly_income"]
+      },
+      {
+        "type": "object",
+        "fields": {
+          "decision": {"type": "string", "enum": ["denied"]},
+          "dti_ratio_percent": {"type": "number"},
+          "monthly_debt_total": {"type": "number", "min": 0},
+          "gross_monthly_income": {"type": "number", "min": 0},
+          "reason": {"type": "string"}
+        },
+        "required": ["decision", "dti_ratio_percent", "monthly_debt_total", "gross_monthly_income", "reason"]
+      }
+    ]
+  }
+}

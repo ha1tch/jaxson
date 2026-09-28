@@ -1,0 +1,50 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "words": ["the", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog", "the", "fox"],
+    "stopwords": ["the", "a", "an"]
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "words": {"type": "array", "minItems": 1, "maxItems": 1000, "items": {"type": "string", "minLen": 1, "maxLen": 40}},
+      "stopwords": {"type": "array", "maxItems": 100, "items": {"type": "string", "minLen": 1, "maxLen": 40}}
+    },
+    "required": ["words", "stopwords"]
+  },
+  "program": [
+    {"op": "set", "path": ["state", "counts"], "value": {}},
+    {"op": "for", "in": {"$path": ["input", "words"]}, "as": "word", "do": [
+      {"op": "set", "path": ["state", "counts", {"$path": ["local", "word"]}], "value": {"$compute": {
+        "with": {"c": {"$path": ["state", "counts"]}, "w": {"$path": ["local", "word"]}},
+        "expr": ["add", ["get_or", {"$v": "c"}, {"$v": "w"}, 0], 1]
+      }}}
+    ]},
+    {"op": "for", "in": {"$path": ["input", "stopwords"]}, "as": "sw", "do": [
+      {"op": "if", "cond": {"$compute": {
+          "with": {"c": {"$path": ["state", "counts"]}, "w": {"$path": ["local", "sw"]}}, "expr": ["has", {"$v": "c"}, {"$v": "w"}]
+        }},
+        "then": [{"op": "delete", "path": ["state", "counts", {"$path": ["local", "sw"]}]}]
+      }
+    ]},
+    {"op": "set", "path": ["state", "result"], "value": []},
+    {"op": "for", "in": {"$compute": {"with": {"c": {"$path": ["state", "counts"]}}, "expr": ["keys", {"$v": "c"}]}}, "as": "word2", "do": [
+      {"op": "append", "path": ["state", "result"], "value": {"$tpl": {
+        "word": {"$path": ["local", "word2"]},
+        "count": {"$compute": {
+          "with": {"c": {"$path": ["state", "counts"]}, "w": {"$path": ["local", "word2"]}},
+          "expr": ["get", {"$v": "c"}, {"$v": "w"}]
+        }}
+      }}}
+    ]},
+    {"op": "set", "path": ["output"], "value": {"$path": ["state", "result"]}}
+  ],
+  "outputSchema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "fields": {"word": {"type": "string"}, "count": {"type": "number", "int": true, "min": 1}},
+      "required": ["word", "count"]
+    }
+  }
+}

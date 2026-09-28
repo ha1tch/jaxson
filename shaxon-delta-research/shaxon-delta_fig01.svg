@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="1530" viewBox="225 -18 1150 1556">
+  <defs>
+    <linearGradient id="header" x1="0" x2="1"><stop offset="0" stop-color="#173f73"/><stop offset="1" stop-color="#245b96"/></linearGradient>
+    <linearGradient id="footer" x1="0" x2="1"><stop offset="0" stop-color="#173f73"/><stop offset="1" stop-color="#214f83"/></linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-opacity=".12"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#315f8f"/></marker>
+    <marker id="arrowWhite" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#fff"/></marker>
+    <style>
+      .title{font:700 34px Georgia,serif;fill:#fff}.subtitle{font:20px Georgia,serif;fill:#eef5ff}
+      .h{font:700 20px Georgia,serif;fill:#17385f}.body{font:17px Georgia,serif;fill:#24384d}.small{font:15px Georgia,serif;fill:#3b4e61}.tiny{font:13px Georgia,serif;fill:#536579}
+      .mono{font:17px 'SFMono-Regular',Consolas,monospace;fill:#17385f}.math{font:19px Georgia,serif;fill:#17385f}
+      .panel{fill:#fff;stroke:#b8cbe0;stroke-width:1.5;filter:url(#shadow)}
+      .line{stroke:#8ca8c4;stroke-width:1}.arrow{stroke:#315f8f;stroke-width:2;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+
+  <g transform="translate(0,45)">
+    <text x="800" y="0" text-anchor="middle" style="font:700 30px Georgia,serif;fill:#fff">Shaxon Delta v0.0.1</text>
+
+  <!-- Header -->
+  <rect x="240" y="18" width="1120" height="112" rx="16" fill="url(#header)"/>
+  <text x="800" y="63" text-anchor="middle" class="title">Shaxon ↔ Graph-Transformation Correspondence</text>
+  <text x="800" y="96" text-anchor="middle" class="subtitle">A typed, bounded, deterministic delta calculus grounded in graph-transformation semantics</text>
+
+  <!-- Mapping table -->
+  <rect x="240" y="150" width="1120" height="352" rx="12" class="panel"/>
+  <rect x="241" y="151" width="1118" height="42" rx="11" fill="#dcecff"/>
+  <rect x="241" y="151" width="1118" height="42" rx="11" fill-opacity="0" stroke="#9dbbdd"/>
+
+  <!-- Zebra rows: narrow, tightly grouped columns -->
+  <g opacity="1">
+    <rect x="241" y="193" width="1118" height="24" fill="#f5f8fb"/>
+    <rect x="241" y="241" width="1118" height="24" fill="#f5f8fb"/>
+    <rect x="241" y="289" width="1118" height="24" fill="#f5f8fb"/>
+    <rect x="241" y="337" width="1118" height="24" fill="#f5f8fb"/>
+    <rect x="241" y="385" width="1118" height="24" fill="#f5f8fb"/>
+    <rect x="241" y="433" width="1118" height="24" fill="#f5f8fb"/>
+    <rect x="241" y="481" width="1118" height="21" fill="#f5f8fb"/>
+  </g>
+
+  <text x="405" y="178" text-anchor="middle" class="h">Shaxon concept</text>
+  <text x="720" y="178" text-anchor="middle" class="h">Correspondence</text>
+  <text x="1115" y="178" text-anchor="middle" class="h">Graph-transformation concept</text>
+  <line x1="570" y1="151" x2="570" y2="502" class="line"/><line x1="870" y1="151" x2="870" y2="502" class="line"/>
+
+  <g class="body">
+    <text x="260" y="218">Graph / state</text><text x="720" y="218" text-anchor="middle" class="small">is represented by</text><text x="890" y="218">Host graph</text>
+    <text x="260" y="242">Node / resource identity</text><text x="720" y="242" text-anchor="middle" class="small">corresponds to</text><text x="890" y="242">Persistent graph object</text>
+    <text x="260" y="266">Triple / property / relationship</text><text x="720" y="266" text-anchor="middle" class="small">is modeled as</text><text x="890" y="266">Edge or attributed edge</text>
+    <text x="260" y="290">Mutation</text><text x="720" y="290" text-anchor="middle" class="small">is an instance of</text><text x="890" y="290">Graph transformation</text>
+    <text x="260" y="314">Delta</text><text x="720" y="314" text-anchor="middle" class="small">denotes a concrete</text><text x="890" y="314">Transformation instance / derivation</text>
+    <text x="260" y="338">Mutation preconditions</text><text x="720" y="338" text-anchor="middle" class="small">correspond to</text><text x="890" y="338">Match + application conditions</text>
+    <text x="260" y="362">Apply mutation</text><text x="720" y="362" text-anchor="middle" class="small">is</text><text x="890" y="362">Rule application</text>
+    <text x="260" y="386">Sequence of mutations</text><text x="720" y="386" text-anchor="middle" class="small">forms a</text><text x="890" y="386">Derivation / transformation sequence</text>
+    <text x="260" y="410">diff(G,H)</text><text x="720" y="410" text-anchor="middle" class="small">discovers a</text><text x="890" y="410">Transformation from G to H</text>
+    <text x="260" y="434">Delta composition</text><text x="720" y="434" text-anchor="middle" class="small">corresponds to</text><text x="890" y="434">Sequential transformation</text>
+    <text x="260" y="458">Inverse delta</text><text x="720" y="458" text-anchor="middle" class="small">is a</text><text x="890" y="458">Reverse transformation, when reversible</text>
+    <text x="260" y="482">Mutation conflict / validation</text><text x="720" y="482" text-anchor="middle" class="small">is analyzed using</text><text x="890" y="482">Critical overlap / transformation constraints</text>
+  </g>
+
+  <!-- Three rows of two panels -->
+  <rect x="240" y="522" width="550" height="300" rx="12" class="panel"/>
+  <rect x="810" y="522" width="550" height="300" rx="12" class="panel"/>
+  <rect x="240" y="838" width="550" height="300" rx="12" class="panel"/>
+  <rect x="810" y="838" width="550" height="300" rx="12" class="panel"/>
+  <rect x="240" y="1154" width="550" height="272" rx="12" class="panel"/>
+  <rect x="810" y="1154" width="550" height="272" rx="12" class="panel"/>
+
+  <!-- Each panel's contents are laid out as a single centered bounding box.
+       Internal alignment remains intentional; only the bounding box is centered. -->
+
+  <!-- 1. Delta structure: content box x=256..774, y=546..798 -->
+  <g>
+    <text x="256" y="552" class="h">1. Shaxon delta structure</text>
+    <circle cx="321" cy="610" r="21" fill="#eaf3ff" stroke="#3774aa" stroke-width="2"/><circle cx="481" cy="610" r="21" fill="#eaf3ff" stroke="#3774aa" stroke-width="2"/>
+    <text x="321" y="616" text-anchor="middle" class="body">A</text><text x="481" y="616" text-anchor="middle" class="body">B</text>
+    <line x1="343" y1="610" x2="459" y2="610" class="arrow"/><text x="401" y="600" text-anchor="middle" class="small">p</text>
+    <text x="401" y="652" text-anchor="middle" class="math">G</text>
+    <circle cx="561" cy="610" r="21" fill="#eaf3ff" stroke="#3774aa" stroke-width="2"/><circle cx="681" cy="610" r="21" fill="#eaf3ff" stroke="#3774aa" stroke-width="2"/>
+    <text x="561" y="616" text-anchor="middle" class="body">A</text><text x="681" y="616" text-anchor="middle" class="body">B</text>
+    <line x1="583" y1="610" x2="659" y2="610" class="arrow"/><text x="621" y="600" text-anchor="middle" class="small">q</text>
+    <text x="621" y="652" text-anchor="middle" class="math">H</text>
+    <path d="M430 578 C470 558, 548 558, 592 578" class="arrow"/><text x="511" y="562" text-anchor="middle" class="small">Δ</text>
+    <rect x="256" y="676" width="518" height="122" rx="8" fill="#f7fbff" stroke="#b8cbe0"/>
+    <text x="272" y="704" class="math">Δ = (preserve, delete, add)</text>
+    <rect x="272" y="720" width="151" height="57" rx="7" fill="#e9f7ef" stroke="#a7d4b8"/><text x="347.5" y="742" text-anchor="middle" class="small">Preserve</text><text x="347.5" y="762" text-anchor="middle" class="tiny">{A, B}</text>
+    <rect x="439" y="720" width="151" height="57" rx="7" fill="#fff0f0" stroke="#e2b0b0"/><text x="514.5" y="742" text-anchor="middle" class="small">Delete</text><text x="514.5" y="762" text-anchor="middle" class="tiny">{(A,p,B)}</text>
+    <rect x="606" y="720" width="152" height="57" rx="7" fill="#eef5ff" stroke="#abc2df"/><text x="682" y="742" text-anchor="middle" class="small">Add</text><text x="682" y="762" text-anchor="middle" class="tiny">{(A,q,B)}</text>
+  </g>
+
+  <!-- 2. Algebraic view: centered content bounding box x=826..1284 -->
+  <g>
+    <text x="826" y="552" class="h">2. Algebraic graph-transformation view</text>
+    <rect x="826" y="579" width="142" height="106" rx="8" fill="#fff2f2" stroke="#e2a5a5"/><text x="897" y="603" text-anchor="middle" class="h">L</text>
+    <circle cx="860" cy="642" r="15" fill="#fff" stroke="#b55"/><circle cx="934" cy="642" r="15" fill="#fff" stroke="#b55"/><line x1="875" y1="642" x2="919" y2="642" stroke="#b55" stroke-width="2" marker-end="url(#arrow)"/><text x="897" y="634" text-anchor="middle" class="tiny">p</text>
+    <rect x="984" y="579" width="142" height="106" rx="8" fill="#fff9e9" stroke="#d8bb68"/><text x="1055" y="603" text-anchor="middle" class="h">K</text>
+    <circle cx="1018" cy="642" r="15" fill="#fff" stroke="#b49440"/><circle cx="1092" cy="642" r="15" fill="#fff" stroke="#b49440"/>
+    <rect x="1142" y="579" width="142" height="106" rx="8" fill="#effaf2" stroke="#a8cfae"/><text x="1213" y="603" text-anchor="middle" class="h">R</text>
+    <circle cx="1176" cy="642" r="15" fill="#fff" stroke="#62956c"/><circle cx="1250" cy="642" r="15" fill="#fff" stroke="#62956c"/><line x1="1191" y1="642" x2="1235" y2="642" stroke="#62956c" stroke-width="2" marker-end="url(#arrow)"/><text x="1213" y="634" text-anchor="middle" class="tiny">q</text>
+    <line x1="968" y1="631" x2="984" y2="631" class="arrow"/><line x1="1126" y1="631" x2="1142" y2="631" class="arrow"/>
+    <text x="976" y="620" text-anchor="middle" class="tiny">l</text><text x="1134" y="620" text-anchor="middle" class="tiny">r</text>
+    <text x="1055" y="715" text-anchor="middle" class="body">Match m : L → G</text>
+    <text x="1055" y="741" text-anchor="middle" class="small">Apply via pushout / pushout complement</text>
+    <text x="930" y="784" text-anchor="middle" class="math">G</text><line x1="956" y1="778" x2="1156" y2="778" class="arrow"/><text x="1056" y="768" text-anchor="middle" class="small">Δ</text><text x="1185" y="784" text-anchor="middle" class="math">H</text>
+  </g>
+
+  <!-- 3. Core operations: compact content box centered in the panel -->
+  <g transform="translate(83,0)">
+    <text x="256" y="866" class="h">3. Core operations — delta calculus</text>
+    <rect x="256" y="880" width="84" height="42" rx="7" fill="#eaf3ff" stroke="#abc2df"/><text x="298" y="907" text-anchor="middle" class="h">diff</text><text x="356" y="904" class="mono">diff(G,H) = Δ</text><text x="356" y="920" class="tiny">Find a transformation G → H</text>
+    <rect x="256" y="933" width="84" height="42" rx="7" fill="#eaf3ff" stroke="#abc2df"/><text x="298" y="960" text-anchor="middle" class="h">apply</text><text x="356" y="957" class="mono">apply(G,Δ) = H</text><text x="356" y="973" class="tiny">Execute the transformation</text>
+    <rect x="256" y="986" width="84" height="42" rx="7" fill="#eaf3ff" stroke="#abc2df"/><text x="298" y="1013" text-anchor="middle" class="h">compose</text><text x="356" y="1010" class="mono">Δ₂ ∘ Δ₁ = Δ₃</text><text x="356" y="1026" class="tiny">Sequential composition</text>
+    <rect x="256" y="1039" width="84" height="42" rx="7" fill="#eaf3ff" stroke="#abc2df"/><text x="298" y="1066" text-anchor="middle" class="h">invert</text><text x="356" y="1063" class="mono">Δ⁻¹</text><text x="399" y="1063" class="tiny">Only if reversible</text>
+    <rect x="256" y="1092" width="84" height="42" rx="7" fill="#eaf3ff" stroke="#abc2df"/><text x="298" y="1119" text-anchor="middle" class="h">merge</text><text x="356" y="1119" class="mono">merge(G,Δ₁,Δ₂)</text>
+  </g>
+
+  <!-- 4. Laws: centered content bounding box, with the long equations kept inside it -->
+  <g transform="translate(28,0)">
+    <text x="826" y="868" class="h">4. Laws and properties</text>
+    <g class="small">
+      <text x="826" y="898" class="body">Identity</text><text x="950" y="898" class="mono">Δ ∘ id = Δ = id ∘ Δ</text>
+      <text x="826" y="928" class="body">Associativity</text><text x="950" y="928" class="mono">(Δ₃ ∘ Δ₂) ∘ Δ₁ = Δ₃ ∘ (Δ₂ ∘ Δ₁)</text>
+      <text x="826" y="958" class="body">Inverse</text><text x="950" y="958" class="mono">Δ⁻¹ ∘ Δ = id</text>
+      <text x="826" y="988" class="body">Determinism</text><text x="950" y="988" class="mono">apply(G,Δ) = H</text><text x="1165" y="988" class="tiny">unique H</text>
+      <text x="826" y="1018" class="body">Conflict</text><text x="950" y="1018" class="mono">merge = conflict</text><text x="1165" y="1018" class="tiny">if non-joinable</text>
+      <text x="826" y="1048" class="body">Confluence</text><text x="950" y="1048" class="mono">Δ₁, Δ₂ ⇒ ∃M</text><text x="1165" y="1048" class="tiny">when joinable</text>
+      <text x="826" y="1081" class="tiny">These laws make deltas composable transformations, not merely change logs.</text>
+    </g>
+  </g>
+
+  <!-- 5. Neighboring theories: centered content bounding box -->
+  <g>
+    <text x="256" y="1184" class="h">5. Relation to neighboring theories</text>
+    <rect x="256" y="1200" width="518" height="42" rx="7" fill="#fff1f1" stroke="#e0b2b2"/><text x="272" y="1219" class="body">Graph rewriting</text><text x="272" y="1236" class="tiny">Patterns, rewrite rules, derivations, confluence</text>
+    <rect x="256" y="1249" width="518" height="42" rx="7" fill="#edf5ff" stroke="#b2c9e2"/><text x="272" y="1268" class="body">Graph transformation systems</text><text x="272" y="1285" class="tiny">Rule sets, application conditions, state-space semantics</text>
+    <rect x="256" y="1298" width="518" height="42" rx="7" fill="#f4efff" stroke="#c7b6e4"/><text x="272" y="1317" class="body">Graph edit distance</text><text x="272" y="1334" class="tiny">Optional cost model over Shaxon deltas: d(G,H)=min c(Δ)</text>
+    <rect x="256" y="1347" width="518" height="60" rx="7" fill="#fff8e9" stroke="#ddc58c"/><text x="272" y="1366" class="body">Algebraic graph transformation</text><text x="272" y="1384" class="tiny">L ← K → R; pushouts, gluing conditions, concurrency, critical pairs</text>
+  </g>
+
+  <!-- 6. Conceptual stack: centered content bounding box -->
+  <g>
+    <text x="828" y="1184" class="h">6. Conceptual stack for Shaxon</text>
+    <rect x="826" y="1202" width="518" height="37" rx="7" fill="#173f73"/><text x="1085" y="1226" text-anchor="middle" fill="#fff" font-family="Georgia" font-size="17" font-weight="700">SHAXON — language &amp; execution semantics</text>
+    <line x1="1058" y1="1239" x2="1058" y2="1248" class="arrow"/>
+    <rect x="826" y="1250" width="518" height="37" rx="7" fill="#ddd5f7" stroke="#afa0db"/><text x="1085" y="1274" text-anchor="middle" class="body">Delta calculus — diff, apply, compose, invert, merge</text>
+    <line x1="1058" y1="1287" x2="1058" y2="1296" class="arrow"/>
+    <rect x="826" y="1298" width="518" height="37" rx="7" fill="#dff1e3" stroke="#9bc6a2"/><text x="1085" y="1322" text-anchor="middle" class="body">Graph transformation — rules, matches, derivations</text>
+    <line x1="1058" y1="1335" x2="1058" y2="1344" class="arrow"/>
+    <rect x="826" y="1346" width="518" height="37" rx="7" fill="#dcecff" stroke="#a4c1e1"/><text x="1085" y="1370" text-anchor="middle" class="body">Graph rewriting — patterns, rules, confluence</text>
+    <line x1="1058" y1="1383" x2="1058" y2="1392" class="arrow"/>
+    <rect x="826" y="1394" width="518" height="24" rx="7" fill="#fff0d1" stroke="#d8bd76"/><text x="1085" y="1411" text-anchor="middle" class="tiny">Graph edit distance — optional cost / similarity layer</text>
+  </g>
+
+  <!-- Footer -->
+  <rect x="240" y="1442" width="1120" height="50" rx="12" fill="url(#footer)"/>
+  <text x="800" y="1472" text-anchor="middle" fill="#fff" font-family="Georgia" font-size="18">Shaxon: a deterministic, bounded, explicit delta model — with graph-transformation theory as its mathematical semantic foundation.</text>
+  </g>
+</svg>

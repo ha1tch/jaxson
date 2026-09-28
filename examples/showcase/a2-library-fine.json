@@ -1,0 +1,66 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "status": "returned",
+    "days_overdue": 40,
+    "daily_rate": 0.5,
+    "max_fine": 10,
+    "replacement_cost": 45
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "status": {"type": "string", "enum": ["returned", "lost"]},
+      "days_overdue": {"type": "number", "int": true, "min": 0},
+      "daily_rate": {"type": "number", "min": 0},
+      "max_fine": {"type": "number", "min": 0},
+      "replacement_cost": {"type": "number", "min": 0}
+    },
+    "required": ["status", "days_overdue", "daily_rate", "max_fine", "replacement_cost"]
+  },
+  "program": [
+    {"op": "assert", "that": {"$compute": {
+      "with": {"r": {"$path": ["input", "daily_rate"]}}, "expr": ["gt", {"$v": "r"}, 0]
+    }}, "msg": "daily rate must be positive"},
+    {"op": "if", "cond": {"$compute": {
+        "with": {"s": {"$path": ["input", "status"]}}, "expr": ["eq", {"$v": "s"}, "lost"]
+      }},
+      "then": [
+        {"op": "set", "path": ["state", "fine"], "value": {"$path": ["input", "replacement_cost"]}}
+      ],
+      "else": [
+        {"op": "if", "cond": {"$compute": {
+            "with": {"d": {"$path": ["input", "days_overdue"]}}, "expr": ["le", {"$v": "d"}, 0]
+          }},
+          "then": [{"op": "set", "path": ["state", "fine"], "value": 0}],
+          "else": [
+            {"op": "set", "path": ["state", "fine"], "value": {"$compute": {
+              "with": {
+                "d": {"$path": ["input", "days_overdue"]},
+                "r": {"$path": ["input", "daily_rate"]},
+                "m": {"$path": ["input", "max_fine"]}
+              },
+              "expr": ["min", ["mul", {"$v": "d"}, {"$v": "r"}], {"$v": "m"}]
+            }}}
+          ]
+        }
+      ]
+    },
+    {"op": "set", "path": ["output"], "value": {"$tpl": {
+      "status": {"$path": ["input", "status"]},
+      "fine": {"$path": ["state", "fine"]},
+      "waived": {"$compute": {
+        "with": {"f": {"$path": ["state", "fine"]}}, "expr": ["not", ["gt", {"$v": "f"}, 0]]
+      }}
+    }}}
+  ],
+  "outputSchema": {
+    "type": "object",
+    "fields": {
+      "status": {"type": "string", "enum": ["returned", "lost"]},
+      "fine": {"type": "number", "min": 0},
+      "waived": {"type": "boolean"}
+    },
+    "required": ["status", "fine", "waived"]
+  }
+}

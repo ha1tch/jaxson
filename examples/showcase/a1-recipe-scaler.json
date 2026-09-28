@@ -1,0 +1,82 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "recipe_name": "Lemon Herb Roast Chicken",
+    "base_servings": 4,
+    "target_servings": 10,
+    "ingredients": [
+      {"name": "chicken", "unit": "kg", "amount": 1.6},
+      {"name": "olive oil", "unit": "tbsp", "amount": 2},
+      {"name": "lemon", "unit": "unit", "amount": 1},
+      {"name": "garlic cloves", "unit": "unit", "amount": 3},
+      {"name": "salt", "unit": "tsp", "amount": 1.5}
+    ]
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "recipe_name": {"type": "string", "minLen": 1, "maxLen": 80},
+      "base_servings": {"type": "number", "int": true, "min": 1},
+      "target_servings": {"type": "number", "int": true, "min": 1},
+      "ingredients": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "fields": {
+            "name": {"type": "string", "minLen": 1, "maxLen": 60},
+            "unit": {"type": "string", "minLen": 1, "maxLen": 20},
+            "amount": {"type": "number", "min": 0}
+          },
+          "required": ["name", "unit", "amount"]
+        }
+      }
+    },
+    "required": ["recipe_name", "base_servings", "target_servings", "ingredients"]
+  },
+  "program": [
+    {"op": "set", "path": ["state", "factor"], "value": {"$compute": {
+      "with": {"t": {"$path": ["input", "target_servings"]}, "b": {"$path": ["input", "base_servings"]}},
+      "expr": ["div", {"$v": "t"}, {"$v": "b"}, 6]
+    }}},
+    {"op": "set", "path": ["state", "scaled"], "value": []},
+    {"op": "for", "in": {"$path": ["input", "ingredients"]}, "as": "ing", "do": [
+      {"op": "set", "path": ["state", "scaled_amount"], "value": {"$compute": {
+        "with": {"a": {"$path": ["local", "ing", "amount"]}, "f": {"$path": ["state", "factor"]}},
+        "expr": ["round", ["mul", {"$v": "a"}, {"$v": "f"}], 2, "half_up"]
+      }}},
+      {"op": "append", "path": ["state", "scaled"], "value": {"$tpl": {
+        "name": {"$path": ["local", "ing", "name"]},
+        "unit": {"$path": ["local", "ing", "unit"]},
+        "amount": {"$path": ["state", "scaled_amount"]},
+        "label": {"$compute": {
+          "with": {"a": {"$path": ["state", "scaled_amount"]}, "u": {"$path": ["local", "ing", "unit"]}, "n": {"$path": ["local", "ing", "name"]}},
+          "expr": ["concat", ["to_string", {"$v": "a"}], " ", {"$v": "u"}, " ", {"$v": "n"}]
+        }}
+      }}}
+    ]},
+    {"op": "set", "path": ["output"], "value": {"$tpl": {
+      "recipe_name": {"$path": ["input", "recipe_name"]},
+      "servings": {"$path": ["input", "target_servings"]},
+      "scale_factor": {"$path": ["state", "factor"]},
+      "ingredients": {"$path": ["state", "scaled"]}
+    }}}
+  ],
+  "outputSchema": {
+    "type": "object",
+    "fields": {
+      "recipe_name": {"type": "string"},
+      "servings": {"type": "number", "int": true},
+      "scale_factor": {"type": "number"},
+      "ingredients": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "fields": {"name": {"type": "string"}, "unit": {"type": "string"}, "amount": {"type": "number"}, "label": {"type": "string"}},
+          "required": ["name", "unit", "amount", "label"]
+        }
+      }
+    },
+    "required": ["recipe_name", "servings", "scale_factor", "ingredients"]
+  }
+}

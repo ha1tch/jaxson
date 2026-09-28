@@ -1,0 +1,10 @@
+[
+  {"action": "new", "seed": 0},
+  {"action": "fire", "x": 0, "y": 0},
+  {"action": "fire", "x": 1, "y": 0},
+  {"action": "fire", "x": 2, "y": 0},
+  {"action": "fire", "x": 5, "y": 1},
+  {"action": "fire", "x": 5, "y": 2},
+  {"action": "fire", "x": 2, "y": 4},
+  {"action": "fire", "x": 3, "y": 4}
+]

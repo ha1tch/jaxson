@@ -1,0 +1,73 @@
+{
+  "jaxson": "1.0",
+  "input": {
+    "total_cents": 10037,
+    "num_people": 6,
+    "names": ["Ana", "Boyd", "Cleo", "Dax", "Eve", "Finn"]
+  },
+  "inputSchema": {
+    "type": "object",
+    "fields": {
+      "total_cents": {"type": "number", "int": true, "min": 0},
+      "num_people": {"type": "number", "int": true, "min": 1},
+      "names": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"type": "string", "minLen": 1, "maxLen": 40}}
+    },
+    "required": ["total_cents", "num_people", "names"]
+  },
+  "program": [
+    {"op": "assert", "that": {"$compute": {
+      "with": {"n": {"$path": ["input", "names"]}, "p": {"$path": ["input", "num_people"]}},
+      "expr": ["eq", ["len", {"$v": "n"}], {"$v": "p"}]
+    }}, "msg": "names array length must equal num_people"},
+    {"op": "set", "path": ["state", "base_share"], "value": {"$compute": {
+      "with": {"t": {"$path": ["input", "total_cents"]}, "n": {"$path": ["input", "num_people"]}},
+      "expr": ["div", {"$v": "t"}, {"$v": "n"}, 0, "down"]
+    }}},
+    {"op": "set", "path": ["state", "remainder"], "value": {"$compute": {
+      "with": {"t": {"$path": ["input", "total_cents"]}, "n": {"$path": ["input", "num_people"]}},
+      "expr": ["mod", {"$v": "t"}, {"$v": "n"}]
+    }}},
+    {"op": "set", "path": ["state", "shares"], "value": []},
+    {"op": "set", "path": ["state", "check_sum"], "value": 0},
+    {"op": "for", "in": {"$path": ["input", "names"]}, "as": "name", "index": "i", "do": [
+      {"op": "set", "path": ["state", "share"], "value": {"$compute": {
+        "with": {"i": {"$path": ["local", "i"]}, "rem": {"$path": ["state", "remainder"]}, "base": {"$path": ["state", "base_share"]}},
+        "expr": ["add", {"$v": "base"}, ["select", ["lt", {"$v": "i"}, {"$v": "rem"}], 1, 0]]
+      }}},
+      {"op": "append", "path": ["state", "shares"], "value": {"$tpl": {
+        "name": {"$path": ["local", "name"]}, "share_cents": {"$path": ["state", "share"]}
+      }}},
+      {"op": "set", "path": ["state", "check_sum"], "value": {"$compute": {
+        "with": {"c": {"$path": ["state", "check_sum"]}, "s": {"$path": ["state", "share"]}},
+        "expr": ["add", {"$v": "c"}, {"$v": "s"}]
+      }}}
+    ]},
+    {"op": "assert", "that": {"$compute": {
+      "with": {"c": {"$path": ["state", "check_sum"]}, "t": {"$path": ["input", "total_cents"]}},
+      "expr": ["eq", {"$v": "c"}, {"$v": "t"}]
+    }}, "msg": "share sum does not equal the original total -- rounding bug"},
+    {"op": "set", "path": ["output"], "value": {"$tpl": {
+      "total_cents": {"$path": ["input", "total_cents"]},
+      "base_share_cents": {"$path": ["state", "base_share"]},
+      "remainder_cents": {"$path": ["state", "remainder"]},
+      "shares": {"$path": ["state", "shares"]}
+    }}}
+  ],
+  "outputSchema": {
+    "type": "object",
+    "fields": {
+      "total_cents": {"type": "number", "int": true, "min": 0},
+      "base_share_cents": {"type": "number", "int": true, "min": 0},
+      "remainder_cents": {"type": "number", "int": true, "min": 0},
+      "shares": {
+        "type": "array", "minItems": 6, "maxItems": 6,
+        "items": {
+          "type": "object",
+          "fields": {"name": {"type": "string"}, "share_cents": {"type": "number", "int": true, "min": 0}},
+          "required": ["name", "share_cents"]
+        }
+      }
+    },
+    "required": ["total_cents", "base_share_cents", "remainder_cents", "shares"]
+  }
+}
