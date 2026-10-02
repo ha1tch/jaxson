@@ -7,7 +7,7 @@ package jaxson
 // own runtime can construct one and drive it), carries the instruction
 // and operator tables that used to be hardcoded switches (program.go,
 // compute.go), and exposes an OnMutate hook — the mutation-path log
-// jaxson-shaxon-go-implementation-plan.md section 1 identifies as the one
+// jaxson-shaxon-implementation-plan.md section 1 identifies as the one
 // non-cosmetic gap: Shaxon's index-reuse rule needs to know what changed
 // since the last build, and this package's own no-aliasing guarantee
 // (deep-copy on every read) never had to track that. run()'s dispatch
@@ -402,45 +402,3 @@ func (m *Machine) Eval(x any) any { return m.eval(x) }
 // named-compute-reuse machinery can run a compute island without
 // re-implementing expression evaluation.
 func (m *Machine) RunCompute(c map[string]any) any { return m.compute(c) }
-
-// Run executes a package and returns either its output or a failure.
-func Run(p map[string]any) (out any, err *Err) {
-	defer func() {
-		if r := recover(); r != nil {
-			e, ok := r.(*Err)
-			if !ok {
-				panic(r)
-			}
-			out, err = nil, e
-		}
-	}()
-	if v, _ := p["jaxson"].(string); v != "1.0" {
-		fail("VERSION_ERROR", "", "unsupported or missing jaxson version")
-	}
-	checkSchema(p["inputSchema"])
-	checkSchema(p["outputSchema"])
-	instructions := CoreInstructions()
-	checkBlock(p["program"], NewChecker(instructions))
-	limit := 100000
-	if l, ok := p["limits"].(map[string]any); ok {
-		for k := range l {
-			if k != "steps" {
-				fail("VERSION_ERROR", "", "unsupported limit %q", k)
-			}
-		}
-		if s, ok := l["steps"].(*big.Rat); ok && s.IsInt() && s.Sign() > 0 {
-			limit = int(s.Num().Int64())
-		} else if _, has := l["steps"]; has {
-			fail("VERSION_ERROR", "", "steps must be a positive integer")
-		}
-	}
-	if msg := validate(p["inputSchema"], p["input"], "$"); msg != "" {
-		fail("INPUT_ERROR", "", "%s", msg)
-	}
-	m := NewMachine(Clone(p["input"]), map[string]any{}, nil, limit, instructions, CoreOperators())
-	m.RunProgram(p["program"].([]any))
-	if msg := validate(p["outputSchema"], m.output, "$"); msg != "" {
-		fail("OUTPUT_ERROR", "", "%s", msg)
-	}
-	return m.output, nil
-}

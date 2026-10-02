@@ -1,7 +1,7 @@
 # Jaxson/Shaxon Go implementation — status
 
 Status: living document. Tracks progress against
-`jaxson-shaxon-go-implementation-plan.md`, phase by phase, using that
+`jaxson-shaxon-implementation-plan.md`, phase by phase, using that
 document's own section numbers so the two can be read side by side. This
 snapshot (2026-09-27, revised) reflects the repository re-verified
 directly: `pkg/jaxson` build, vet, and full fixture run all re-run against
@@ -27,13 +27,13 @@ in its own bullet rather than invented as a fourth legend symbol.
 | Phase | Plan section | Status |
 |---|---|---|
 | 0 — Extract, don't change | §3 | **Done, verified** |
-| 1 — Extension points Shaxon needs | §4 | **All items closed on source inspection** — the exported-primitives item (previously the one partial item) is now closed too; **not re-verified with go build/vet/test this session** — no Go toolchain available in this environment (see "Exported primitives closed; files5 integration, 2026-09-27" below) |
+| 1 — Extension points Shaxon needs | §4 | **Done, verified (v0.2.0)** — build, vet, gofmt, `go test -race` all re-run clean; extension points now covered by their own tests (see "Phase 1 closure, v0.2.0" below) |
 | 2 — Shaxon's static layer | §5 | Not started (blocked on 1) |
 | 3 — Shape evaluation | §6 | Not started (blocked on 1) |
 | 4 — Indices/relations/targets/`validate` | §7 | Not started (blocked on 1, 3) |
 | 5 — `shaxon.Run`, version, pipeline order | §8 | Not started (blocked on 2–4) |
 | 6 — Fixtures and conformance | §9 | Not started (blocked on 5) |
-| 7 — Public API, `Session`, `build` package | §10 | **Mostly done, verified** — `Session` promoted into a new `pkg/jaxtools` package (not `pkg/shaxon` as §10 originally sited it — see the 7.2 bullet below); generic `jaxplay` CLI rewritten on it; the two issues the "jaxtools verification" pass found are now fixed and re-verified end to end against Navy Wars (see "cmd/jaxplay fixes, 2026-09-27" below); `build` combinator package still not started (the one item keeping this from "done") |
+| 7 — Public API, `Session`, `build` package | §10 | **7.2 and 7.3 done, verified** (`pkg/jaxtools`, `pkg/jaxson/build`, Navy Wars port). 7.1 (`shaxon.Validate`, `jaxson.Number`) remains and depends on Phases 2–5 |
 
 ## Phase 0 — Extract, don't change (plan §3) — done
 
@@ -75,8 +75,8 @@ in its own bullet rather than invented as a fourth legend symbol.
 `compute.go`, and `program.go` all now exist as their own files in
 `pkg/jaxson/` (see Phase 1 below) — confirming the plan §2 prediction that
 this split would "fall out naturally" once Phase 1 arrived, rather than
-needing a separate reorganisation step. `run.go` has not been split out
-on its own yet; `Run()` still lives at the foot of `machine.go`.
+needing a separate reorganisation step. `run.go` has since been split
+out (v0.2.0); `Run()` no longer lives in `machine.go`.
 
 ## Phase 1 — Extension points Shaxon needs (plan §4) — all items closed
 
@@ -84,10 +84,9 @@ Checked each item in the plan's own list directly against the source.
 The build/vet/fixture results below (build clean, vet clean, 28/28
 fixtures pass — identical fixture names to Phase 0's list, output
 unchanged) predate this session's "Exported primitives" edit — that one
-item was closed afterward, on source inspection and a tree-wide grep
-sweep only, without a fresh `go build`/`go vet`/`go test` run (see that
-item's own bullet, and "Exported primitives closed; files5 integration,
-2026-09-27" below, for why):
+item was closed on source inspection and a grep sweep, and has since
+been re-verified with a real build/vet/test run (see "Phase 1 closure,
+v0.2.0" below):
 
 - [x] **Instruction table.** `program.go` defines `InstructionDef` and
   `CoreInstructions()`, returning all eight core instructions as data
@@ -221,12 +220,16 @@ hasn't started. Nothing here should be read as "behind schedule" — it's
   through two independent host loops (a shell-script launcher each,
   `examples/game/run-play-go.sh` and `examples/game/run-jaxplay.sh` —
   see that section), this item moves to `[x]`.
-- [~] **7.3 Builder/compiler package.** `examples/game/build_navywars.py`
-  already implements the `P`/`V`/`C`/`SET`/`APPEND`/`IF`/`FOR`/`ASSERT`
-  combinators the plan describes — but in Python, as a one-off script, not
-  as the proposed `jaxson/build` Go package. Same situation as 7.2: the
-  pattern is proven by actual use (it built the Navy Wars example this
-  plan cites), just not yet packaged for reuse.
+- [x] **7.3 Builder/compiler package.** `pkg/jaxson/build` (v0.3.0) is a
+  fluent, chained, type-checked API rather than a direct port of the
+  Python combinators: sealed `Operand`/`Expr`/`Instr`/`Schema` types,
+  typestate `If(...).Then(...).Else(...)` and
+  `For(...).As(...).Index(...).Do(...)`, one typed constructor per
+  operator, `Package.Check/Map/JSON/Run`. Proven on a real-size program in
+  v0.3.1: `examples/navywars` reproduces `examples/game/navywars.json`
+  exactly (JSON-equal), and `jaxplay` on both packages produces
+  byte-identical 8-turn transcripts ending in `won`. `build_navywars.py`
+  is retained as the oracle, not as the source of truth.
 
 ## jaxtools verification, 2026-09-27
 
@@ -432,22 +435,102 @@ Verification performed, and its limits:
   their call sites in `machine.go`/`compute.go`/`schema.go`/`program.go`/
   `fixtures_test.go` are the first place to look.
 
-## Showcase examples, 2026-09-28
+## Phase 2 scaffolding: pkg/shaxon, 2026-09-30
 
-`examples/showcase/` adds 12 example packages (4 general, 4 finance, 4 cloud/data-science
-control-plane) and 29 fixture cases, covering all 8 instructions and all 30 compute
-operators, including every feature the design doc listed as having no fixture. See its
-README.
+First Shaxon code in this repository — `pkg/shaxon/{errors,registries,
+parse_computes,parse_indices,parse_relations,parse_shapes,recursion}.go`.
+Parses and statically validates `shapes`/`indices`/`relations`/`computes`
+(core sections 2–4d), independent of any input, per plan section 5.
+`ParseRegistries(pkg) (*Registries, *jaxson.Err)` is the entry point —
+shaped to be called from a future `Hooks.Static`, not yet wired to one.
 
-- **Unverified against Go.** `pkg/jaxson/showcase_test.go` (`TestShowcaseFixtures`) is new
-  and has never been compiled or run: no Go toolchain in the authoring environment.
-  Expected values come from `examples/showcase/tools/jaxsonpy.py`, an independent Python
-  port that passes all 28 official fixtures. Run
-  `go test ./pkg/jaxson/ -run TestShowcaseFixtures -v`; a failure means the Go code or the
-  port is wrong, and the port is not to be treated as authoritative.
-- The default fixture path in that test is relative and assumes the flat
-  `src/<tree>/pkg/jaxson` layout; if the `jgo/` symlink layout breaks it, the test skips
-  rather than fails, so a skip is not a pass. Use `JAXSON_SHOWCASE` to point at the file.
+**Settled, on request, rather than left open:**
+- An `extends` cycle is unconditionally `SHA_SHAPE_ERROR`, never valid
+  under any `maxShapeDepth` value — static merging has no focus node to
+  descend through, so no depth bound makes a literal cycle terminate.
+- `validate`/`check` shape-xor-`unique` structural checks belong in
+  `targets.go` (Phase 4), not here — this package's `registries.go` stays
+  scoped to exactly the four registries the plan's file layout names.
+
+**Error identifiers: every one Shaxon introduces is prefixed `SHA_`**
+(`SHA_SHAPE_ERROR`, `SHA_VALIDATION_ERROR`/`SHA_SHAPE_MISMATCH`,
+`SHA_DANGLING_REFERENCE`, `SHA_SHAPE_DEPTH_EXCEEDED`,
+`SHA_PATH_DEPTH_EXCEEDED`). `EXECUTION_ERROR` itself keeps Jaxson's own
+spelling (core section 9: "the existing Jaxson category, extended," not a
+new one), and `TYPE_ERROR`/`MISSING_PATH` keep Jaxson's spelling where
+reused unchanged — only Shaxon's own new codes within that category are
+prefixed.
+
+**One upstream change to `pkg/jaxson`, additive and verified**:
+`OperatorDef` gained `MinArity, MaxArity int`, filled from the existing
+private `arity` table in `operands.go` (one source of truth, not two).
+Full repo build/vet/gofmt/`test -race` re-run clean afterward. Originally
+made because Shaxon's `computes` registry seemed to need arity bounds
+exposed to validate expressions without a `Machine`. Correction, found
+while actually writing `parse_computes.go`: it didn't — `jaxson.CheckOperand`
+already delegates a compute body's full structural check (arity included)
+to Jaxson's own internal checker. The `OperatorDef` change is kept anyway
+— it's genuine, additive, harmless, and plausibly useful for future
+tooling — but the justification that motivated it turned out to have a
+better alternative, found a few steps later than it should have been.
+
+**Known, explicitly out of scope for this batch, not overlooked:**
+- The `"override": true` / `{"override": {...}}` extends mechanism has no
+  implementation — core section 4 never shows its JSON syntax anywhere,
+  only its semantics in prose. Default (union/AND/concatenate) merging is
+  complete and tested; override is a confirmed gap, not a guess.
+- Primitive keywords (`minLen`/`maxLen`/`enum`/`min`/`max`/`int`/
+  `minItems`/`maxItems`) are type-checked and carried through in
+  `KeywordDecl`, with the one rule core section 4 states explicitly
+  enforced (`enum` restricted to string/number/boolean/null). Cross-
+  keyword sanity (e.g. `minLen <= maxLen`) is not yet enforced.
+- Everything core section 9 marks as needing real data — a repeated
+  non-`multi` index key, `cardinality: "one-to-one"` uniqueness, a
+  `unique` declaration's own checks — is correctly left to Phase 4.
+
+**Verified**: `go build`/`go vet`/`gofmt -l .` clean; `go test -race ./...`
+clean across every package including the new `pkg/shaxon`, which has its
+own 18-case test file covering a full valid package, the extends merge
+(including the `closed`-default bug below), and one test per `SHA_SHAPE_
+ERROR` condition implemented so far.
+
+**Self-check note**: the first draft of the `closed` member's default got
+it backwards — Go's zero-value `false` instead of core section 4's stated
+default ("closed objects are the default posture" means `true` when
+undeclared). Caught by `TestParseRegistries_ExtendsMerge` failing, not by
+inspection. Worth double-checking stated defaults against Go zero values
+specifically in any future section-4-adjacent work — this is exactly the
+class of bug Go's zero values make easy to introduce silently.
+
+## Showcase examples merged into this branch, 2026-09-28
+
+`examples/showcase/` and `pkg/jaxson/showcase_test.go` were authored on a
+separate branch (no Go toolchain in that environment) taken from this
+repository *before* the "Phase 1 closure, v0.2.0" work below — that
+branch still had `Run()` in `machine.go`, no `run.go`, no extension
+mechanism (`host.go`/`profile.go`), no `CheckProgramHost`/`CheckSchema`/
+`Validate`, and no packaging files. Its own tracker entry is otherwise
+reproduced as written; only its "Unverified against Go" caveat is
+superseded here, since that verification has now actually happened:
+
+`examples/showcase/` adds 12 example packages (4 general, 4 finance, 4
+cloud/data-science control-plane) and 29 fixture cases, covering all 8
+instructions and all 30 compute operators. See its README.
+
+Merged onto this branch (not the branch that authored it) rather than
+merging this branch's own newer library work backward into that older
+state. Only two files were added — `examples/showcase/` and
+`pkg/jaxson/showcase_test.go` — nothing already on this branch was
+changed to accommodate them.
+
+**Verified, on this merge, with a real Go toolchain**: `go build ./...`,
+`go vet ./...`, `gofmt -l .` all clean; `go test -race ./...` clean
+across every package (`pkg/jaxson`, `pkg/jaxson/build`, `pkg/jaxtools`,
+`examples/navywars`). `TestShowcaseFixtures` passes all 29 cases against
+this branch's implementation, expected values taken from the independent
+Python port (`examples/showcase/tools/jaxsonpy.py`) noted in that test's
+own comment — a passing run here confirms agreement between the two, not
+that either is independently proven correct.
 
 ## Present, but out of this plan's scope (plan §12)
 
@@ -497,6 +580,36 @@ trailing-newline/alignment only (fixed); one comment in `compute.go` still
 named the now-deleted `checks.go` as where `arity` lives (corrected to
 `operands.go`).
 
+## Phase 1 closure, v0.2.0 (2026-09-27)
+
+Re-verified from a fresh unpack of the checkpoint, Go 1.22.2 (Ubuntu LTS
+`golang-go`): `go build ./...`, `go vet ./...`, `gofmt -l .` clean;
+`go test -race -count=3 ./...` clean. This supersedes the "not verified"
+caveat in the exported-primitives section above: the six renames build and
+pass. A grep sweep again finds only the unrelated `(c *Checker) clone()`.
+
+Work done in this pass:
+
+- **Extension points now have tests.** `pkg/jaxson/extension_test.go`
+  (external package, so it only sees what a host can reach): a host
+  instruction registered into the table is statically checked and
+  executed; `Checker.Host` reaches its `Check`; it inherits the generic
+  missing/unknown-field checks; its `Step()` calls share the machine's
+  limit; `OnMutate` fires once per `set`/`append`/`insert`/`delete`
+  (deletes report the container's path) and not on a failed mutation;
+  the core tables are fresh per call; concurrent `Run` is race-clean.
+- **Two gaps the tests exposed, closed additively.** No exported path could
+  set `Checker.Host` (added `CheckProgramHost`), and a host could not repeat
+  the schema stages of the pipeline (added `CheckSchema` and `Validate`).
+  No existing signature changed.
+- `Run` split out of `machine.go` into `run.go`.
+- LICENSE, README, VERSION, `pkg/version`, CHANGELOG added.
+
+Open, deliberately not changed: `Run` takes no instruction table, so a host
+must reimplement the pipeline order using the pieces above; and jaxson's
+comments still name Shaxon in places, against plan §4's "no Shaxon
+vocabulary anywhere in `jaxson`" (code identifiers are clean).
+
 ## Keeping this current
 
 Each time this is updated: re-run `go build ./...`, `go vet ./...`, and
@@ -513,11 +626,8 @@ the "exported primitives" item specifically, grep the whole module (not
 just `values.go`) for lowercase `clone(`/`equal(`/`typeName(`/`order(`/
 `sortedKeys(`/`fmtNum(` — as of this snapshot the only survivor is the
 unrelated `(c *Checker) clone()` method in `program.go`, and that's
-expected, not a regression to chase. This item is closed, but the
-closing edit itself was not re-verified with `go build`/`go vet`/`go
-test` in the environment that made it (no Go toolchain, no network to
-install one) — that verification is still owed and is the first thing
-to run before trusting Phase 1 as fully green.
+expected, not a regression to chase. This item is closed and was re-verified with a real
+build/vet/test run in v0.2.0 (see "Phase 1 closure, v0.2.0").
 
 The two `cmd/jaxplay` issues logged under "jaxtools verification,
 2026-09-27" were fixed the same session — see "cmd/jaxplay fixes,

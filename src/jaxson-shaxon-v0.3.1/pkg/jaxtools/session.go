@@ -24,6 +24,11 @@ package jaxtools
 
 import "github.com/ha1tch/jaxson/pkg/jaxson"
 
+// Runner runs one package to completion. jaxson.Run has this shape, as
+// does the Run method of any jaxson.Profile, so a session over a dialect
+// of the language passes that dialect's Run to NewSessionWith.
+type Runner func(map[string]any) (any, *jaxson.Err)
+
 // Session wraps a Jaxson package and runs it turn by turn, without
 // making the caller re-clone the package or re-thread errors by hand
 // each time. It does not know or guess which of a package's own
@@ -34,6 +39,7 @@ type Session struct {
 	turn    int
 	last    any // last successful output; nil before the first successful Step
 	lastErr *jaxson.Err
+	run     Runner
 }
 
 // NewSession starts a session over pkg. pkg must already be normalized
@@ -41,14 +47,21 @@ type Session struct {
 // Session does not normalize it. pkg's own "input" member, if any, is
 // discarded: each Step supplies its own, and Session never mutates the
 // map pkg itself.
-func NewSession(pkg map[string]any) *Session {
+func NewSession(pkg map[string]any) *Session { return NewSessionWith(pkg, jaxson.Run) }
+
+// NewSessionWith is NewSession over a dialect of the language: run
+// executes each turn. A nil run means jaxson.Run.
+func NewSessionWith(pkg map[string]any, run Runner) *Session {
+	if run == nil {
+		run = jaxson.Run
+	}
 	base := make(map[string]any, len(pkg))
 	for k, v := range pkg {
 		if k != "input" {
 			base[k] = v
 		}
 	}
-	return &Session{base: base}
+	return &Session{base: base, run: run}
 }
 
 // Step runs one turn: input becomes the package's "input" for this
@@ -62,7 +75,7 @@ func (s *Session) Step(input map[string]any) (any, *jaxson.Err) {
 		p[k] = v
 	}
 	p["input"] = input
-	out, err := jaxson.Run(p)
+	out, err := s.run(p)
 	s.lastErr = err
 	if err != nil {
 		return nil, err

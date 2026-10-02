@@ -16,14 +16,21 @@ import (
 	"unicode/utf8"
 )
 
-// OperatorDef is one compute operator. Arity is already checked
-// statically (the `arity` table in operands.go, driving checkExpr) before
-// Apply ever runs. "and", "or", and "select" are lazy — Apply evaluates
-// each argument itself, since they short-circuit — every other operator
-// is eager: its Apply's first line is always `v := evalArgs(m, a, env)`.
+// OperatorDef is one compute operator. MinArity/MaxArity (-1 = unbounded)
+// mirror the `arity` table in operands.go exactly — CoreOperators fills
+// them from that same table below, so there is one source of truth, not
+// two that could drift apart. Jaxson's own checkExpr still enforces arity
+// internally before Apply ever runs; these fields exist so a host runtime
+// (e.g. Shaxon, validating a `computes` entry at load time, with no
+// Machine and no input yet) can check arity the same way without
+// reimplementing this table itself. "and", "or", and "select" are lazy —
+// Apply evaluates each argument itself, since they short-circuit — every
+// other operator is eager: its Apply's first line is always
+// `v := evalArgs(m, a, env)`.
 type OperatorDef struct {
-	Name  string
-	Apply func(m *Machine, a []any, env map[string]any) any
+	Name               string
+	MinArity, MaxArity int
+	Apply              func(m *Machine, a []any, env map[string]any) any
 }
 
 func evalArgs(m *Machine, a []any, env map[string]any) []any {
@@ -63,7 +70,7 @@ func hasGetOr(op string, v []any) any {
 // CoreOperators returns Jaxson's compute operators, unchanged in
 // behaviour from the original jaxrun.go.
 func CoreOperators() map[string]OperatorDef {
-	return map[string]OperatorDef{
+	ops := map[string]OperatorDef{
 		"and": {Name: "and", Apply: func(m *Machine, a []any, env map[string]any) any {
 			for _, x := range a {
 				if !boo(m.expr(x, env)) {
@@ -243,4 +250,10 @@ func CoreOperators() map[string]OperatorDef {
 			return hasGetOr("get_or", evalArgs(m, a, env))
 		}},
 	}
+	for name, bounds := range arity {
+		d := ops[name]
+		d.MinArity, d.MaxArity = bounds[0], bounds[1]
+		ops[name] = d
+	}
+	return ops
 }

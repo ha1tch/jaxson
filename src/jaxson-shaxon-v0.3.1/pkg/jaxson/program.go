@@ -7,7 +7,7 @@ package jaxson
 // hardcoded switch in checkBlock (static checking) and another in
 // machine.go's run() (execution), so a host package can register
 // additional instructions without forking either switch. Shaxon adds
-// exactly one, "check" (jaxson-shaxon-go-implementation-plan.md section
+// exactly one, "check" (jaxson-shaxon-implementation-plan.md section
 // 4). Behaviour of the eight core instructions is unchanged from the
 // original jaxrun.go — this is a reshaping of the same logic into data,
 // not a rewrite of it.
@@ -296,6 +296,14 @@ func checkBlock(b any, c *Checker) {
 // to validate a program that may contain its own extra instructions
 // before ever executing it).
 func CheckProgram(program any, instructions map[string]InstructionDef) (err *Err) {
+	return CheckProgramHost(program, instructions, nil)
+}
+
+// CheckProgramHost is CheckProgram with the Checker's Host slot populated,
+// so a registered instruction's Check function can consult host-specific
+// state (Shaxon's "check" confirming its shape name is declared). Without
+// this, no exported path could set Checker.Host at all.
+func CheckProgramHost(program any, instructions map[string]InstructionDef, host any) (err *Err) {
 	defer func() {
 		if r := recover(); r != nil {
 			e, ok := r.(*Err)
@@ -305,6 +313,8 @@ func CheckProgram(program any, instructions map[string]InstructionDef) (err *Err
 			err = e
 		}
 	}()
-	checkBlock(program, NewChecker(instructions))
+	c := NewChecker(instructions)
+	c.Host = host
+	checkBlock(program, c)
 	return nil
 }
