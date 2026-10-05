@@ -1,0 +1,13 @@
+{"kind": "host", "when": "2026-10-05 09:21:46", "profile": "engine", "examples": ["chinese-wall"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v70-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 100, "engine": "shaxon", "ms": 0.1981, "steps": 411, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 100, "engine": "pyshacl", "ms": 22.185537000041222, "repeats": 10, "lift_ms": 11.2523320000264, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 100, "engine": "jena", "ms": 3.3386, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 1000, "engine": "shaxon", "ms": 1.4942, "steps": 4011, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 1000, "engine": "pyshacl", "ms": 91.11053499998434, "repeats": 10, "lift_ms": 66.43200500002422, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 1000, "engine": "jena", "ms": 3.7025, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 4000, "engine": "shaxon", "ms": 9.7803, "steps": 16011, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 4000, "engine": "pyshacl", "ms": 299.5235880000564, "repeats": 10, "lift_ms": 243.1713139999374, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 4000, "engine": "jena", "ms": 3.6795, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 20000, "engine": "shaxon", "ms": 31.4417, "steps": 80011, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 20000, "engine": "pyshacl", "ms": 1695.961321000027, "repeats": 10, "lift_ms": 1396.8710850000434, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "chinese-wall", "events": 20000, "engine": "jena", "ms": 9.3207, "repeats": 10, "allow": false}

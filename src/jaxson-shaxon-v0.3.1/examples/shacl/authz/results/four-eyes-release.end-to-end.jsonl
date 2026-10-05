@@ -1,0 +1,13 @@
+{"kind": "host", "when": "2026-10-05 09:30:28", "profile": "end-to-end", "examples": ["four-eyes-release"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v70-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 100, "engine": "shaxon", "ms": 5.722862999846257, "steps": 1546, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 100, "engine": "pyshacl", "ms": 80.2033229999779, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 100, "engine": "jena", "ms": 1084.1613140000845, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 1000, "engine": "shaxon", "ms": 136.8764280000505, "steps": 15101, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 1000, "engine": "pyshacl", "ms": 2338.370934000068, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 1000, "engine": "jena", "ms": 1275.9325350000381, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 4000, "engine": "shaxon", "ms": 2826.483564, "steps": 60339, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 4000, "engine": "pyshacl", "ms": 37625.66669699982, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 4000, "engine": "jena", "ms": 2061.846711999806, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 20000, "engine": "shaxon", "ms": 80411.17726899983, "steps": 301568, "repeats": 1, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 20000, "engine": "pyshacl", "ms": null, "skipped": "projected single run over the 120 s budget"}
+{"kind": "cell", "profile": "end-to-end", "example": "four-eyes-release", "events": 20000, "engine": "jena", "ms": 6475.418905000197, "repeats": 3, "allow": true, "reasons": []}

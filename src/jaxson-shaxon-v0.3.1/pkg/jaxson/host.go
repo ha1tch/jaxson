@@ -34,15 +34,9 @@ func Fail(cat, code, format string, a ...any) { fail(cat, code, format, a...) }
 // static checker rejects it); a host that rebinds a name it owns is
 // responsible for that being intended.
 func (m *Machine) WithLocal(name string, v any, fn func()) {
-	old, had := m.locals[name]
-	m.locals[name] = v
-	defer func() {
-		if had {
-			m.locals[name] = old
-		} else {
-			delete(m.locals, name)
-		}
-	}()
+	n := len(m.locals)
+	m.locals = append(m.locals, localVar{name, v})
+	defer m.dropLocals(n)
 	fn()
 }
 

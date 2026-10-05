@@ -1,0 +1,40 @@
+{
+  "shaxon": "3.1",
+  "limits": { "steps": 100000, "maxShapeDepth": 8 },
+  "input": {
+    "customers": [
+      { "id": "c1", "name": "Ada" },
+      { "id": "c2", "name": "Grace" }
+    ],
+    "orders": [
+      { "id": 1, "customer": "c1", "status": "placed",  "lines": [ { "sku": "A", "qty": 2 }, { "sku": "B", "qty": 1 } ] },
+      { "id": 2, "customer": "c9", "status": "shipped", "lines": [ { "sku": "A", "qty": 1 }, { "sku": "A", "qty": 3 } ] },
+      { "id": 3, "customer": "c2", "status": "lost",    "lines": [ { "sku": "C", "qty": 0 } ] }
+    ]
+  },
+  "indices": {
+    "customersById": { "source": { "$path": ["input", "customers"] }, "key": { "$path": ["local", "item", "id"] } }
+  },
+  "shapes": {
+    "Line": {
+      "kind": "object", "required": ["sku", "qty"], "closed": true,
+      "fields": { "sku": { "kind": "string" }, "qty": { "kind": "number", "int": true, "min": 1 } }
+    },
+    "Order": {
+      "kind": "object", "required": ["id", "customer", "status", "lines"], "closed": true,
+      "fields": {
+        "id":       { "kind": "number" },
+        "customer": { "kind": "reference", "index": "customersById" },
+        "status":   { "kind": "string", "enum": ["draft", "placed", "shipped"] },
+        "lines":    { "kind": "array", "items": { "shape": "Line" } }
+      }
+    }
+  },
+  "validate": [
+    { "target": { "$each": ["input", "orders"] }, "shape": "Order", "mode": "report" },
+    { "target": { "$each": ["input", "orders"] }, "unique": { "field": "id", "id": "ORDER_ID_UNIQUE" }, "mode": "report" }
+  ],
+  "program": [
+    { "op": "set", "path": ["output"], "value": { "$lit": "done" } }
+  ]
+}

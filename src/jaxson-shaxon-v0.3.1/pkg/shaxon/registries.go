@@ -7,7 +7,7 @@ package shaxon
 // indices/relations/shapes/computes once, at load time, independent of
 // any input — the load-time half of what Phase 5's Hooks.Static will
 // call. No Machine runs here and no EXECUTION_ERROR/VALIDATION_ERROR is
-// possible from this file; only SHA_SHAPE_ERROR.
+// possible from this file; only SHAX_SHAPE_ERROR.
 //
 // Scope note: primitive keywords a "string"/"number"/"array" kind may
 // carry (minLen/maxLen, min/max/int, minItems/maxItems) are passed
@@ -18,6 +18,8 @@ package shaxon
 // checkField below.
 
 import (
+	"math/big"
+
 	"github.com/ha1tch/jaxson/pkg/jaxson"
 )
 
@@ -39,9 +41,17 @@ var validSeverities = map[string]bool{"violation": true, "warning": true, "info"
 // FieldDecl is a shape used in field/items/qualified/not/combinator
 // position: either a named reference ({"shape": "Name"}) or an inline
 // shape declaration. Exactly one of ShapeRef/Inline is set.
+// FieldDecl's Override is meaningful only when this FieldDecl is a value
+// in some shape's Fields map (core section 4: "per-field override:true
+// replaces the parent's field definition"); ignored elsewhere since
+// and/or/xone/not/items/qualified override only at the whole-member
+// level (ShapeDecl's AndOverride etc.) — parseField's allowOverride
+// parameter rejects "override" as an unknown key anywhere else, rather
+// than silently accepting a flag that would never be consulted.
 type FieldDecl struct {
 	ShapeRef string
 	Inline   *ShapeDecl
+	Override bool
 }
 
 // QualifiedDecl is core section 4's "between Min and Max of this
@@ -49,6 +59,15 @@ type FieldDecl struct {
 type QualifiedDecl struct {
 	Target   FieldDecl
 	Min, Max *int64
+}
+
+// RequiredIdEntry is one requiredIds value. A bare JSON string is sugar
+// for {ID: thatString, Override: false} — promoted to the object form
+// only when a per-key override is needed, the same move RDF/SHACL make
+// whenever a literal needs metadata attached to it.
+type RequiredIdEntry struct {
+	ID       string
+	Override bool
 }
 
 // CombinatorCheck is one `check` — either authored inline (With/Expr set,
@@ -70,7 +89,8 @@ type CombinatorCheck struct {
 type KeywordDecl struct {
 	MinLen, MaxLen     *int64
 	Enum               []any
-	Min, Max           *float64 // sufficient for the structural sanity Phase 2 does; Phase 3 re-reads the raw *big.Rat
+	Min, Max           *float64 // structural sanity only (Phase 2); inexact for decimals, never used to judge data
+	MinRat, MaxRat     *big.Rat // the exact bounds, set alongside Min/Max; evaluation (Phase 3) reads these
 	WantInt            bool
 	MinItems, MaxItems *int64
 }
@@ -91,10 +111,11 @@ type ShapeDecl struct {
 	Kind string // "" is legal: "a shape using only combinators and no
 	// kind/fields is a node-kind shape" (core section 4)
 	Closed            bool
+	ClosedSet         bool // the shape wrote "closed" itself (extends merge: an unstated value inherits)
 	IgnoredProperties []string
 	Fields            map[string]FieldDecl
 	Required          []string
-	RequiredIds       map[string]string
+	RequiredIds       map[string]RequiredIdEntry
 	And, Or, Xone     []FieldDecl
 	Not               []FieldDecl
 	Items             *FieldDecl // set when Kind == "array" and "items" is declared
@@ -102,7 +123,17 @@ type ShapeDecl struct {
 	Check             []CombinatorCheck
 	Severity          string
 	Message           string
+	ID                string // constraintId, from an "id" member; "" if not declared
 	Keywords          KeywordDecl
+
+	// Whole-member extends-override flags (core section 4's merge table).
+	// Fields and RequiredIds override per-item instead — see FieldDecl.
+	// Override and RequiredIdEntry.Override. Required has no override: the
+	// table states none is needed, since union only ever gets stricter.
+	ClosedOverride            bool
+	AndOverride, OrOverride   bool
+	XoneOverride, NotOverride bool
+	CheckOverride             *CombinatorCheck
 
 	// Reference-kind members (core section 5); at most one of Index,
 	// Relation, (Of+By) is set — parseField enforces exactly one.
@@ -172,6 +203,7 @@ func ParseRegistries(pkg map[string]any) (r *Registries, err *jaxson.Err) {
 	parseIndices(pkg, r)   // must run before relations: 4c compares against declared indices too
 	parseRelations(pkg, r) // must run before shapes: reference.relation names this
 	parseShapes(pkg, r)
+	checkInverseNames(r) // needs everything above: a check may name a relation parsed after it
 	checkRecursionBound(pkg, r)
 	return r, nil
 }
@@ -194,7 +226,7 @@ func checkComputeBody(with map[string]any, expr any, context string) {
 	if expr == nil {
 		failLoad("%s: needs an expr", context)
 	}
-	if e := jaxson.CheckOperand(wrapCompute(with, expr), "focus"); e != nil {
+	if e := jaxson.CheckOperandWith(StaticForms(), wrapCompute(with, expr), "focus"); e != nil {
 		failLoad("%s: %s", context, e.Msg)
 	}
 }

@@ -1,0 +1,8 @@
+ENGINE-ONLY (validation alone, on data already in each engine's form; the lift is shown, not counted)
+example            events      shaxon   steps       pyshacl          jena       lift  verdict
+four-eyes-release     100     1.68 ms    1546      59 ms     7.1 ms      12 ms  allow
+four-eyes-release    1000   121.68 ms   15101    2019 ms     6.5 ms     119 ms  allow
+four-eyes-release    4000  2851.41 ms   60339   35430 ms     8.2 ms     548 ms  allow
+four-eyes-release   20000  79334.29 ms  301568       skipped    19.4 ms    2165 ms  allow
+best of up to 10 after a warm-up; the verdict compared is allow/deny (the end-to-end profile compares reasons too)
+lift = lift.py on the same input: the cost the end-to-end profile adds for pyshacl and Jena, and Shaxon does not have

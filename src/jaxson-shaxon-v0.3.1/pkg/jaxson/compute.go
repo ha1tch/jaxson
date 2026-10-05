@@ -30,7 +30,14 @@ import (
 type OperatorDef struct {
 	Name               string
 	MinArity, MaxArity int
-	Apply              func(m *Machine, a []any, env map[string]any) any
+	// Apply evaluates the operator over its unevaluated argument
+	// expressions (the tree-walking interpreter). Every core operator but
+	// and, or and select is eager and defined by Fn instead, with Apply
+	// derived from it.
+	Apply func(m *Machine, a []any, env map[string]any) any
+	// Fn, if set, is the operator over already-evaluated arguments. The
+	// slice is scratch space owned by the caller: Fn must not keep it.
+	Fn func(m *Machine, v []any) any
 }
 
 func evalArgs(m *Machine, a []any, env map[string]any) []any {
@@ -93,54 +100,47 @@ func CoreOperators() map[string]OperatorDef {
 			}
 			return m.expr(a[2], env)
 		}},
-		"add": {Name: "add", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"add": {Name: "add", Fn: func(m *Machine, v []any) any {
 			s := new(big.Rat)
 			for _, x := range v {
 				s.Add(s, num(x))
 			}
 			return checkNum(s)
 		}},
-		"sub": {Name: "sub", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"sub": {Name: "sub", Fn: func(m *Machine, v []any) any {
 			s := new(big.Rat).Set(num(v[0]))
 			for _, x := range v[1:] {
 				s.Sub(s, num(x))
 			}
 			return checkNum(s)
 		}},
-		"mul": {Name: "mul", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"mul": {Name: "mul", Fn: func(m *Machine, v []any) any {
 			s := big.NewRat(1, 1)
 			for _, x := range v {
 				s.Mul(s, num(x))
 			}
 			return checkNum(s)
 		}},
-		"neg": {Name: "neg", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"neg": {Name: "neg", Fn: func(m *Machine, v []any) any {
 			return new(big.Rat).Neg(num(v[0]))
 		}},
-		"abs": {Name: "abs", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"abs": {Name: "abs", Fn: func(m *Machine, v []any) any {
 			return new(big.Rat).Abs(num(v[0]))
 		}},
-		"min": {Name: "min", Apply: func(m *Machine, a []any, env map[string]any) any {
-			return minMax("min", evalArgs(m, a, env))
+		"min": {Name: "min", Fn: func(m *Machine, v []any) any {
+			return minMax("min", v)
 		}},
-		"max": {Name: "max", Apply: func(m *Machine, a []any, env map[string]any) any {
-			return minMax("max", evalArgs(m, a, env))
+		"max": {Name: "max", Fn: func(m *Machine, v []any) any {
+			return minMax("max", v)
 		}},
-		"mod": {Name: "mod", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"mod": {Name: "mod", Fn: func(m *Machine, v []any) any {
 			x, y := integer(v[0]), integer(v[1])
 			if y.Sign() == 0 {
 				execFail("DIV_ZERO", "modulo by zero")
 			}
 			return new(big.Rat).SetInt(new(big.Int).Rem(x, y))
 		}},
-		"div": {Name: "div", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"div": {Name: "div", Fn: func(m *Machine, v []any) any {
 			x, y := num(v[0]), num(v[1])
 			if y.Sign() == 0 {
 				execFail("DIV_ZERO", "division by zero")
@@ -151,69 +151,65 @@ func CoreOperators() map[string]OperatorDef {
 			}
 			return checkNum(roundRat(new(big.Rat).Quo(x, y), scaleOf(v[2]), mode))
 		}},
-		"round": {Name: "round", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"round": {Name: "round", Fn: func(m *Machine, v []any) any {
 			mode := "half_even"
 			if len(v) == 3 {
 				mode = str(v[2])
 			}
 			return checkNum(roundRat(num(v[0]), scaleOf(v[1]), mode))
 		}},
-		"eq": {Name: "eq", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"eq": {Name: "eq", Fn: func(m *Machine, v []any) any {
 			return Equal(v[0], v[1])
 		}},
-		"ne": {Name: "ne", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"ne": {Name: "ne", Fn: func(m *Machine, v []any) any {
 			return !Equal(v[0], v[1])
 		}},
-		"lt": {Name: "lt", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"lt": {Name: "lt", Fn: func(m *Machine, v []any) any {
 			return Order(v[0], v[1]) < 0
 		}},
-		"le": {Name: "le", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"le": {Name: "le", Fn: func(m *Machine, v []any) any {
 			return Order(v[0], v[1]) <= 0
 		}},
-		"gt": {Name: "gt", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"gt": {Name: "gt", Fn: func(m *Machine, v []any) any {
 			return Order(v[0], v[1]) > 0
 		}},
-		"ge": {Name: "ge", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"ge": {Name: "ge", Fn: func(m *Machine, v []any) any {
 			return Order(v[0], v[1]) >= 0
 		}},
-		"not": {Name: "not", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"not": {Name: "not", Fn: func(m *Machine, v []any) any {
 			return !boo(v[0])
 		}},
-		"concat": {Name: "concat", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"concat": {Name: "concat", Fn: func(m *Machine, v []any) any {
+			if len(v) == 2 {
+				return str(v[0]) + str(v[1]) // one allocation, exactly sized
+			}
 			var b strings.Builder
+			n := 0
+			for _, x := range v {
+				n += len(str(x))
+			}
+			b.Grow(n)
 			for _, x := range v {
 				b.WriteString(str(x))
 			}
 			return b.String()
 		}},
-		"len": {Name: "len", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"len": {Name: "len", Fn: func(m *Machine, v []any) any {
 			switch t := v[0].(type) {
 			case string:
 				return big.NewRat(int64(utf8.RuneCountInString(t)), 1)
 			case []any:
 				return big.NewRat(int64(len(t)), 1)
-			case map[string]any:
-				return big.NewRat(int64(len(t)), 1)
+			case *Object:
+				return big.NewRat(int64(t.Len()), 1)
 			}
 			execFail("TYPE_ERROR", "len of %s", TypeName(v[0]))
 			return nil
 		}},
-		"to_string": {Name: "to_string", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"to_string": {Name: "to_string", Fn: func(m *Machine, v []any) any {
 			return FormatDecimal(num(v[0]))
 		}},
-		"to_number": {Name: "to_number", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"to_number": {Name: "to_number", Fn: func(m *Machine, v []any) any {
 			s := str(v[0])
 			if !numRe.MatchString(s) {
 				execFail("BAD_NUMBER", "not a JSON number: %q", s)
@@ -221,39 +217,48 @@ func CoreOperators() map[string]OperatorDef {
 			r, _ := new(big.Rat).SetString(s)
 			return checkNum(r)
 		}},
-		"list": {Name: "list", Apply: func(m *Machine, a []any, env map[string]any) any {
-			return evalArgs(m, a, env)
+		"list": {Name: "list", Fn: func(m *Machine, v []any) any {
+			out := make([]any, len(v)) // v may be scratch space: do not keep it
+			copy(out, v)
+			return out
 		}},
-		"keys": {Name: "keys", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
-			mp, ok := v[0].(map[string]any)
+		"keys": {Name: "keys", Fn: func(m *Machine, v []any) any {
+			o, ok := v[0].(*Object)
 			if !ok {
 				execFail("TYPE_ERROR", "keys of %s", TypeName(v[0]))
 			}
 			out := []any{}
-			for _, k := range SortedKeys(mp) {
+			for _, k := range o.SortedKeys() {
 				out = append(out, k)
 			}
 			return out
 		}},
-		"type_of": {Name: "type_of", Apply: func(m *Machine, a []any, env map[string]any) any {
-			v := evalArgs(m, a, env)
+		"type_of": {Name: "type_of", Fn: func(m *Machine, v []any) any {
 			return TypeName(v[0])
 		}},
-		"has": {Name: "has", Apply: func(m *Machine, a []any, env map[string]any) any {
-			return hasGetOr("has", evalArgs(m, a, env))
+		"has": {Name: "has", Fn: func(m *Machine, v []any) any {
+			return hasGetOr("has", v)
 		}},
-		"get": {Name: "get", Apply: func(m *Machine, a []any, env map[string]any) any {
-			return hasGetOr("get", evalArgs(m, a, env))
+		"get": {Name: "get", Fn: func(m *Machine, v []any) any {
+			return hasGetOr("get", v)
 		}},
-		"get_or": {Name: "get_or", Apply: func(m *Machine, a []any, env map[string]any) any {
-			return hasGetOr("get_or", evalArgs(m, a, env))
+		"get_or": {Name: "get_or", Fn: func(m *Machine, v []any) any {
+			return hasGetOr("get_or", v)
 		}},
 	}
 	for name, bounds := range arity {
 		d := ops[name]
 		d.MinArity, d.MaxArity = bounds[0], bounds[1]
 		ops[name] = d
+	}
+	// An eager operator is defined by Fn, over its already-evaluated
+	// arguments; its tree-walking Apply is derived from it.
+	for name, d := range ops {
+		if d.Fn != nil {
+			fn := d.Fn
+			d.Apply = func(m *Machine, a []any, env map[string]any) any { return fn(m, evalArgs(m, a, env)) }
+			ops[name] = d
+		}
 	}
 	return ops
 }

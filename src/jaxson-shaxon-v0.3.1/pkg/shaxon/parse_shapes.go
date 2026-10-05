@@ -45,7 +45,7 @@ func parseShapes(pkg map[string]any, r *Registries) {
 
 // resolveNamedShape resolves shapes.<name>, including its extends chain,
 // memoized in resolved and cycle-checked via inProgress. A genuine
-// extends cycle (A extends B extends A) is unconditionally SHA_SHAPE_ERROR
+// extends cycle (A extends B extends A) is unconditionally SHAX_SHAPE_ERROR
 // — settled earlier: extends resolves by static merging at load time, not
 // per-focus-node recursion the way a self-referencing fields entry does,
 // so no depth bound can make a literal cycle terminate correctly.
@@ -72,13 +72,28 @@ func resolveNamedShape(name string, rawShapes map[string]map[string]any, resolve
 	}
 	delete(inProgress, name)
 	own.Name = name
+	validateKeywordsAgainstKind(name, own)
+	validateRequiredIds(name, own)
 	resolved[name] = own
 	return own
 }
 
 func mergeShapes(parent, child ShapeDecl) ShapeDecl {
 	out := child
-	out.Closed = parent.Closed && child.Closed
+
+	// Core section 4: closed accumulates as "most restrictive of parent/child
+	// wins": a closed parent or a closed child makes the merged shape closed,
+	// unless the child marks closedOverride. A child that does not write
+	// "closed" at all inherits the parent's posture instead of imposing the
+	// default (S8; a boolean AND of the two flags picked the most permissive).
+	switch {
+	case child.ClosedOverride:
+		out.Closed = child.Closed
+	case child.ClosedSet:
+		out.Closed = parent.Closed || child.Closed
+	default:
+		out.Closed = parent.Closed
+	}
 	out.IgnoredProperties = append(append([]string{}, parent.IgnoredProperties...), child.IgnoredProperties...)
 
 	fields := map[string]FieldDecl{}
@@ -86,8 +101,8 @@ func mergeShapes(parent, child ShapeDecl) ShapeDecl {
 		fields[k] = v
 	}
 	for k, v := range child.Fields {
-		if _, collide := parent.Fields[k]; collide {
-			failLoad("shapes.%s: field %q collides with an extended shape's field", child.Name, k)
+		if _, collide := parent.Fields[k]; collide && !v.Override {
+			failLoad("shapes.%s: field %q collides with an extended shape's field (add \"override\": true to replace it)", child.Name, k)
 		}
 		fields[k] = v
 	}
@@ -95,20 +110,43 @@ func mergeShapes(parent, child ShapeDecl) ShapeDecl {
 
 	out.Required = unionStrings(parent.Required, child.Required)
 
-	reqIds := map[string]string{}
+	reqIds := map[string]RequiredIdEntry{}
 	for k, v := range parent.RequiredIds {
 		reqIds[k] = v
 	}
 	for k, v := range child.RequiredIds {
+		if _, collide := parent.RequiredIds[k]; collide && !v.Override {
+			failLoad("shapes.%s: requiredIds %q collides with an extended shape's requiredIds (add \"override\": true to replace it)", child.Name, k)
+		}
 		reqIds[k] = v
 	}
 	out.RequiredIds = reqIds
 
-	out.And = append(append([]FieldDecl{}, parent.And...), child.And...)
-	out.Or = append(append([]FieldDecl{}, parent.Or...), child.Or...)
-	out.Xone = append(append([]FieldDecl{}, parent.Xone...), child.Xone...)
-	out.Not = append(append([]FieldDecl{}, parent.Not...), child.Not...)
-	out.Check = append(append([]CombinatorCheck{}, parent.Check...), child.Check...)
+	if child.AndOverride {
+		out.And = child.And
+	} else {
+		out.And = append(append([]FieldDecl{}, parent.And...), child.And...)
+	}
+	if child.OrOverride {
+		out.Or = child.Or
+	} else {
+		out.Or = append(append([]FieldDecl{}, parent.Or...), child.Or...)
+	}
+	if child.XoneOverride {
+		out.Xone = child.Xone
+	} else {
+		out.Xone = append(append([]FieldDecl{}, parent.Xone...), child.Xone...)
+	}
+	if child.NotOverride {
+		out.Not = child.Not
+	} else {
+		out.Not = append(append([]FieldDecl{}, parent.Not...), child.Not...)
+	}
+	if child.CheckOverride != nil {
+		out.Check = []CombinatorCheck{*child.CheckOverride}
+	} else {
+		out.Check = append(append([]CombinatorCheck{}, parent.Check...), child.Check...)
+	}
 
 	if child.Kind == "" {
 		out.Kind = parent.Kind
@@ -155,8 +193,13 @@ var shapeStructuralKeys = map[string]bool{
 	"kind": true, "closed": true, "ignoredProperties": true, "fields": true,
 	"required": true, "requiredIds": true, "and": true, "or": true, "xone": true,
 	"not": true, "check": true, "severity": true, "message": true, "extends": true,
-	"items": true, "qualified": true,
+	"items": true, "qualified": true, "id": true,
 	"index": true, "relation": true, "of": true, "by": true,
+	// Whole-member extends-override flags (core section 4). "override"
+	// itself is NOT here: it's valid only inside a fields entry, handled
+	// by parseField directly, not as a general shape-body key.
+	"closedOverride": true, "andOverride": true, "orOverride": true,
+	"xoneOverride": true, "notOverride": true, "checkOverride": true,
 }
 
 // parseShapeBody parses everything a shape declares itself, not
@@ -191,6 +234,14 @@ func parseShapeBody(name string, raw map[string]any, r *Registries) ShapeDecl {
 			failLoad("shapes.%s: closed must be a boolean", name)
 		}
 		s.Closed = b
+		s.ClosedSet = true
+	}
+	if ov, has := raw["closedOverride"]; has {
+		b, ok := ov.(bool)
+		if !ok {
+			failLoad("shapes.%s.closedOverride must be a boolean", name)
+		}
+		s.ClosedOverride = b
 	}
 	if ipv, has := raw["ignoredProperties"]; has {
 		arr, ok := ipv.([]any)
@@ -213,12 +264,12 @@ func parseShapeBody(name string, raw map[string]any, r *Registries) ShapeDecl {
 		}
 		s.Fields = map[string]FieldDecl{}
 		for _, fname := range jaxson.SortedKeys(fm) {
-			s.Fields[fname] = parseField(name+"."+fname, fm[fname], r)
+			s.Fields[fname] = parseField(name+"."+fname, fm[fname], r, true)
 		}
 	}
 
 	if iv, has := raw["items"]; has {
-		fd := parseField(name+".items", iv, r)
+		fd := parseField(name+".items", iv, r, false)
 		s.Items = &fd
 	}
 
@@ -240,20 +291,15 @@ func parseShapeBody(name string, raw map[string]any, r *Registries) ShapeDecl {
 		if !ok {
 			failLoad("shapes.%s: requiredIds must be an object", name)
 		}
-		reqSet := map[string]bool{}
-		for _, rq := range s.Required {
-			reqSet[rq] = true
-		}
-		s.RequiredIds = map[string]string{}
+		// NOT validated against s.Required here — s.Required is this
+		// shape's own pre-merge list, but requiredIds is legal whenever
+		// the name is in the MERGED required list (e.g. a child adding
+		// requiredIds for a name only its parent requires). See
+		// validateRequiredIds, called post-merge, same reasoning as
+		// validateKeywordsAgainstKind.
+		s.RequiredIds = map[string]RequiredIdEntry{}
 		for _, k := range jaxson.SortedKeys(rim) {
-			id, ok := rim[k].(string)
-			if !ok {
-				failLoad("shapes.%s: requiredIds.%s must be a string", name, k)
-			}
-			if !reqSet[k] {
-				failLoad("shapes.%s: requiredIds names %q, which is not in required", name, k)
-			}
-			s.RequiredIds[k] = id
+			s.RequiredIds[k] = parseRequiredIdEntry(name, k, rim[k])
 		}
 	}
 
@@ -268,7 +314,7 @@ func parseShapeBody(name string, raw map[string]any, r *Registries) ShapeDecl {
 		}
 		var list []FieldDecl
 		for _, e := range arr {
-			list = append(list, parseField(name+"."+combKey+"[]", e, r))
+			list = append(list, parseField(name+"."+combKey+"[]", e, r, false))
 		}
 		switch combKey {
 		case "and":
@@ -279,8 +325,25 @@ func parseShapeBody(name string, raw map[string]any, r *Registries) ShapeDecl {
 			s.Xone = list
 		}
 	}
+	for _, ov := range []struct {
+		key string
+		set func(bool)
+	}{
+		{"andOverride", func(b bool) { s.AndOverride = b }},
+		{"orOverride", func(b bool) { s.OrOverride = b }},
+		{"xoneOverride", func(b bool) { s.XoneOverride = b }},
+		{"notOverride", func(b bool) { s.NotOverride = b }},
+	} {
+		if v, has := raw[ov.key]; has {
+			b, ok := v.(bool)
+			if !ok {
+				failLoad("shapes.%s.%s must be a boolean", name, ov.key)
+			}
+			ov.set(b)
+		}
+	}
 	if nv, has := raw["not"]; has {
-		s.Not = []FieldDecl{parseField(name+".not", nv, r)}
+		s.Not = []FieldDecl{parseField(name+".not", nv, r, false)}
 	}
 
 	if qv, has := raw["qualified"]; has {
@@ -289,6 +352,13 @@ func parseShapeBody(name string, raw map[string]any, r *Registries) ShapeDecl {
 
 	if cv, has := raw["check"]; has {
 		s.Check = []CombinatorCheck{parseCheck(name, cv, r)}
+	}
+	if ov, has := raw["checkOverride"]; has {
+		cc := parseCheck(name+".checkOverride", ov, r)
+		s.CheckOverride = &cc
+		if _, hasCheck := raw["check"]; hasCheck {
+			failLoad("shapes.%s: check and checkOverride cannot both be declared on the same shape — checkOverride replaces what the shape would otherwise AND with the parent, it is not an additional check", name)
+		}
 	}
 
 	if sv, has := raw["severity"]; has {
@@ -318,6 +388,13 @@ func parseShapeBody(name string, raw map[string]any, r *Registries) ShapeDecl {
 		}
 	}
 
+	if iv, has := raw["id"]; has {
+		id, ok := iv.(string)
+		if !ok {
+			failLoad("shapes.%s: id must be a string", name)
+		}
+		s.ID = id
+	}
 	parseKeywords(name, raw, &s)
 	return s
 }
@@ -341,7 +418,12 @@ func parseQualified(ctx string, v any, r *Registries) QualifiedDecl {
 	case string:
 		target = FieldDecl{ShapeRef: t}
 	case map[string]any:
+		if _, has := t["extends"]; has {
+			failLoad("%s.qualified.shape: extends is only valid on a named, top-level shape", ctx)
+		}
 		inline := parseShapeBody(ctx+".qualified.shape", t, r)
+		validateKeywordsAgainstKind(ctx+".qualified.shape", inline)
+		validateRequiredIds(ctx+".qualified.shape", inline)
 		target = FieldDecl{Inline: &inline}
 	default:
 		failLoad("%s.qualified.shape must be a shape name or an inline shape", ctx)
@@ -446,7 +528,7 @@ func parseReferenceMembers(name string, raw map[string]any, s *ShapeDecl, r *Reg
 			failLoad("shapes.%s: reference of/by must be declared together", name)
 		}
 		of := raw["of"]
-		if e := jaxson.CheckOperand(of); e != nil {
+		if e := jaxson.CheckOperandWith(StaticForms(), of); e != nil {
 			failLoad("shapes.%s.of: %s", name, e.Msg)
 		}
 		byArr, ok := raw["by"].([]any)
@@ -462,14 +544,26 @@ func parseReferenceMembers(name string, raw map[string]any, s *ShapeDecl, r *Reg
 	}
 }
 
+// keywordLegalOn mirrors jaxson's own schemaKeys table (schema.go) — the
+// same per-kind keyword vocabulary jaxson's inputSchema enforces, applied
+// here to a shape declaration instead of a schema one. enum is handled
+// separately (enumKinds), since it spans four kinds, not one.
+var keywordLegalOn = map[string]string{
+	"minLen": "string", "maxLen": "string",
+	"min": "number", "max": "number", "int": "number",
+	"minItems": "array", "maxItems": "array",
+}
+
+// parseKeywords extracts keyword values and checks each is well-formed in
+// isolation (a non-negative integer, a number, a boolean). It does NOT
+// check legality against Kind or cross-keyword ordering (min<=max etc.):
+// both of those must wait until after extends has resolved Kind
+// inheritance — see validateKeywordsAgainstKind, called post-merge.
 func parseKeywords(name string, raw map[string]any, s *ShapeDecl) {
 	if ev, has := raw["enum"]; has {
 		arr, ok := ev.([]any)
 		if !ok {
 			failLoad("shapes.%s: enum must be an array", name)
-		}
-		if s.Kind != "" && !enumKinds[s.Kind] {
-			failLoad("shapes.%s: enum is not legal on kind %q (only string/number/boolean/null)", name, s.Kind)
 		}
 		s.Keywords.Enum = arr
 	}
@@ -492,10 +586,12 @@ func parseKeywords(name string, raw map[string]any, s *ShapeDecl) {
 	if v, has := raw["min"]; has {
 		f := mustNumber(name+".min", v)
 		s.Keywords.Min = &f
+		s.Keywords.MinRat = v.(*big.Rat)
 	}
 	if v, has := raw["max"]; has {
 		f := mustNumber(name+".max", v)
 		s.Keywords.Max = &f
+		s.Keywords.MaxRat = v.(*big.Rat)
 	}
 	if v, has := raw["int"]; has {
 		b, ok := v.(bool)
@@ -506,20 +602,165 @@ func parseKeywords(name string, raw map[string]any, s *ShapeDecl) {
 	}
 }
 
+// validateRequiredIds checks every requiredIds key names a member in the
+// final, post-merge Required list. Called wherever validateKeywordsAgainstKind
+// is — same ordering reasoning: Required can itself come from a parent.
+func validateRequiredIds(name string, s ShapeDecl) {
+	reqSet := map[string]bool{}
+	for _, rq := range s.Required {
+		reqSet[rq] = true
+	}
+	for _, k := range jaxson.SortedKeys(toAnyMap(s.RequiredIds)) {
+		if !reqSet[k] {
+			failLoad("shapes.%s: requiredIds names %q, which is not in required", name, k)
+		}
+	}
+}
+
+func toAnyMap(m map[string]RequiredIdEntry) map[string]any {
+	out := make(map[string]any, len(m))
+	for k := range m {
+		out[k] = nil
+	}
+	return out
+}
+
+// validateKeywordsAgainstKind checks keyword-vs-kind legality (mirroring
+// jaxson's own schemaKeys table) and cross-keyword ordering. Called once
+// per shape with its FINAL kind already known: immediately after parsing
+// for an inline shape (which cannot extend — see parseField), and after
+// extends has resolved for a named one (see resolveNamedShape).
+func validateKeywordsAgainstKind(name string, s ShapeDecl) {
+	for kw, wantKind := range keywordLegalOn {
+		present := false
+		switch kw {
+		case "minLen":
+			present = s.Keywords.MinLen != nil
+		case "maxLen":
+			present = s.Keywords.MaxLen != nil
+		case "min":
+			present = s.Keywords.Min != nil
+		case "max":
+			present = s.Keywords.Max != nil
+		case "int":
+			present = s.Keywords.WantInt
+		case "minItems":
+			present = s.Keywords.MinItems != nil
+		case "maxItems":
+			present = s.Keywords.MaxItems != nil
+		}
+		if present && s.Kind != wantKind {
+			failLoad("shapes.%s: %q is not legal on kind %q (only %q)", name, kw, s.Kind, wantKind)
+		}
+	}
+	if len(s.Keywords.Enum) > 0 && s.Kind != "" && !enumKinds[s.Kind] {
+		failLoad("shapes.%s: enum is not legal on kind %q (only string/number/boolean/null)", name, s.Kind)
+	}
+	if s.Keywords.MinLen != nil && s.Keywords.MaxLen != nil && *s.Keywords.MinLen > *s.Keywords.MaxLen {
+		failLoad("shapes.%s: minLen (%d) exceeds maxLen (%d)", name, *s.Keywords.MinLen, *s.Keywords.MaxLen)
+	}
+	if s.Keywords.MinItems != nil && s.Keywords.MaxItems != nil && *s.Keywords.MinItems > *s.Keywords.MaxItems {
+		failLoad("shapes.%s: minItems (%d) exceeds maxItems (%d)", name, *s.Keywords.MinItems, *s.Keywords.MaxItems)
+	}
+	if s.Keywords.Min != nil && s.Keywords.Max != nil && *s.Keywords.Min > *s.Keywords.Max {
+		failLoad("shapes.%s: min (%v) exceeds max (%v)", name, *s.Keywords.Min, *s.Keywords.Max)
+	}
+}
+
 // parseField parses one field/items/combinator-member value: either
-// {"shape": "Name"} or an inline shape declaration.
-func parseField(ctx string, v any, r *Registries) FieldDecl {
+// {"shape": "Name"} (optionally with "override") or an inline shape
+// declaration (optionally with "override" mixed into its own keys).
+// allowOverride is true only when called from the fields map loop —
+// per-item "override" has meaning only there (core section 4: "per-field
+// override:true"); everywhere else (items/qualified/and/or/xone/not) only
+// the whole-member fooOverride sibling keys apply, so "override" is
+// rejected as an unknown key rather than silently accepted and ignored.
+//
+// extends is not legal on an inline shape — every spec example uses it
+// only on a named, top-level shape, and disallowing it here removes an
+// otherwise-real ordering hazard: a field's Kind can be known immediately
+// after parsing only if it never depends on resolving another shape's
+// extends chain.
+func parseField(ctx string, v any, r *Registries, allowOverride bool) FieldDecl {
 	m, ok := v.(map[string]any)
 	if !ok {
 		failLoad("%s must be an object", ctx)
 	}
-	if sv, has := m["shape"]; has && len(m) == 1 {
-		if sn, ok := sv.(string); ok {
-			return FieldDecl{ShapeRef: sn}
+	override := false
+	if ov, has := m["override"]; has {
+		if !allowOverride {
+			failLoad("%s: \"override\" is only valid inside a fields entry", ctx)
+		}
+		b, ok := ov.(bool)
+		if !ok {
+			failLoad("%s.override must be a boolean", ctx)
+		}
+		override = b
+	}
+	if sv, hasShape := m["shape"]; hasShape {
+		rest := 0
+		for k := range m {
+			if k != "shape" && k != "override" {
+				rest++
+			}
+		}
+		if rest == 0 {
+			if sn, ok := sv.(string); ok {
+				return FieldDecl{ShapeRef: sn, Override: override}
+			}
 		}
 	}
-	inline := parseShapeBody(ctx, m, r)
-	return FieldDecl{Inline: &inline}
+	if _, has := m["extends"]; has {
+		failLoad("%s: extends is only valid on a named, top-level shape", ctx)
+	}
+	body := m
+	if _, has := m["override"]; has {
+		body = map[string]any{}
+		for k, vv := range m {
+			if k != "override" {
+				body[k] = vv
+			}
+		}
+	}
+	inline := parseShapeBody(ctx, body, r)
+	validateKeywordsAgainstKind(ctx, inline)
+	validateRequiredIds(ctx, inline)
+	return FieldDecl{Inline: &inline, Override: override}
+}
+
+// parseRequiredIdEntry accepts either a bare string ("id": "SOME_ID") or
+// the promoted object form ("id": {"value": "SOME_ID", "override": true}),
+// needed only when a per-key extends override is wanted.
+func parseRequiredIdEntry(shapeName, key string, v any) RequiredIdEntry {
+	if s, ok := v.(string); ok {
+		return RequiredIdEntry{ID: s}
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		failLoad("shapes.%s: requiredIds.%s must be a string or {\"value\":..., \"override\":...}", shapeName, key)
+	}
+	for k := range m {
+		if k != "value" && k != "override" {
+			failLoad("shapes.%s: requiredIds.%s: unknown key %q", shapeName, key, k)
+		}
+	}
+	val, has := m["value"]
+	if !has {
+		failLoad("shapes.%s: requiredIds.%s needs a value", shapeName, key)
+	}
+	id, ok := val.(string)
+	if !ok {
+		failLoad("shapes.%s: requiredIds.%s.value must be a string", shapeName, key)
+	}
+	entry := RequiredIdEntry{ID: id}
+	if ov, has := m["override"]; has {
+		b, ok := ov.(bool)
+		if !ok {
+			failLoad("shapes.%s: requiredIds.%s.override must be a boolean", shapeName, key)
+		}
+		entry.Override = b
+	}
+	return entry
 }
 
 func mustNonNegInt(ctx string, v any) int64 {

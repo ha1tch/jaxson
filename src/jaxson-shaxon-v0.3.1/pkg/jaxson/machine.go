@@ -17,8 +17,51 @@ package jaxson
 import (
 	"fmt"
 	"math/big"
-	"strings"
 )
+
+// ---------------------------------------------------------------- locals
+
+// localVar is one `local.<name>` binding. The bindings in scope form a stack,
+// innermost last: there are few (a loop variable, its index, a host's focus),
+// so finding one by scanning from the top costs less than hashing its name.
+type localVar struct {
+	name string
+	v    any
+}
+
+// local returns the innermost binding of name, or nil if there is none.
+func (m *Machine) local(name string) any {
+	for i := len(m.locals) - 1; i >= 0; i-- {
+		if m.locals[i].name == name {
+			return m.locals[i].v
+		}
+	}
+	return nil
+}
+
+// dropLocals pops the stack back to n bindings.
+func (m *Machine) dropLocals(n int) {
+	if len(m.locals) > n {
+		clear(m.locals[n:])
+		m.locals = m.locals[:n]
+	}
+}
+
+// smallRats holds the first indices as shared numbers, so that a loop's index
+// variable allocates nothing. Numbers are immutable.
+var smallRats = func() (t [1024]*big.Rat) {
+	for i := range t {
+		t[i] = big.NewRat(int64(i), 1)
+	}
+	return
+}()
+
+func ratInt(i int) *big.Rat {
+	if i >= 0 && i < len(smallRats) {
+		return smallRats[i]
+	}
+	return big.NewRat(int64(i), 1)
+}
 
 // ---------------------------------------------------------------- machine
 
@@ -31,10 +74,21 @@ import (
 // the same set/append/insert/delete instructions a program itself uses).
 type Machine struct {
 	input, state, output any
-	locals               map[string]any
-	steps, limit         int
+	locals               []localVar // a stack: the innermost binding of a name is the last
+	steps, limit         int64
+	costs                CostTable
 	instructions         map[string]InstructionDef
 	operators            map[string]OperatorDef
+	forms                map[string]FormDef
+
+	// Compiled execution (compile.go). tree selects the tree-walking
+	// oracle instead; cache and ccache hold operands and `$compute`
+	// islands compiled on first use; scratch and sp are the value slots
+	// the islands being evaluated borrow.
+	tree          bool
+	cache, ccache map[uintptr]cacheEntry
+	scratch       []any
+	sp            int
 
 	// OnMutate, if set, is called after each successful set/append/
 	// insert/delete, with the root and the path segments of whatever
@@ -59,9 +113,10 @@ func NewMachine(input, state, output any, limit int, instructions map[string]Ins
 		operators = CoreOperators()
 	}
 	return &Machine{
-		input: input, state: state, output: output,
-		locals: map[string]any{}, limit: limit,
+		input: Data(input), state: Data(state), output: Data(output),
+		locals: make([]localVar, 0, 8), limit: int64(limit), costs: UnitTable(),
 		instructions: instructions, operators: operators,
+		tree: treeDefault,
 	}
 }
 
@@ -72,19 +127,36 @@ func NewMachine(input, state, output any, limit int, instructions map[string]Ins
 // shape check, a qualified count) should charge through this same method
 // rather than maintaining a second counter, so the two contribute to one
 // shared, portable step total.
-func (m *Machine) Step() {
-	m.steps++
-	if m.steps > m.limit {
-		fail("RESOURCE_ERROR", "STEPS", "step limit %d exceeded", m.limit)
-	}
-}
+func (m *Machine) Step() { m.Charge(1) }
 
 // mutated calls OnMutate if one is set. Every mutation instruction in
 // program.go calls this immediately after the mutation succeeds.
 func (m *Machine) mutated(root string, segs []any) {
 	if m.OnMutate != nil {
-		m.OnMutate(root, segs)
+		m.OnMutate(root, plainSegs(segs))
 	}
+}
+
+// plainSegs returns segs with every Key turned back into its string, which is
+// what a host's mutation log understands. A path with no Key is returned as
+// it is.
+func plainSegs(segs []any) []any {
+	var out []any
+	for i, s := range segs {
+		if k, ok := s.(Key); ok {
+			if out == nil {
+				out = make([]any, len(segs))
+				copy(out, segs[:i])
+			}
+			out[i] = k.Value()
+		} else if out != nil {
+			out[i] = s
+		}
+	}
+	if out == nil {
+		return segs
+	}
+	return out
 }
 
 func (m *Machine) toIndex(r *big.Rat) int {
@@ -124,17 +196,32 @@ func (m *Machine) walk(root string, segs []any) (any, *Err) {
 	case "output":
 		cur = m.output
 	case "local":
-		cur = m.locals[segs[0].(string)]
+		cur = m.local(segs[0].(string))
 		segs = segs[1:]
 	}
+	return walkSegs(cur, segs)
+}
+
+// walkSegs follows segs from cur.
+func walkSegs(cur any, segs []any) (any, *Err) {
 	for _, s := range segs {
 		switch k := s.(type) {
+		case Key: // a name known when the program was compiled: the quick path
+			o, ok := cur.(*Object)
+			if !ok {
+				return nil, &Err{"EXECUTION_ERROR", "TYPE_ERROR", fmt.Sprintf("cannot read member %q of %s", k.Value(), TypeName(cur))}
+			}
+			v, ok := o.GetKey(k)
+			if !ok {
+				return nil, &Err{"EXECUTION_ERROR", "MISSING_PATH", fmt.Sprintf("member %q not found", k.Value())}
+			}
+			cur = v
 		case string:
-			mp, ok := cur.(map[string]any)
+			o, ok := cur.(*Object)
 			if !ok {
 				return nil, &Err{"EXECUTION_ERROR", "TYPE_ERROR", fmt.Sprintf("cannot read member %q of %s", k, TypeName(cur))}
 			}
-			v, ok := mp[k]
+			v, ok := o.Get(k)
 			if !ok {
 				return nil, &Err{"EXECUTION_ERROR", "MISSING_PATH", fmt.Sprintf("member %q not found", k)}
 			}
@@ -173,12 +260,18 @@ func (m *Machine) putAt(root string, segs []any, v any) {
 	}
 	par := m.getAt(root, segs[:len(segs)-1])
 	switch k := segs[len(segs)-1].(type) {
+	case Key:
+		o, ok := par.(*Object)
+		if !ok {
+			execFail("TYPE_ERROR", "cannot set member %q on %s", k.Value(), TypeName(par))
+		}
+		o.SetKey(k, v)
 	case string:
-		mp, ok := par.(map[string]any)
+		o, ok := par.(*Object)
 		if !ok {
 			execFail("TYPE_ERROR", "cannot set member %q on %s", k, TypeName(par))
 		}
-		mp[k] = v
+		o.Set(k, v)
 	case int:
 		ar, ok := par.([]any)
 		if !ok {
@@ -191,93 +284,25 @@ func (m *Machine) putAt(root string, segs []any, v any) {
 	}
 }
 
+// read evaluates a $path. Values are shared, not copied, when they cannot
+// change under the reader: everything in `input` and `local` is immutable (no
+// instruction writes to either root), and a *big.Rat, string, boolean or null
+// is immutable wherever it lives. A composite read from `state` or `output`
+// is deep-copied, so a loop over it iterates a snapshot. Whatever is stored
+// into state or output is copied by the storing instruction (own), so no
+// value in a mutable root ever aliases a shared one.
 func (m *Machine) read(p []any) any {
 	r, s := m.segs(p)
-	return Clone(m.getAt(r, s))
-}
-
-func (m *Machine) eval(x any) any {
-	if mp, ok := x.(map[string]any); ok && len(mp) == 1 {
-		for k, v := range mp {
-			switch k {
-			case "$path":
-				return m.read(v.([]any))
-			case "$lit":
-				return Clone(v)
-			case "$compute":
-				return Clone(m.compute(v.(map[string]any)))
-			case "$tpl":
-				return m.tpl(v)
-			}
-		}
-	}
-	return Clone(x)
-}
-
-func (m *Machine) tpl(v any) any {
-	switch t := v.(type) {
-	case map[string]any:
-		if len(t) == 1 {
-			for k, a := range t {
-				if k == "$opt" {
-					r, s := m.segs(a.([]any))
-					val, e := m.walk(r, s)
-					if e != nil {
-						if e.Code == "MISSING_PATH" {
-							return omit
-						}
-						panic(e)
-					}
-					return Clone(val)
-				}
-				if strings.HasPrefix(k, "$") {
-					return m.eval(t)
-				}
-			}
-		}
-		out := map[string]any{}
-		for k, a := range t {
-			r := m.tpl(a)
-			if _, o := r.(omitT); o {
-				continue
-			}
-			out[k] = r
-		}
-		return out
-	case []any:
-		out := make([]any, 0, len(t))
-		for _, a := range t {
-			r := m.tpl(a)
-			if _, o := r.(omitT); o {
-				continue
-			}
-			out = append(out, r)
-		}
-		return out
+	v := m.getAt(r, s)
+	if r == "input" || r == "local" {
+		return v
 	}
 	return Clone(v)
 }
 
-func (m *Machine) compute(c map[string]any) any {
-	env := map[string]any{}
-	if w, ok := c["with"].(map[string]any); ok {
-		for _, n := range SortedKeys(w) {
-			env[n] = m.eval(w[n])
-		}
-	}
-	return m.expr(c["expr"], env)
-}
-
-func (m *Machine) expr(e any, env map[string]any) any {
-	switch t := e.(type) {
-	case map[string]any:
-		return env[t["$v"].(string)]
-	case []any:
-		m.Step()
-		return m.apply(t[0].(string), t[1:], env)
-	}
-	return e
-}
+// own returns a value the caller may store in state or output: a deep copy
+// of v, which may be shared with the input, a local, or the program text.
+func (m *Machine) own(v any) any { return Clone(v) }
 
 func num(x any) *big.Rat {
 	r, ok := x.(*big.Rat)
@@ -315,19 +340,10 @@ func scaleOf(x any) int {
 	return int(r.Num().Int64())
 }
 
-func (m *Machine) apply(op string, a []any, env map[string]any) any {
-	def, ok := m.operators[op]
-	if !ok {
-		panic("unreachable op " + op)
-	}
-	return def.Apply(m, a, env)
-}
-
 func lookup(c, k any) (any, bool) {
 	switch t := c.(type) {
-	case map[string]any:
-		v, ok := t[str(k)]
-		return v, ok
+	case *Object:
+		return t.Get(str(k))
 	case []any:
 		i := new(Machine).toIndex(num(k))
 		if i < len(t) {
@@ -339,21 +355,6 @@ func lookup(c, k any) (any, bool) {
 	return nil, false
 }
 
-func (m *Machine) run(block []any) {
-	for _, raw := range block {
-		in := raw.(map[string]any)
-		m.Step()
-		def, ok := m.instructions[in["op"].(string)]
-		if !ok {
-			// CheckProgram/checkBlock already rejects an unknown op
-			// before Run ever gets here; this is unreachable in
-			// practice, not a new failure mode.
-			execFail("TYPE_ERROR", "unknown op %q at execution", in["op"])
-		}
-		def.Exec(m, in)
-	}
-}
-
 // RunProgram executes a top-level program block, translating the halt
 // instruction's control-flow panic into a normal return (any other panic
 // still propagates, to be turned into an *Err by the caller's own
@@ -361,7 +362,11 @@ func (m *Machine) run(block []any) {
 // calls this once it has constructed a Machine with its extended
 // instruction table, instead of duplicating this halt-handling.
 func (m *Machine) RunProgram(block []any) {
+	sp := m.sp
+	nl := len(m.locals)
 	defer func() {
+		m.release(sp)
+		m.dropLocals(nl)
 		if r := recover(); r != nil {
 			if _, ok := r.(haltSignal); !ok {
 				panic(r)
@@ -393,7 +398,15 @@ func (m *Machine) GetAt(root string, segs []any) any { return m.getAt(root, segs
 // own operand fields using the same machinery, and so a host's shape/
 // field evaluation can resolve a `$path` focus-node reference the same
 // way the core language does.
-func (m *Machine) Eval(x any) any { return m.eval(x) }
+//
+// The result may share structure with the machine's input, a local, or the
+// program text, so it must be treated as read-only. A host that wants to keep
+// or change it copies it first (Clone).
+func (m *Machine) Eval(x any) any {
+	sp, nl := m.sp, len(m.locals)
+	defer func() { m.release(sp); m.dropLocals(nl) }()
+	return m.eval(x)
+}
 
 // RunCompute runs a `$compute` island — `{"with": {...}, "expr": [...]}`
 // — and returns its result, charging steps exactly as an inline
@@ -401,4 +414,8 @@ func (m *Machine) Eval(x any) any { return m.eval(x) }
 // Shaxon's "check" instruction (a `$compute` bound to `local.focus`) and
 // named-compute-reuse machinery can run a compute island without
 // re-implementing expression evaluation.
-func (m *Machine) RunCompute(c map[string]any) any { return m.compute(c) }
+func (m *Machine) RunCompute(c map[string]any) any {
+	sp, nl := m.sp, len(m.locals)
+	defer func() { m.release(sp); m.dropLocals(nl) }()
+	return m.compute(c)
+}

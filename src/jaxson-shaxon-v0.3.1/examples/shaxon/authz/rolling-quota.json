@@ -1,0 +1,348 @@
+{
+  "shaxon": "3.1",
+  "limits": {
+    "steps": 600
+  },
+  "input": {
+    "policy": {
+      "windowHours": 24,
+      "limitMb": 0.9,
+      "maxExports": 5
+    },
+    "events": [
+      {
+        "t": 1.5,
+        "actor": "nia",
+        "mb": 0.1
+      },
+      {
+        "t": 2,
+        "actor": "nia",
+        "mb": 0.2
+      },
+      {
+        "t": 3,
+        "actor": "nia",
+        "mb": 0.3
+      },
+      {
+        "t": 4,
+        "actor": "zed",
+        "mb": 0.5
+      }
+    ],
+    "request": {
+      "actor": "nia",
+      "t": 20,
+      "mb": 0.3
+    }
+  },
+  "shapes": {
+    "Quota": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "actor",
+        "t",
+        "mb"
+      ],
+      "fields": {
+        "actor": {
+          "kind": "string"
+        },
+        "t": {
+          "kind": "number"
+        },
+        "mb": {
+          "kind": "number",
+          "min": 0
+        }
+      },
+      "check": {
+        "id": "DAILY_VOLUME_EXCEEDED",
+        "with": {
+          "sum": {
+            "$path": [
+              "state",
+              "window",
+              "sum"
+            ]
+          },
+          "mb": {
+            "$path": [
+              "local",
+              "focus",
+              "mb"
+            ]
+          },
+          "lim": {
+            "$path": [
+              "input",
+              "policy",
+              "limitMb"
+            ]
+          }
+        },
+        "expr": [
+          "le",
+          [
+            "add",
+            {
+              "$v": "sum"
+            },
+            {
+              "$v": "mb"
+            }
+          ],
+          {
+            "$v": "lim"
+          }
+        ]
+      },
+      "message": "the volume already exported in the window plus this export exceeds the limit"
+    },
+    "Rate": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "actor",
+        "t",
+        "mb"
+      ],
+      "fields": {
+        "actor": {
+          "kind": "string"
+        },
+        "t": {
+          "kind": "number"
+        },
+        "mb": {
+          "kind": "number",
+          "min": 0
+        }
+      },
+      "check": {
+        "id": "TOO_MANY_EXPORTS",
+        "with": {
+          "n": {
+            "$path": [
+              "state",
+              "window",
+              "n"
+            ]
+          },
+          "max": {
+            "$path": [
+              "input",
+              "policy",
+              "maxExports"
+            ]
+          }
+        },
+        "expr": [
+          "lt",
+          {
+            "$v": "n"
+          },
+          {
+            "$v": "max"
+          }
+        ]
+      },
+      "message": "too many exports already made in the window"
+    }
+  },
+  "program": [
+    {
+      "op": "set",
+      "path": [
+        "state",
+        "findings"
+      ],
+      "value": {
+        "$lit": []
+      }
+    },
+    {
+      "op": "aggregate",
+      "in": {
+        "$path": [
+          "input",
+          "events"
+        ]
+      },
+      "as": "e",
+      "into": [
+        "state",
+        "window"
+      ],
+      "where": {
+        "$compute": {
+          "with": {
+            "a": {
+              "$path": [
+                "local",
+                "e",
+                "actor"
+              ]
+            },
+            "t": {
+              "$path": [
+                "local",
+                "e",
+                "t"
+              ]
+            },
+            "ra": {
+              "$path": [
+                "input",
+                "request",
+                "actor"
+              ]
+            },
+            "rt": {
+              "$path": [
+                "input",
+                "request",
+                "t"
+              ]
+            },
+            "w": {
+              "$path": [
+                "input",
+                "policy",
+                "windowHours"
+              ]
+            }
+          },
+          "expr": [
+            "and",
+            [
+              "eq",
+              {
+                "$v": "a"
+              },
+              {
+                "$v": "ra"
+              }
+            ],
+            [
+              "and",
+              [
+                "gt",
+                {
+                  "$v": "t"
+                },
+                [
+                  "sub",
+                  {
+                    "$v": "rt"
+                  },
+                  {
+                    "$v": "w"
+                  }
+                ]
+              ],
+              [
+                "le",
+                {
+                  "$v": "t"
+                },
+                {
+                  "$v": "rt"
+                }
+              ]
+            ]
+          ]
+        }
+      },
+      "measures": {
+        "n": {
+          "count": true
+        },
+        "sum": {
+          "sum": {
+            "$path": [
+              "local",
+              "e",
+              "mb"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "check",
+      "target": {
+        "$path": [
+          "input",
+          "request"
+        ]
+      },
+      "shape": "Quota",
+      "mode": "report",
+      "into": [
+        "state",
+        "findings"
+      ]
+    },
+    {
+      "op": "check",
+      "target": {
+        "$path": [
+          "input",
+          "request"
+        ]
+      },
+      "shape": "Rate",
+      "mode": "report",
+      "into": [
+        "state",
+        "findings"
+      ]
+    },
+    {
+      "op": "set",
+      "path": [
+        "output"
+      ],
+      "value": {
+        "$tpl": {
+          "decision": {
+            "$compute": {
+              "with": {
+                "f": {
+                  "$path": [
+                    "state",
+                    "findings"
+                  ]
+                }
+              },
+              "expr": [
+                "select",
+                [
+                  "eq",
+                  [
+                    "len",
+                    {
+                      "$v": "f"
+                    }
+                  ],
+                  0
+                ],
+                "allow",
+                "deny"
+              ]
+            }
+          },
+          "findings": {
+            "$path": [
+              "state",
+              "findings"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

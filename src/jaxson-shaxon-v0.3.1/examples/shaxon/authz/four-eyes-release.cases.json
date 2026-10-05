@@ -1,0 +1,363 @@
+[
+ {
+  "name": "approved by someone else, released by a third person",
+  "input": {},
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "approval is voided by a later amendment",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 2,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "bob"
+    },
+    {
+     "seq": 3,
+     "type": "amend",
+     "payment": "P1",
+     "actor": "ann"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "dee"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "NO_FRESH_APPROVAL"
+   ]
+  }
+ },
+ {
+  "name": "the creator approving their own payment counts for nothing",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 2,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "ann"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "dee"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "NO_FRESH_APPROVAL"
+   ]
+  }
+ },
+ {
+  "name": "the only approver cannot also release",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 2,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "bob"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "bob"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "NO_FRESH_APPROVAL"
+   ]
+  }
+ },
+ {
+  "name": "the creator cannot release",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 2,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "bob"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "ann"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "CREATOR_CANNOT_RELEASE"
+   ]
+  }
+ },
+ {
+  "name": "with a second approver, the first may release",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 2,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "bob"
+    },
+    {
+     "seq": 3,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "cy"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "bob"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "a withdrawn approval no longer counts",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 2,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "bob"
+    },
+    {
+     "seq": 3,
+     "type": "revoke",
+     "payment": "P1",
+     "actor": "bob"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "dee"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "NO_FRESH_APPROVAL"
+   ]
+  }
+ },
+ {
+  "name": "a withdrawal by someone else does not cancel the approval",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 2,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "bob"
+    },
+    {
+     "seq": 3,
+     "type": "revoke",
+     "payment": "P1",
+     "actor": "cy"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "dee"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "an unknown payment is refused",
+  "input": {
+   "request": {
+    "payment": "P9",
+    "actor": "dee"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "PAYMENT_UNKNOWN",
+    "NO_FRESH_APPROVAL"
+   ]
+  }
+ },
+ {
+  "name": "approving again after an amendment restores access",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 2,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "bob"
+    },
+    {
+     "seq": 3,
+     "type": "amend",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 4,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "bob"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "dee"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "an approval of another payment does not carry over",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    },
+    {
+     "seq": 2,
+     "type": "create",
+     "payment": "P2",
+     "actor": "ann"
+    },
+    {
+     "seq": 3,
+     "type": "approve",
+     "payment": "P2",
+     "actor": "bob"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "dee"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "NO_FRESH_APPROVAL"
+   ]
+  }
+ },
+ {
+  "name": "an approval that predates the payment's creation is ignored",
+  "input": {
+   "events": [
+    {
+     "seq": 1,
+     "type": "approve",
+     "payment": "P1",
+     "actor": "bob"
+    },
+    {
+     "seq": 2,
+     "type": "create",
+     "payment": "P1",
+     "actor": "ann"
+    }
+   ],
+   "request": {
+    "payment": "P1",
+    "actor": "dee"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "NO_FRESH_APPROVAL"
+   ]
+  }
+ },
+ {
+  "name": "a request with no actor is not judged at all",
+  "input": {
+   "request": {
+    "payment": "P1"
+   }
+  },
+  "expect": {
+   "error": "EXECUTION_ERROR/MISSING_PATH"
+  }
+ }
+]

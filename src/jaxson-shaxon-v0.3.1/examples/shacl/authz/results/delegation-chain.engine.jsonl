@@ -1,0 +1,13 @@
+{"kind": "host", "when": "2026-10-05 09:44:50", "profile": "engine", "examples": ["delegation-chain"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v70-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 100, "engine": "shaxon", "ms": 0.3203, "steps": 281, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 100, "engine": "pyshacl", "ms": 82.45835900015663, "repeats": 10, "lift_ms": 8.340086999851337, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 100, "engine": "jena", "ms": 11.5384, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 1000, "engine": "shaxon", "ms": 1.8999, "steps": 2081, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 1000, "engine": "pyshacl", "ms": 261.48974599982466, "repeats": 10, "lift_ms": 151.7519630001516, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 1000, "engine": "jena", "ms": 7.5696, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 4000, "engine": "shaxon", "ms": 4.0724, "steps": 8081, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 4000, "engine": "pyshacl", "ms": 1071.4107059998241, "repeats": 10, "lift_ms": 353.74138099996344, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 4000, "engine": "jena", "ms": 16.1509, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 20000, "engine": "shaxon", "ms": 28.0871, "steps": 40081, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 20000, "engine": "pyshacl", "ms": 5656.688688000031, "repeats": 10, "lift_ms": 1618.8432250000915, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "delegation-chain", "events": 20000, "engine": "jena", "ms": 12.2405, "repeats": 10, "allow": true}

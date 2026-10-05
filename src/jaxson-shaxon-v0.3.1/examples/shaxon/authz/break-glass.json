@@ -1,0 +1,430 @@
+{
+  "shaxon": "3.1",
+  "limits": {
+    "steps": 100000
+  },
+  "input": {
+    "events": [
+      {
+        "type": "breakglass",
+        "id": "bg1",
+        "actor": "rhea",
+        "reason": "ICU outage"
+      },
+      {
+        "type": "review",
+        "of": "bg1",
+        "reviewer": "sam"
+      },
+      {
+        "type": "breakglass",
+        "id": "bg2",
+        "actor": "rhea",
+        "reason": "ward 4 lockout"
+      },
+      {
+        "type": "breakglass",
+        "id": "bg3",
+        "actor": "tobi",
+        "reason": "pager failure"
+      },
+      {
+        "type": "review",
+        "of": "bg3",
+        "reviewer": "tobi"
+      }
+    ],
+    "request": {
+      "actor": "rhea"
+    }
+  },
+  "indices": {
+    "reviewsOf": {
+      "source": {
+        "$path": [
+          "input",
+          "events"
+        ]
+      },
+      "key": {
+        "$compute": {
+          "with": {
+            "e": {
+              "$path": [
+                "local",
+                "item"
+              ]
+            }
+          },
+          "expr": [
+            "get_or",
+            {
+              "$v": "e"
+            },
+            "of",
+            ""
+          ]
+        }
+      },
+      "multi": true
+    },
+    "reviewsOfBy": {
+      "source": {
+        "$path": [
+          "input",
+          "events"
+        ]
+      },
+      "key": {
+        "$compute": {
+          "with": {
+            "e": {
+              "$path": [
+                "local",
+                "item"
+              ]
+            }
+          },
+          "expr": [
+            "concat",
+            [
+              "get_or",
+              {
+                "$v": "e"
+              },
+              "of",
+              ""
+            ],
+            "|",
+            [
+              "get_or",
+              {
+                "$v": "e"
+              },
+              "reviewer",
+              ""
+            ]
+          ]
+        }
+      },
+      "multi": true
+    },
+    "usesBy": {
+      "source": {
+        "$path": [
+          "input",
+          "events"
+        ]
+      },
+      "key": {
+        "$compute": {
+          "with": {
+            "e": {
+              "$path": [
+                "local",
+                "item"
+              ]
+            }
+          },
+          "expr": [
+            "concat",
+            [
+              "get_or",
+              {
+                "$v": "e"
+              },
+              "type",
+              ""
+            ],
+            "|",
+            [
+              "get_or",
+              {
+                "$v": "e"
+              },
+              "actor",
+              ""
+            ]
+          ]
+        }
+      },
+      "multi": true
+    }
+  },
+  "shapes": {
+    "TrailEvent": {
+      "kind": "object",
+      "closed": false,
+      "required": [
+        "type"
+      ],
+      "check": {
+        "id": "UNREVIEWED_BREAK_GLASS",
+        "with": {
+          "e": {
+            "$path": [
+              "local",
+              "focus"
+            ]
+          },
+          "me": {
+            "$path": [
+              "input",
+              "request",
+              "actor"
+            ]
+          },
+          "reviews": {
+            "$inverse": {
+              "index": "reviewsOf",
+              "key": {
+                "$compute": {
+                  "with": {
+                    "e": {
+                      "$path": [
+                        "local",
+                        "focus"
+                      ]
+                    }
+                  },
+                  "expr": [
+                    "get_or",
+                    {
+                      "$v": "e"
+                    },
+                    "id",
+                    ""
+                  ]
+                }
+              }
+            }
+          },
+          "selfReviews": {
+            "$inverse": {
+              "index": "reviewsOfBy",
+              "key": {
+                "$compute": {
+                  "with": {
+                    "e": {
+                      "$path": [
+                        "local",
+                        "focus"
+                      ]
+                    }
+                  },
+                  "expr": [
+                    "concat",
+                    [
+                      "get_or",
+                      {
+                        "$v": "e"
+                      },
+                      "id",
+                      ""
+                    ],
+                    "|",
+                    [
+                      "get_or",
+                      {
+                        "$v": "e"
+                      },
+                      "actor",
+                      ""
+                    ]
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "expr": [
+          "or",
+          [
+            "ne",
+            [
+              "get_or",
+              {
+                "$v": "e"
+              },
+              "type",
+              ""
+            ],
+            "breakglass"
+          ],
+          [
+            "ne",
+            [
+              "get_or",
+              {
+                "$v": "e"
+              },
+              "actor",
+              ""
+            ],
+            {
+              "$v": "me"
+            }
+          ],
+          [
+            "gt",
+            [
+              "sub",
+              [
+                "len",
+                {
+                  "$v": "reviews"
+                }
+              ],
+              [
+                "len",
+                {
+                  "$v": "selfReviews"
+                }
+              ]
+            ],
+            0
+          ]
+        ]
+      },
+      "message": "an earlier break-glass by this actor has no review by anyone else"
+    },
+    "Request": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "actor"
+      ],
+      "fields": {
+        "actor": {
+          "kind": "string"
+        }
+      },
+      "check": {
+        "id": "BREAK_GLASS_BUDGET",
+        "with": {
+          "prior": {
+            "$inverse": {
+              "index": "usesBy",
+              "key": {
+                "$compute": {
+                  "with": {
+                    "a": {
+                      "$path": [
+                        "local",
+                        "focus",
+                        "actor"
+                      ]
+                    }
+                  },
+                  "expr": [
+                    "concat",
+                    "breakglass|",
+                    {
+                      "$v": "a"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "expr": [
+          "lt",
+          [
+            "len",
+            {
+              "$v": "prior"
+            }
+          ],
+          2
+        ]
+      },
+      "message": "break-glass budget (2) is used up"
+    }
+  },
+  "program": [
+    {
+      "op": "set",
+      "path": [
+        "state",
+        "findings"
+      ],
+      "value": {
+        "$lit": []
+      }
+    },
+    {
+      "op": "check",
+      "target": {
+        "$each": [
+          "input",
+          "events"
+        ]
+      },
+      "shape": "TrailEvent",
+      "mode": "report",
+      "into": [
+        "state",
+        "findings"
+      ]
+    },
+    {
+      "op": "check",
+      "target": {
+        "$path": [
+          "input",
+          "request"
+        ]
+      },
+      "shape": "Request",
+      "mode": "report",
+      "into": [
+        "state",
+        "findings"
+      ]
+    },
+    {
+      "op": "set",
+      "path": [
+        "output"
+      ],
+      "value": {
+        "$tpl": {
+          "decision": {
+            "$compute": {
+              "with": {
+                "f": {
+                  "$path": [
+                    "state",
+                    "findings"
+                  ]
+                }
+              },
+              "expr": [
+                "select",
+                [
+                  "eq",
+                  [
+                    "len",
+                    {
+                      "$v": "f"
+                    }
+                  ],
+                  0
+                ],
+                "allow",
+                "deny"
+              ]
+            }
+          },
+          "findings": {
+            "$path": [
+              "state",
+              "findings"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

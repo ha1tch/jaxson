@@ -146,7 +146,7 @@ func wantShapeError(t *testing.T, pkg map[string]any, substr string) {
 	t.Helper()
 	_, err := ParseRegistries(pkg)
 	if err == nil {
-		t.Fatalf("expected a SHA_SHAPE_ERROR, got a clean parse")
+		t.Fatalf("expected a SHAX_SHAPE_ERROR, got a clean parse")
 	}
 	if err.Cat != CatShapeError {
 		t.Errorf("expected category %s, got %s", CatShapeError, err.Cat)
@@ -305,6 +305,217 @@ func TestParseRegistries_RecursionWithMaxShapeDepthOK(t *testing.T) {
 	if _, err := ParseRegistries(pkg); err != nil {
 		t.Fatalf("expected a clean parse with maxShapeDepth declared, got %v", err)
 	}
+}
+
+func TestParseRegistries_KeywordWrongKind(t *testing.T) {
+	pkg := decode(t, `{"shapes": {"Bad": {"kind": "boolean", "minLen": 5}}}`)
+	wantShapeError(t, pkg, "not legal on kind")
+}
+
+func TestParseRegistries_MinLenExceedsMaxLen(t *testing.T) {
+	pkg := decode(t, `{"shapes": {"Bad": {"kind": "string", "minLen": 10, "maxLen": 2}}}`)
+	wantShapeError(t, pkg, "exceeds maxLen")
+}
+
+func TestParseRegistries_MinExceedsMax(t *testing.T) {
+	pkg := decode(t, `{"shapes": {"Bad": {"kind": "number", "min": 10, "max": 2}}}`)
+	wantShapeError(t, pkg, "exceeds max")
+}
+
+func TestParseRegistries_MinItemsExceedsMaxItems(t *testing.T) {
+	pkg := decode(t, `{"shapes": {"Bad": {"kind": "array", "items": {"kind": "string"}, "minItems": 5, "maxItems": 1}}}`)
+	wantShapeError(t, pkg, "exceeds maxItems")
+}
+
+// TestParseRegistries_ExtendsInheritsKindForKeywordCheck is the case that
+// motivated moving keyword-vs-kind validation to run after extends
+// resolves: StrBase declares kind but no length bound; Order extends it
+// and adds minLen without repeating kind. This must parse cleanly —
+// validating minLen against Kind before the merge would wrongly reject it
+// (Order's own pre-merge Kind is "").
+func TestParseRegistries_ExtendsInheritsKindForKeywordCheck(t *testing.T) {
+	pkg := decode(t, `{
+		"shapes": {
+			"StrBase": {"kind": "string"},
+			"Padded":  {"extends": "StrBase", "minLen": 3}
+		}
+	}`)
+	r, err := ParseRegistries(pkg)
+	if err != nil {
+		t.Fatalf("expected a clean parse (minLen legal once Kind inherits as string), got %v", err)
+	}
+	if r.Shapes["Padded"].Kind != "string" {
+		t.Errorf("expected Padded.Kind to inherit \"string\" from StrBase, got %q", r.Shapes["Padded"].Kind)
+	}
+}
+
+func TestParseRegistries_InlineShapeCannotExtend(t *testing.T) {
+	pkg := decode(t, `{
+		"shapes": {
+			"Base": {"kind": "string"},
+			"Order": {"kind": "object", "fields": {"id": {"extends": "Base", "kind": "string"}}}
+		}
+	}`)
+	wantShapeError(t, pkg, "only valid on a named, top-level shape")
+}
+
+func TestParseRegistries_PerFieldOverride(t *testing.T) {
+	pkg := decode(t, `{
+		"shapes": {
+			"Base": {"kind": "object", "fields": {"legacyCode": {"kind": "number"}}},
+			"Child": {
+				"extends": "Base",
+				"fields": {"legacyCode": {"kind": "string", "override": true}}
+			}
+		}
+	}`)
+	r, err := ParseRegistries(pkg)
+	if err != nil {
+		t.Fatalf("expected a clean parse with override:true, got %v", err)
+	}
+	fd := r.Shapes["Child"].Fields["legacyCode"]
+	if fd.Inline == nil || fd.Inline.Kind != "string" {
+		t.Errorf("expected the child's override to win (kind=string), got %+v", fd)
+	}
+}
+
+func TestParseRegistries_FieldCollisionWithoutOverrideStillErrors(t *testing.T) {
+	// Same shapes as the override test above, minus "override": true —
+	// must still be the ordinary collision error, proving override is
+	// opt-in, not a silent behavior change to the default.
+	pkg := decode(t, `{
+		"shapes": {
+			"Base": {"kind": "object", "fields": {"legacyCode": {"kind": "number"}}},
+			"Child": {"extends": "Base", "fields": {"legacyCode": {"kind": "string"}}}
+		}
+	}`)
+	wantShapeError(t, pkg, "collides")
+}
+
+func TestParseRegistries_OverrideRejectedOutsideFields(t *testing.T) {
+	// "override" has no meaning on an items/and/or/xone/not position —
+	// only fooOverride sibling keys do there. Must be rejected, not
+	// silently accepted and ignored.
+	pkg := decode(t, `{
+		"shapes": {
+			"Bad": {"kind": "array", "items": {"kind": "string", "override": true}}
+		}
+	}`)
+	wantShapeError(t, pkg, "only valid inside a fields entry")
+}
+
+func TestParseRegistries_ClosedOverride(t *testing.T) {
+	pkg := decode(t, `{
+		"shapes": {
+			"Base": {"kind": "object", "closed": true, "fields": {"id": {"kind": "string"}}},
+			"Child": {"extends": "Base", "closed": false, "closedOverride": true}
+		}
+	}`)
+	r, err := ParseRegistries(pkg)
+	if err != nil {
+		t.Fatalf("expected a clean parse, got %v", err)
+	}
+	if r.Shapes["Child"].Closed {
+		t.Errorf("expected closedOverride:true to make Child.Closed false (its own value, not AND with parent's true)")
+	}
+}
+
+func TestParseRegistries_AndOverrideReplacesRatherThanConcatenates(t *testing.T) {
+	pkg := decode(t, `{
+		"shapes": {
+			"Base": {"kind": "object", "and": [{"kind": "object"}]},
+			"Child": {
+				"extends": "Base",
+				"andOverride": true,
+				"and": [{"kind": "object", "required": ["x"]}]
+			}
+		}
+	}`)
+	r, err := ParseRegistries(pkg)
+	if err != nil {
+		t.Fatalf("expected a clean parse, got %v", err)
+	}
+	if len(r.Shapes["Child"].And) != 1 {
+		t.Errorf("expected andOverride:true to replace (length 1), not concatenate (length 2); got %d", len(r.Shapes["Child"].And))
+	}
+}
+
+func TestParseRegistries_CheckOverrideReplacesRatherThanAnds(t *testing.T) {
+	pkg := decode(t, `{
+		"shapes": {
+			"Base": {
+				"kind": "object",
+				"check": {"with": {"x": {"$path": ["local", "focus"]}}, "expr": ["eq", 1, 1]}
+			},
+			"Child": {
+				"extends": "Base",
+				"checkOverride": {"with": {"y": {"$path": ["local", "focus"]}}, "expr": ["eq", 2, 2]}
+			}
+		}
+	}`)
+	r, err := ParseRegistries(pkg)
+	if err != nil {
+		t.Fatalf("expected a clean parse, got %v", err)
+	}
+	checks := r.Shapes["Child"].Check
+	if len(checks) != 1 {
+		t.Fatalf("expected checkOverride to replace (1 check), not AND (2 checks); got %d", len(checks))
+	}
+	if checks[0].With["y"] == nil {
+		t.Errorf("expected the surviving check to be the override's own (with key y), got %+v", checks[0].With)
+	}
+}
+
+func TestParseRegistries_CheckAndCheckOverrideMutuallyExclusive(t *testing.T) {
+	pkg := decode(t, `{
+		"shapes": {
+			"Base": {"kind": "object"},
+			"Child": {
+				"extends": "Base",
+				"check": {"expr": true},
+				"checkOverride": {"expr": false}
+			}
+		}
+	}`)
+	wantShapeError(t, pkg, "cannot both be declared")
+}
+
+func TestParseRegistries_RequiredIdPerKeyOverride(t *testing.T) {
+	pkg := decode(t, `{
+		"shapes": {
+			"Base": {
+				"kind": "object", "fields": {"id": {"kind": "string"}},
+				"required": ["id"], "requiredIds": {"id": "BASE_NEEDS_ID"}
+			},
+			"Child": {
+				"extends": "Base",
+				"requiredIds": {"id": {"value": "CHILD_NEEDS_ID", "override": true}}
+			}
+		}
+	}`)
+	r, err := ParseRegistries(pkg)
+	if err != nil {
+		t.Fatalf("expected a clean parse, got %v", err)
+	}
+	if got := r.Shapes["Child"].RequiredIds["id"].ID; got != "CHILD_NEEDS_ID" {
+		t.Errorf("expected the child's override to win, got %q", got)
+	}
+}
+
+func TestParseRegistries_RequiredIdCollisionWithoutOverrideErrors(t *testing.T) {
+	pkg := decode(t, `{
+		"shapes": {
+			"Base": {
+				"kind": "object", "fields": {"id": {"kind": "string"}},
+				"required": ["id"], "requiredIds": {"id": "BASE_NEEDS_ID"}
+			},
+			"Child": {
+				"extends": "Base",
+				"requiredIds": {"id": "CHILD_NEEDS_ID"}
+			}
+		}
+	}`)
+	wantShapeError(t, pkg, "collides")
 }
 
 func TestParseRegistries_ShorthandRedundantWithRelation(t *testing.T) {

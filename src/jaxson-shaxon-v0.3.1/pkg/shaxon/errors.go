@@ -5,14 +5,14 @@ package shaxon
 
 import "github.com/ha1tch/jaxson/pkg/jaxson"
 
-// Every error identifier Shaxon introduces is prefixed SHA_, so a Cat/Code
+// Every error identifier Shaxon introduces is prefixed SHAX_, so a Cat/Code
 // pair reveals at a glance whether it originated in Jaxson or in Shaxon —
 // see shaxon-v0.3.1-core.md section 9. Two deliberate exceptions, not
 // oversights:
 //
 //   - EXECUTION_ERROR itself keeps Jaxson's own spelling: core section 9
 //     calls it "the existing Jaxson category, extended," not a new one.
-//     Only the *new codes* Shaxon adds within it get the SHA_ prefix.
+//     Only the *new codes* Shaxon adds within it get the SHAX_ prefix.
 //   - Where Shaxon reuses Jaxson's own TYPE_ERROR/MISSING_PATH codes
 //     unchanged — an index key or `reference` value resolving to the
 //     wrong JSON type, or `local.step` resolving to a non-scalar value —
@@ -30,21 +30,21 @@ const (
 	// Codes column empty, mirroring Jaxson's own PROGRAM_ERROR/
 	// SCHEMA_ERROR convention of category-plus-message rather than a
 	// further code.
-	CatShapeError = "SHA_SHAPE_ERROR"
+	CatShapeError = "SHAX_SHAPE_ERROR"
 
 	// CatValidationError is raised when a gate-mode target fails to
 	// conform (Phase 4/5 — not raised anywhere in Phase 2).
-	CatValidationError = "SHA_VALIDATION_ERROR"
-	CodeShapeMismatch  = "SHA_SHAPE_MISMATCH"
+	CatValidationError = "SHAX_VALIDATION_ERROR"
+	CodeShapeMismatch  = "SHAX_SHAPE_MISMATCH"
 
 	// New EXECUTION_ERROR codes Shaxon adds (Phase 3/4/5 — not raised
 	// anywhere in Phase 2, since no Machine runs during static parsing).
-	CodeDanglingReference  = "SHA_DANGLING_REFERENCE"
-	CodeShapeDepthExceeded = "SHA_SHAPE_DEPTH_EXCEEDED"
-	CodePathDepthExceeded  = "SHA_PATH_DEPTH_EXCEEDED"
+	CodeDanglingReference  = "SHAX_DANGLING_REFERENCE"
+	CodeShapeDepthExceeded = "SHAX_SHAPE_DEPTH_EXCEEDED"
+	CodePathDepthExceeded  = "SHAX_PATH_DEPTH_EXCEEDED"
 )
 
-// failLoad raises a SHA_SHAPE_ERROR. Every static defect found while
+// failLoad raises a SHAX_SHAPE_ERROR. Every static defect found while
 // parsing shapes/indices/relations/computes goes through this one
 // function, so the category spelling lives in exactly one place.
 func failLoad(format string, a ...any) {

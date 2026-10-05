@@ -9,8 +9,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -27,14 +25,16 @@ func main() {
 		fmt.Println(err)
 		os.Exit(2)
 	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.UseNumber()
-	var pkg map[string]any
-	if err := dec.Decode(&pkg); err != nil {
-		fmt.Println("not a valid package:", err)
-		os.Exit(2)
+	v, perr := jaxson.ParseJSON(raw)
+	if perr != nil {
+		fmt.Println(perr.Error())
+		os.Exit(1)
 	}
-	pkg = jaxson.Normalize(pkg).(map[string]any)
+	pkg, ok := v.(map[string]any)
+	if !ok {
+		fmt.Println("PARSE_ERROR: a package must be a JSON object")
+		os.Exit(1)
+	}
 
 	out, e := jaxson.Run(pkg)
 	if e != nil {

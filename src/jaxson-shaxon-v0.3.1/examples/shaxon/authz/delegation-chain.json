@@ -1,0 +1,543 @@
+{
+  "shaxon": "3.1",
+  "limits": {
+    "steps": 100000,
+    "maxShapeDepth": 2
+  },
+  "input": {
+    "owner": "orla",
+    "revocations": [],
+    "uses": [
+      {
+        "grant": "g3"
+      }
+    ],
+    "request": {
+      "at": 100.5,
+      "grant": {
+        "id": "g3",
+        "holder": "kit",
+        "expires": 200.5,
+        "maxUses": 2,
+        "grantedBy": {
+          "id": "g2",
+          "holder": "jo",
+          "expires": 150.25,
+          "maxUses": 5,
+          "grantedBy": {
+            "id": "g1",
+            "holder": "orla",
+            "expires": 300,
+            "maxUses": 9
+          }
+        }
+      }
+    }
+  },
+  "indices": {
+    "revoked": {
+      "source": {
+        "$path": [
+          "input",
+          "revocations"
+        ]
+      },
+      "key": {
+        "$path": [
+          "local",
+          "item",
+          "grant"
+        ]
+      },
+      "multi": true
+    },
+    "used": {
+      "source": {
+        "$path": [
+          "input",
+          "uses"
+        ]
+      },
+      "key": {
+        "$path": [
+          "local",
+          "item",
+          "grant"
+        ]
+      },
+      "multi": true
+    }
+  },
+  "shapes": {
+    "Link": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "id",
+        "holder",
+        "expires",
+        "maxUses"
+      ],
+      "fields": {
+        "id": {
+          "kind": "string"
+        },
+        "holder": {
+          "kind": "string"
+        },
+        "expires": {
+          "kind": "number"
+        },
+        "maxUses": {
+          "kind": "number",
+          "int": true,
+          "min": 1
+        },
+        "grantedBy": {
+          "kind": "object",
+          "closed": false
+        }
+      }
+    },
+    "LinkLive": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "id",
+        "holder",
+        "expires",
+        "maxUses"
+      ],
+      "fields": {
+        "id": {
+          "kind": "string"
+        },
+        "holder": {
+          "kind": "string"
+        },
+        "expires": {
+          "kind": "number"
+        },
+        "maxUses": {
+          "kind": "number",
+          "int": true,
+          "min": 1
+        },
+        "grantedBy": {
+          "kind": "object",
+          "closed": false
+        }
+      },
+      "check": {
+        "id": "LINK_REVOKED",
+        "with": {
+          "r": {
+            "$inverse": {
+              "index": "revoked",
+              "key": {
+                "$path": [
+                  "local",
+                  "focus",
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "expr": [
+          "eq",
+          [
+            "len",
+            {
+              "$v": "r"
+            }
+          ],
+          0
+        ]
+      },
+      "message": "a link in the chain has been revoked"
+    },
+    "LinkFresh": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "id",
+        "holder",
+        "expires",
+        "maxUses"
+      ],
+      "fields": {
+        "id": {
+          "kind": "string"
+        },
+        "holder": {
+          "kind": "string"
+        },
+        "expires": {
+          "kind": "number"
+        },
+        "maxUses": {
+          "kind": "number",
+          "int": true,
+          "min": 1
+        },
+        "grantedBy": {
+          "kind": "object",
+          "closed": false
+        }
+      },
+      "check": {
+        "id": "LINK_EXPIRED",
+        "with": {
+          "at": {
+            "$path": [
+              "input",
+              "request",
+              "at"
+            ]
+          },
+          "x": {
+            "$path": [
+              "local",
+              "focus",
+              "expires"
+            ]
+          }
+        },
+        "expr": [
+          "gt",
+          {
+            "$v": "x"
+          },
+          {
+            "$v": "at"
+          }
+        ]
+      },
+      "message": "a link in the chain has expired"
+    },
+    "LinkBudget": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "id",
+        "holder",
+        "expires",
+        "maxUses"
+      ],
+      "fields": {
+        "id": {
+          "kind": "string"
+        },
+        "holder": {
+          "kind": "string"
+        },
+        "expires": {
+          "kind": "number"
+        },
+        "maxUses": {
+          "kind": "number",
+          "int": true,
+          "min": 1
+        },
+        "grantedBy": {
+          "kind": "object",
+          "closed": false
+        }
+      },
+      "check": {
+        "id": "LINK_EXHAUSTED",
+        "with": {
+          "u": {
+            "$inverse": {
+              "index": "used",
+              "key": {
+                "$path": [
+                  "local",
+                  "focus",
+                  "id"
+                ]
+              }
+            }
+          },
+          "m": {
+            "$path": [
+              "local",
+              "focus",
+              "maxUses"
+            ]
+          }
+        },
+        "expr": [
+          "lt",
+          [
+            "len",
+            {
+              "$v": "u"
+            }
+          ],
+          {
+            "$v": "m"
+          }
+        ]
+      },
+      "message": "a link in the chain has used up its allowed uses"
+    },
+    "LinkRooted": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "id",
+        "holder",
+        "expires",
+        "maxUses"
+      ],
+      "fields": {
+        "id": {
+          "kind": "string"
+        },
+        "holder": {
+          "kind": "string"
+        },
+        "expires": {
+          "kind": "number"
+        },
+        "maxUses": {
+          "kind": "number",
+          "int": true,
+          "min": 1
+        },
+        "grantedBy": {
+          "kind": "object",
+          "closed": false
+        }
+      },
+      "check": {
+        "id": "CHAIN_NOT_ROOTED_AT_OWNER",
+        "with": {
+          "l": {
+            "$path": [
+              "local",
+              "focus"
+            ]
+          },
+          "h": {
+            "$path": [
+              "local",
+              "focus",
+              "holder"
+            ]
+          },
+          "o": {
+            "$path": [
+              "input",
+              "owner"
+            ]
+          }
+        },
+        "expr": [
+          "or",
+          [
+            "has",
+            {
+              "$v": "l"
+            },
+            "grantedBy"
+          ],
+          [
+            "eq",
+            {
+              "$v": "h"
+            },
+            {
+              "$v": "o"
+            }
+          ]
+        ]
+      },
+      "message": "the chain does not end at the resource owner"
+    }
+  },
+  "program": [
+    {
+      "op": "set",
+      "path": [
+        "state",
+        "findings"
+      ],
+      "value": {
+        "$lit": []
+      }
+    },
+    {
+      "op": "check",
+      "target": {
+        "$path*": [
+          "grantedBy"
+        ],
+        "from": [
+          "input",
+          "request",
+          "grant"
+        ],
+        "maxDepth": 3
+      },
+      "shape": "Link",
+      "mode": "report",
+      "into": [
+        "state",
+        "findings"
+      ]
+    },
+    {
+      "op": "if",
+      "cond": {
+        "$compute": {
+          "with": {
+            "f": {
+              "$path": [
+                "state",
+                "findings"
+              ]
+            }
+          },
+          "expr": [
+            "eq",
+            [
+              "len",
+              {
+                "$v": "f"
+              }
+            ],
+            0
+          ]
+        }
+      },
+      "then": [
+        {
+          "op": "check",
+          "target": {
+            "$path*": [
+              "grantedBy"
+            ],
+            "from": [
+              "input",
+              "request",
+              "grant"
+            ],
+            "maxDepth": 3
+          },
+          "shape": "LinkLive",
+          "mode": "report",
+          "into": [
+            "state",
+            "findings"
+          ]
+        },
+        {
+          "op": "check",
+          "target": {
+            "$path*": [
+              "grantedBy"
+            ],
+            "from": [
+              "input",
+              "request",
+              "grant"
+            ],
+            "maxDepth": 3
+          },
+          "shape": "LinkFresh",
+          "mode": "report",
+          "into": [
+            "state",
+            "findings"
+          ]
+        },
+        {
+          "op": "check",
+          "target": {
+            "$path*": [
+              "grantedBy"
+            ],
+            "from": [
+              "input",
+              "request",
+              "grant"
+            ],
+            "maxDepth": 3
+          },
+          "shape": "LinkBudget",
+          "mode": "report",
+          "into": [
+            "state",
+            "findings"
+          ]
+        },
+        {
+          "op": "check",
+          "target": {
+            "$path*": [
+              "grantedBy"
+            ],
+            "from": [
+              "input",
+              "request",
+              "grant"
+            ],
+            "maxDepth": 3
+          },
+          "shape": "LinkRooted",
+          "mode": "report",
+          "into": [
+            "state",
+            "findings"
+          ]
+        }
+      ]
+    },
+    {
+      "op": "set",
+      "path": [
+        "output"
+      ],
+      "value": {
+        "$tpl": {
+          "decision": {
+            "$compute": {
+              "with": {
+                "f": {
+                  "$path": [
+                    "state",
+                    "findings"
+                  ]
+                }
+              },
+              "expr": [
+                "select",
+                [
+                  "eq",
+                  [
+                    "len",
+                    {
+                      "$v": "f"
+                    }
+                  ],
+                  0
+                ],
+                "allow",
+                "deny"
+              ]
+            }
+          },
+          "findings": {
+            "$path": [
+              "state",
+              "findings"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

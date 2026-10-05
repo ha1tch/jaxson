@@ -1,0 +1,8 @@
+ENGINE-ONLY (validation alone, on data already in each engine's form; the lift is shown, not counted)
+example            events      shaxon   steps       pyshacl          jena       lift  verdict
+delegation-chain      100     0.32 ms     281      82 ms    11.5 ms       8 ms  allow
+delegation-chain     1000     1.90 ms    2081     261 ms     7.6 ms     152 ms  allow
+delegation-chain     4000     4.07 ms    8081    1071 ms    16.2 ms     354 ms  allow
+delegation-chain    20000    28.09 ms   40081    5657 ms    12.2 ms    1619 ms  allow
+best of up to 10 after a warm-up; the verdict compared is allow/deny (the end-to-end profile compares reasons too)
+lift = lift.py on the same input: the cost the end-to-end profile adds for pyshacl and Jena, and Shaxon does not have

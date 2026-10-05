@@ -1,0 +1,56 @@
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix ex:  <https://example.org/authz#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:  sh:declare [ sh:prefix "ex" ; sh:namespace "https://example.org/authz#"^^xsd:anyURI ] .
+
+# Data graph: ex:events (breakglass events with ex:id, ex:actor; review events
+# with ex:of, ex:reviewer) and ex:request (ex:actor).
+
+# Each earlier break-glass by the requesting actor must have a review by
+# someone else. The focus node is the offending event, as in the Shaxon
+# package, where the finding's focusPath points at it.
+ex:EventShape a sh:NodeShape ;
+    sh:targetObjectsOf ex:events ;
+    sh:sparql ex:UNREVIEWED_BREAK_GLASS .
+
+ex:UNREVIEWED_BREAK_GLASS a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "an earlier break-glass by this actor has no review by anyone else" ;
+    sh:select """
+        SELECT $this
+        WHERE {
+            $this ex:type "breakglass" ; ex:id ?id ; ex:actor ?actor .
+            ?root ex:request ?req .
+            ?req ex:actor ?actor .
+            FILTER NOT EXISTS {
+                ?r ex:type "review" ; ex:of ?id ; ex:reviewer ?reviewer .
+                FILTER (?reviewer != ?actor)
+            }
+        }""" .
+
+ex:RequestShape a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:sparql ex:BREAK_GLASS_BUDGET .
+
+ex:BREAK_GLASS_BUDGET a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "break-glass budget (2) is used up" ;
+    sh:select """
+        SELECT $this
+        WHERE {
+            $this ex:actor ?actor .
+            ?root ex:events ?e .
+            ?e ex:type "breakglass" ; ex:actor ?actor .
+        }
+        GROUP BY $this
+        HAVING (COUNT(?e) >= 2)""" .
+
+# Structure of the request, as the Shaxon package's closed Request shape
+# states it. Without it a request missing a member matches none of the
+# rules above and the data conforms (examples/shacl/authz/README.md).
+ex:RequestStructure a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:closed true ;
+    sh:ignoredProperties ( ) ;
+    sh:property [ sh:path ex:actor ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] .

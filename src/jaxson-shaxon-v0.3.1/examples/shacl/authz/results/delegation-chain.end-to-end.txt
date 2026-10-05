@@ -1,0 +1,7 @@
+END-TO-END (the JSON input to a verdict; the RDF lift is inside the SHACL figures)
+example            events     shaxon   steps       pyshacl          jena  verdict
+delegation-chain      100       3 ms     281      77 ms    1093 ms  allow []
+delegation-chain     1000       5 ms    2081     363 ms    1363 ms  allow []
+delegation-chain     4000      16 ms    8081    1234 ms    2107 ms  allow []
+delegation-chain    20000      97 ms   40081    7129 ms    5359 ms  allow []
+best of up to 3; shaxon is the whole process, pyshacl and jena include the RDF lift; 'skipped' = projected over the budget

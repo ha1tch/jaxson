@@ -1,3 +1,3 @@
 module github.com/ha1tch/jaxson
 
-go 1.22
+go 1.25

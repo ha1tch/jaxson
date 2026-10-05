@@ -1,0 +1,302 @@
+[
+ {
+  "name": "intact chain, one use of two",
+  "input": {},
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "a link in the middle has been revoked",
+  "input": {
+   "revocations": [
+    {
+     "grant": "g2"
+    }
+   ]
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "LINK_REVOKED"
+   ]
+  }
+ },
+ {
+  "name": "the root grant has been revoked",
+  "input": {
+   "revocations": [
+    {
+     "grant": "g1"
+    }
+   ]
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "LINK_REVOKED"
+   ]
+  }
+ },
+ {
+  "name": "the presented link has been used up",
+  "input": {
+   "uses": [
+    {
+     "grant": "g3"
+    },
+    {
+     "grant": "g3"
+    }
+   ]
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "LINK_EXHAUSTED"
+   ]
+  }
+ },
+ {
+  "name": "an upstream link expires exactly now",
+  "input": {
+   "request": {
+    "at": 150.25,
+    "grant": {
+     "id": "g3",
+     "holder": "kit",
+     "expires": 200.5,
+     "maxUses": 2,
+     "grantedBy": {
+      "id": "g2",
+      "holder": "jo",
+      "expires": 150.25,
+      "maxUses": 5,
+      "grantedBy": {
+       "id": "g1",
+       "holder": "orla",
+       "expires": 300,
+       "maxUses": 9
+      }
+     }
+    }
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "LINK_EXPIRED"
+   ]
+  }
+ },
+ {
+  "name": "an instant before that expiry",
+  "input": {
+   "request": {
+    "at": 150.24,
+    "grant": {
+     "id": "g3",
+     "holder": "kit",
+     "expires": 200.5,
+     "maxUses": 2,
+     "grantedBy": {
+      "id": "g2",
+      "holder": "jo",
+      "expires": 150.25,
+      "maxUses": 5,
+      "grantedBy": {
+       "id": "g1",
+       "holder": "orla",
+       "expires": 300,
+       "maxUses": 9
+      }
+     }
+    }
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "the chain ends at someone other than the owner",
+  "input": {
+   "request": {
+    "at": 100.5,
+    "grant": {
+     "id": "g3",
+     "holder": "kit",
+     "expires": 200.5,
+     "maxUses": 2,
+     "grantedBy": {
+      "id": "g2",
+      "holder": "jo",
+      "expires": 150.25,
+      "maxUses": 5,
+      "grantedBy": {
+       "id": "g1",
+       "holder": "mallory",
+       "expires": 300,
+       "maxUses": 9
+      }
+     }
+    }
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "CHAIN_NOT_ROOTED_AT_OWNER"
+   ]
+  }
+ },
+ {
+  "name": "a chain longer than the horizon is refused as such",
+  "input": {
+   "request": {
+    "at": 100.5,
+    "grant": {
+     "id": "g3",
+     "holder": "kit",
+     "expires": 200.5,
+     "maxUses": 2,
+     "grantedBy": {
+      "id": "g2",
+      "holder": "jo",
+      "expires": 150.25,
+      "maxUses": 5,
+      "grantedBy": {
+       "id": "g1",
+       "holder": "orla",
+       "expires": 300,
+       "maxUses": 9,
+       "grantedBy": {
+        "id": "g0",
+        "holder": "orla",
+        "expires": 999,
+        "maxUses": 1,
+        "grantedBy": {
+         "id": "gx",
+         "holder": "orla",
+         "expires": 999,
+         "maxUses": 1
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "SHAX_PATH_DEPTH_EXCEEDED"
+   ]
+  }
+ },
+ {
+  "name": "a truncated chain does not reach the owner",
+  "input": {
+   "request": {
+    "at": 100.5,
+    "grant": {
+     "id": "g3",
+     "holder": "kit",
+     "expires": 200.5,
+     "maxUses": 2,
+     "grantedBy": {
+      "id": "g2",
+      "holder": "jo",
+      "expires": 150.25,
+      "maxUses": 5
+     }
+    }
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "CHAIN_NOT_ROOTED_AT_OWNER"
+   ]
+  }
+ },
+ {
+  "name": "a chain over the horizon is refused as such, whatever else is wrong with it",
+  "input": {
+   "revocations": [
+    {
+     "grant": "g2"
+    }
+   ],
+   "request": {
+    "at": 100.5,
+    "grant": {
+     "id": "g3",
+     "holder": "kit",
+     "expires": 200.5,
+     "maxUses": 2,
+     "grantedBy": {
+      "id": "g2",
+      "holder": "jo",
+      "expires": 150.25,
+      "maxUses": 5,
+      "grantedBy": {
+       "id": "g1",
+       "holder": "orla",
+       "expires": 300,
+       "maxUses": 9,
+       "grantedBy": {
+        "id": "g0",
+        "holder": "orla",
+        "expires": 999,
+        "maxUses": 1,
+        "grantedBy": {
+         "id": "gx",
+         "holder": "orla",
+         "expires": 999,
+         "maxUses": 1
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "SHAX_PATH_DEPTH_EXCEEDED"
+   ]
+  }
+ },
+ {
+  "name": "a request with no time is not judged at all",
+  "input": {
+   "request": {
+    "grant": {
+     "id": "g3",
+     "holder": "kit",
+     "expires": 200.5,
+     "maxUses": 2,
+     "grantedBy": {
+      "id": "g2",
+      "holder": "jo",
+      "expires": 150.25,
+      "maxUses": 5,
+      "grantedBy": {
+       "id": "g1",
+       "holder": "orla",
+       "expires": 300,
+       "maxUses": 9
+      }
+     }
+    }
+   }
+  },
+  "expect": {
+   "error": "EXECUTION_ERROR/MISSING_PATH"
+  }
+ }
+]

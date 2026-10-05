@@ -41,14 +41,14 @@ func parseIndices(pkg map[string]any, r *Registries) {
 		if !hasSource {
 			failLoad("indices.%s: needs a source", name)
 		}
-		if e := jaxson.CheckOperand(source); e != nil {
+		if e := jaxson.CheckOperandWith(StaticForms(), source); e != nil {
 			failLoad("indices.%s.source: %s", name, e.Msg)
 		}
 		key, hasKey := entry["key"]
 		if !hasKey {
 			failLoad("indices.%s: needs a key", name)
 		}
-		if e := jaxson.CheckOperand(key, "item"); e != nil {
+		if e := jaxson.CheckOperandWith(StaticForms(), key, "item"); e != nil {
 			failLoad("indices.%s.key: %s", name, e.Msg)
 		}
 		multi := false

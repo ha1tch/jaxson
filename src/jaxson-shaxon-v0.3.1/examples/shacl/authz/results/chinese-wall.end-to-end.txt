@@ -1,0 +1,7 @@
+END-TO-END (the JSON input to a verdict; the RDF lift is inside the SHACL figures)
+example            events     shaxon   steps       pyshacl          jena  verdict
+chinese-wall          100       4 ms     411      37 ms    1246 ms  allow []
+chinese-wall         1000       8 ms    4011     223 ms    1406 ms  allow []
+chinese-wall         4000      16 ms   16011     535 ms    1812 ms  deny ['CONFLICTING_PRIOR_ACCESS']
+chinese-wall        20000      58 ms   80011    3161 ms    4638 ms  deny ['CONFLICTING_PRIOR_ACCESS']
+best of up to 3; shaxon is the whole process, pyshacl and jena include the RDF lift; 'skipped' = projected over the budget

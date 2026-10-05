@@ -1,0 +1,8 @@
+ENGINE-ONLY (validation alone, on data already in each engine's form; the lift is shown, not counted)
+example            events      shaxon   steps       pyshacl          jena       lift  verdict
+break-glass           100     2.08 ms    1969    1105 ms    36.1 ms      11 ms  deny
+break-glass          1000   289.53 ms   19398   12240 ms    68.2 ms     118 ms  deny
+break-glass          4000  4583.16 ms   77617   50676 ms   143.8 ms     447 ms  deny
+break-glass         20000  147696.06 ms  387551       skipped   945.1 ms    2059 ms  deny
+best of up to 10 after a warm-up; the verdict compared is allow/deny (the end-to-end profile compares reasons too)
+lift = lift.py on the same input: the cost the end-to-end profile adds for pyshacl and Jena, and Shaxon does not have

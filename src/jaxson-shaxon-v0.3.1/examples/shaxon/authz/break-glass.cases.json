@@ -1,0 +1,121 @@
+[
+ {
+  "name": "unreviewed earlier use, and the budget is spent",
+  "input": {},
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "UNREVIEWED_BREAK_GLASS",
+    "BREAK_GLASS_BUDGET"
+   ]
+  }
+ },
+ {
+  "name": "no history at all",
+  "input": {
+   "request": {
+    "actor": "sam"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "a review by oneself does not count",
+  "input": {
+   "request": {
+    "actor": "tobi"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "UNREVIEWED_BREAK_GLASS"
+   ]
+  }
+ },
+ {
+  "name": "one use, reviewed by someone else",
+  "input": {
+   "events": [
+    {
+     "type": "breakglass",
+     "id": "b1",
+     "actor": "uma"
+    },
+    {
+     "type": "review",
+     "of": "b1",
+     "reviewer": "vic"
+    }
+   ],
+   "request": {
+    "actor": "uma"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "two reviewed uses exhaust the budget",
+  "input": {
+   "events": [
+    {
+     "type": "breakglass",
+     "id": "b1",
+     "actor": "uma"
+    },
+    {
+     "type": "review",
+     "of": "b1",
+     "reviewer": "vic"
+    },
+    {
+     "type": "breakglass",
+     "id": "b2",
+     "actor": "uma"
+    },
+    {
+     "type": "review",
+     "of": "b2",
+     "reviewer": "vic"
+    }
+   ],
+   "request": {
+    "actor": "uma"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "BREAK_GLASS_BUDGET"
+   ]
+  }
+ },
+ {
+  "name": "an empty trail",
+  "input": {
+   "events": [],
+   "request": {
+    "actor": "uma"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "a request with no actor is not judged at all",
+  "input": {
+   "request": {}
+  },
+  "expect": {
+   "error": "EXECUTION_ERROR/MISSING_PATH"
+  }
+ }
+]

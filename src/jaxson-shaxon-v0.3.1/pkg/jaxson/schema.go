@@ -192,18 +192,19 @@ func validate(s, v any, path string) string {
 			}
 		}
 	case "object":
-		obj := v.(map[string]any)
+		obj := v.(*Object)
 		fields, _ := m["fields"].(map[string]any)
 		if req, has := m["required"].([]any); has {
 			for _, n := range req {
-				if _, present := obj[n.(string)]; !present {
+				if !obj.Has(n.(string)) {
 					return fmt.Sprintf("%s: missing required %q", path, n)
 				}
 			}
 		}
-		for _, k := range SortedKeys(obj) {
+		for _, k := range obj.SortedKeys() {
 			if fs, declared := fields[k]; declared {
-				if msg := validate(fs, obj[k], path+"."+k); msg != "" {
+				member, _ := obj.Get(k)
+				if msg := validate(fs, member, path+"."+k); msg != "" {
 					return msg
 				}
 			} else if m["extra"] != "allow" {

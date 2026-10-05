@@ -1,0 +1,65 @@
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix ex:  <https://example.org/authz#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:  sh:declare [ sh:prefix "ex" ; sh:namespace "https://example.org/authz#"^^xsd:anyURI ] .
+
+# Data graph: ex:events (each with ex:seq, ex:type, ex:payment, ex:actor) and
+# ex:request (ex:payment, ex:actor). Order comes from ex:seq: the Shaxon
+# package replays the array in order, RDF has no array order.
+#
+# One creation per payment is assumed. The Shaxon replay treats a second
+# creation as a reset; none of the cases has one.
+
+ex:RequestShape a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:sparql ex:PAYMENT_UNKNOWN , ex:CREATOR_CANNOT_RELEASE , ex:NO_FRESH_APPROVAL .
+
+ex:PAYMENT_UNKNOWN a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "no such payment in the trail" ;
+    sh:select """
+        SELECT $this
+        WHERE {
+            $this ex:payment ?p .
+            FILTER NOT EXISTS { ?c ex:type "create" ; ex:payment ?p }
+        }""" .
+
+ex:CREATOR_CANNOT_RELEASE a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "the person who created a payment cannot release it" ;
+    sh:select """
+        SELECT $this
+        WHERE {
+            $this ex:payment ?p ; ex:actor ?releaser .
+            ?c ex:type "create" ; ex:payment ?p ; ex:actor ?releaser .
+        }""" .
+
+# An approval counts if it comes after the payment was created, is by neither
+# the creator nor the releaser, and no amendment of the payment and no
+# withdrawal by the same approver came after it.
+ex:NO_FRESH_APPROVAL a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "needs an approval since the last amendment, from someone other than the creator and the releaser" ;
+    sh:select """
+        SELECT $this
+        WHERE {
+            $this ex:payment ?p ; ex:actor ?releaser .
+            FILTER NOT EXISTS {
+                ?a ex:type "approve" ; ex:payment ?p ; ex:actor ?approver ; ex:seq ?aseq .
+                ?c ex:type "create"  ; ex:payment ?p ; ex:actor ?creator  ; ex:seq ?cseq .
+                FILTER (?approver != ?creator && ?approver != ?releaser && ?aseq > ?cseq)
+                FILTER NOT EXISTS { ?m ex:type "amend" ; ex:payment ?p ; ex:seq ?mseq . FILTER (?mseq > ?aseq) }
+                FILTER NOT EXISTS { ?v ex:type "revoke" ; ex:payment ?p ; ex:actor ?approver ; ex:seq ?vseq . FILTER (?vseq > ?aseq) }
+            }
+        }""" .
+
+# Structure of the request, as the Shaxon package's closed Request shape
+# states it. Without it a request missing a member matches none of the
+# rules above and the data conforms (examples/shacl/authz/README.md).
+ex:RequestStructure a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:closed true ;
+    sh:ignoredProperties ( ) ;
+    sh:property [ sh:path ex:payment ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path ex:actor ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] .

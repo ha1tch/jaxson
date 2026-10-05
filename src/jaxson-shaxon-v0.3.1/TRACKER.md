@@ -28,12 +28,12 @@ in its own bullet rather than invented as a fourth legend symbol.
 |---|---|---|
 | 0 — Extract, don't change | §3 | **Done, verified** |
 | 1 — Extension points Shaxon needs | §4 | **Done, verified (v0.2.0)** — build, vet, gofmt, `go test -race` all re-run clean; extension points now covered by their own tests (see "Phase 1 closure, v0.2.0" below) |
-| 2 — Shaxon's static layer | §5 | Not started (blocked on 1) |
-| 3 — Shape evaluation | §6 | Not started (blocked on 1) |
-| 4 — Indices/relations/targets/`validate` | §7 | Not started (blocked on 1, 3) |
-| 5 — `shaxon.Run`, version, pipeline order | §8 | Not started (blocked on 2–4) |
-| 6 — Fixtures and conformance | §9 | Not started (blocked on 5) |
-| 7 — Public API, `Session`, `build` package | §10 | **7.2 and 7.3 done, verified** (`pkg/jaxtools`, `pkg/jaxson/build`, Navy Wars port). 7.1 (`shaxon.Validate`, `jaxson.Number`) remains and depends on Phases 2–5 |
+| 2 — Shaxon's static layer | §5 | **Complete**, including the `extends` `"override"` mechanism. `pkg/shaxon` parses and statically validates `shapes`/`indices`/`relations`/`computes`, 33 tests passing. Everything needing real data (repeated index keys, `cardinality: one-to-one`) is correctly left to Phase 4 |
+| 3 — Shape evaluation | §6 | **Done, verified (2026-10-04)** — `shapes.go`, `report.go`, 19 tests (18 from Phase 3 plus the CM-2 cost-table test), mutation-checked. Reference-kind shapes first used a temporary `IndexResolver` stopgap; it was **closed in Phase 4** (the real `IndexSet` satisfies the interface; see "Phase 4" below) |
+| 4 — Indices/relations/targets/`validate` | §7 | **Code and tests done, verified (2026-10-04)** — `indices.go`, `targets.go`, `paths.go`, `forms.go`, `validate.go`, `check.go`; 53 new tests, mutation-checked. Decisions P1-P6, T1-T5, V1-V7, C1-C6, F1-F7 recorded below; **four spec rulings are open** (P1, G11, V1, V3) |
+| 5 — `shaxon.Run`, version, pipeline order | §8 | **Code and tests done, verified (2026-10-04)** — `pkg/shaxon/run.go`, `pkg/jaxson/parse.go`, `cmd/shaxonrun`; 29 new tests, mutation-checked. Decisions R1-R7 below; **R1 needs a spec ruling** |
+| 6 — Fixtures and conformance | §9 | Not started — unblocked (Phases 2–5 done); next on the main path |
+| 7 — Public API, `Session`, `build` package | §10 | **7.1, 7.2 and 7.3 done, verified** (`shaxon.Validate`, `jaxson.Number`, `pkg/jaxtools`, `pkg/jaxson/build`, Navy Wars port). Decisions A1-A4 and N1-N2 below |
 
 ## Phase 0 — Extract, don't change (plan §3) — done
 
@@ -133,23 +133,595 @@ v0.2.0" below):
   `validate()` now calls these rather than owning the keyword logic
   inline.
 
-## Phases 2–6 — Shaxon (plan §5–§9) — not started
+## Phase 2 — Shaxon's static layer (plan §5) — complete
 
-No `pkg/shaxon/` directory exists in the delivered tree. None of
-`registries.go`, `indices.go`, `shapes.go`, `targets.go`, `report.go`,
-`check_instr.go`, `run.go`, or a Shaxon `fixtures_test.go` /
-`shaxon-v0.3.1-fixtures.json` exist yet. `cmd/shaxrun/` does not exist.
+`pkg/shaxon/` exists: `registries.go`, `parse_computes.go`,
+`parse_indices.go`, `parse_relations.go`, `parse_shapes.go`,
+`recursion.go`, `errors.go`, plus `registries_test.go` (33 cases, all
+passing). Full detail in "Phase 2 scaffolding", "Phase 2 completion", and
+"extends override mechanism implemented" below — this entry is the
+at-a-glance summary, those are the record.
 
-This is expected, not a gap: every one of these phases depends on Phase 1's
-extension points by the plan's own dependency table (§13), and Phase 1
-hasn't started. Nothing here should be read as "behind schedule" — it's
-"not yet reachable."
+- [x] `indices`/`relations`/`computes` registries: parsed and statically
+  validated.
+- [x] `shapes`: parsed, `extends` resolved via default (union/AND/
+  concatenate) merging plus the full `"override"` mechanism, cycle-checked.
+- [x] `limits.maxShapeDepth` reachability check.
+- [x] Keyword-vs-kind legality (mirroring jaxson's own `schemaKeys`
+  table) and cross-keyword ordering (`minLen<=maxLen`, `min<=max`,
+  `minItems<=maxItems`) — checked post-`extends`-merge, since Kind itself
+  can be inherited.
+- [x] `extends`'s `"override"` mechanism. Not guessed — three earlier
+  candidate designs were drafted and rejected for good reason (see "Phase
+  2 completion" below); the actual design came from re-reading core
+  section 4's merge table verbatim rather than my own paraphrase of it,
+  prompted by asking which design a SHACL specialist would expect (answer:
+  a flag collocated with the thing it modifies, as `sh:deactivated` is in
+  real SHACL — not a side-channel list). Per-member `fooOverride` sibling
+  keys for whole-member members (`closedOverride`, `andOverride`,
+  `orOverride`, `xoneOverride`, `notOverride`, `checkOverride` — the last
+  taking the literal `{with, expr}` replacement, matching core's text
+  exactly rather than a boolean); per-item `"override": true` nested
+  inside the item itself for `fields` and `requiredIds`, matching the
+  text's "per-field"/"per-key" wording. `requiredIds`' bare-string values
+  are promoted to `{"value":..., "override":...}` only when an override is
+  actually needed — the same move RDF/SHACL make whenever a literal needs
+  metadata attached to it. See "extends override mechanism implemented"
+  below for the two real ordering bugs this surfaced.
+- [x] (scope decision, not a gap) `extends` is valid only on named,
+  top-level shapes — not on an inline field/items/qualified-target shape.
+  Every spec example uses it this way; restricting it also removes a real
+  ordering hazard an inline shape's `extends` would otherwise create.
+- [ ] Everything needing real data: repeated non-`multi` index keys,
+  `cardinality: "one-to-one"` uniqueness, `unique` itself (correctly
+  Phase 4's job, not missing from this phase).
+- [ ] `indices.go` (build/rebuild against real data), `targets.go`,
+  `check_instr.go`, `run.go`, a Shaxon `fixtures_test.go`. `cmd/shaxrun/`
+  does not exist. (`shapes.go` and `report.go` now exist — Phase 3, below.)
+
+## Phase 3 - shape evaluation (plan section 6) - done, 2026-10-04
+
+`pkg/shaxon/shapes.go` (the `Evaluator`), `report.go` (`Violation`,
+`Report`) and `shapes_test.go` (19 tests now; 18 when Phase 3 closed, one per core section 10
+granularity row plus the mandatory minimal-evaluation step counts, gate
+order, severity, references, depth, step-limit surfacing and numeric
+exactness).
+
+### Closed in Phase 4: the `IndexResolver` stopgap
+
+Phase 3 reached indices through a small interface, `IndexResolver`
+(`Lookup(ReferenceTarget, key) bool`), as an agreed, temporary change of
+direction so that reference-kind shapes could be tested before Phase 4. That
+interim is over:
+
+| Question | Answer |
+|---|---|
+| What replaced it? | `IndexSet` (`indices.go`) builds, caches and reuses real indices and relations, and implements `IndexResolver.Lookup`. `Evaluator` creates one over its own Machine when `Options.Resolver` is nil. |
+| Is the interface still there? | Yes, kept as the seam the evaluator calls (decided in Phase 4: the index store satisfies it). A caller may still supply its own `Resolver`; the test fake does. It is the evaluator's seam, not a statement that indices are pluggable. |
+| What happened to `SHAX_NO_INDEX_RESOLVER`? | Removed. No code path raises it, and a package with `reference` fields now validates for real. |
+| What may another team assume now? | That `reference` fields are judged against real, freshly built indices. Not that `Options.Resolver` is part of the stable API: it may still be removed in favour of a direct call. |
+
+### Decisions where the spec is silent or ambiguous (G1-G11)
+
+Each is a decision, not a discovery of intent; each lives in one place in
+`shapes.go` and is cheap to change. G1 is the one that needs a ruling:
+core section 0 makes the step count part of the determinism guarantee, and
+the spec never defines the cost it refers to.
+
+| ID | Spec silence | Decision |
+|---|---|---|
+| G1 | "the ordinary shape-evaluation step cost" (section 4, `qualified`) is never defined. | One step per shape activation: a named shape, a combinator alternative, a qualified element, an item, or an inline field that has structure. Leaf primitive checks are free. A `check` island also costs what its expressions cost, charged by jaxson. Single point: `chargeShape`. A proposal to replace this placeholder with a weighted cost-table entry is in `docs/proposals/step-cost-model.md` (repository root); under its default `unit` table nothing here changes. |
+| G2 | A closed object with an unexpected member is not a row in the section 10 table, which calls itself exhaustive. | One violation per unexpected member, `constraintPath` = [member], code-point order. |
+| G3 | A failed `qualified` count is not in the table. | One violation at the collection's focus, no `constraintPath`. |
+| G4 | The focus node's own kind/keyword failure is not in the table. | One violation at that focus, no `constraintPath`. For an inline field it is row 2: focus = the parent, `constraintPath` = [field]. |
+| G5 | Rows 2 and 3 both cover "a fields member". | An inline field's own kind/keywords are row 2 (reported on the parent); any structure it declares, and every `{"shape": ...}` field, is row 3 (its own focus). Reference and item findings always use the value's own path (section 5). |
+| G6 | Section 10 fixes only required, then fields, then check. | Order used: kind, keywords, required, fields, items, closed, qualified, and/or/xone/not, check. **Plan deviation:** plan section 6 listed fields before required; the spec governs. The plan is not edited. |
+| G7 | How a combinator alternative or qualified element is judged. | A probe: stops at its first violation-severity finding; warning/info never fail one. Steps and depth are charged as for a real evaluation. |
+| G8 | What `maxShapeDepth` counts. | Named shapes only: the root is depth 1, each `{"shape": N}` followed is one deeper; an inline structured field is not a descent. Past the bound is one structural finding at that node (its subtree is not visited); in gate mode it raises `EXECUTION_ERROR`/`SHAX_SHAPE_DEPTH_EXCEEDED`. |
+| G9 | Messages for non-structural findings. | The most specific authored `message` (field shape, then enclosing shape) wins; otherwise text generated by the evaluator, which is descriptive and not normative. |
+| G10 | Section 10 lets a field shape carry an `"id"`; the Phase 2 parser rejected it. | Accepted on any shape; becomes `constraintId`. Parser change, additive. |
+| G11 | Does `extends` carry the parent's primitive keywords (`minLen`, `enum`, ...)? The merge table is silent. | **Not a decision; left as found.** `mergeShapes` keeps the child's keywords only, so a child that extends a `minLen` parent silently loses the bound. Needs a spec ruling before anyone relies on it. |
+
+### Phase 2 parser changes made here (additive)
+
+- `"id"` accepted as a shape member; `ShapeDecl.ID` added (G10).
+- `KeywordDecl.MinRat`/`MaxRat` hold the exact bounds. Evaluating against the
+  old `float64` fields would mis-judge decimals; `TestNumberBoundsAreExact`
+  pins this with a value 1e-20 past the bound.
+
+### Toolchain
+
+`go.mod` bumped to `go 1.25` per the owned-project policy. Everything below
+was run on Go 1.27.1 (upstream), not the 1.22.2 recorded in earlier entries.
+
+### Verified, 2026-10-04
+
+- `go build ./...`, `go vet ./...`, `gofmt -l .`, `go test -race -count=1
+  ./...`: clean (28 jaxson fixtures, 29 showcase cases, 32 registry tests, 18
+  evaluator tests).
+- Mutation check on a scratch copy, each mutation required to fail a named
+  test: no `and` short-circuit, no step charge, float bounds, probe that
+  never stops, depth off by one, depth counting inline fields, gate that
+  never stops, warning flipping `conforms`, `constraintPath` rendered as
+  null, no `xone` early stop. 10 of 10 killed. The first attempt at the
+  warning mutation did not compile under vet and was not a genuine kill; it
+  was redone with a compiling variant.
+- Not covered, by design: `unique`, target forms, `validate`, `check` as an
+  instruction, `shaxon.Run` (Phases 4-5); real index behaviour (Phase 4).
+
+## Step-cost model, CM-1 and CM-2 — done, 2026-10-04
+
+Proposal: `docs/proposals/step-cost-model.md` (accepted, D1-D7 as
+recommended; its reconciliation banner lists the differences from the text).
+
+| Step | State |
+|------|-------|
+| CM-0 design settled | Done (accepted) |
+| CM-1 `jaxson` mechanism | **Done, verified** — `cost.go`; instruction, operator and loop-iteration charges read the table; `Step()` is `Charge(1)`; `limits.steps` capped at 2^53-1 |
+| CM-2 `shaxon` Phase 3 charge | **Done, verified** — `chargeShape` charges `EventShapeActivation` |
+| CM-3 `weighted-1`, value-copy charging | Not started; does not block the main path |
+| CM-4 host functions | Not started; its own proposal |
+
+Evidence that `unit` reproduces the old accounting: the step counts of all 57
+fixture cases were recorded in `pkg/jaxson/testdata/unit-step-counts.json`
+from the unchanged code, then the charge sites were rerouted, and
+`TestUnitStepCountsFrozen` plus every pre-existing test pass unmodified.
+
+Obligation on Phase 4: any new counted event is written against the table
+from the first line (`m.ChargeEvent(EventX, size)`), declared in
+`pkg/shaxon/events.go`, and given an entry in the `weighted-1` draft when CM-3
+lands. No literal `Step()` in `pkg/shaxon`.
+
+Verified: build, vet, gofmt, `go test -race` clean; 10 of 10 mutations of
+the cost code killed (charge advancing on failure, ceil instead of floor,
+no saturation, each of the three core charge sites ignoring the table,
+steps bound removed, unknown table accepted, fallback-less validation
+skipped, event size ignored), plus one for `chargeShape` bypassing the table.
+Two first-attempt mutations did not compile and were redone with compiling
+variants before counting.
+
+## Phase 4 — Indices, relations, targets, `validate` (plan §7) — done
+
+Status as of 2026-10-04: code and tests complete; `go build`, `go vet`,
+`gofmt` and `go test -race` clean across the module. The `shaxon` package
+now has 42 more tests than at the end of Phase 3 (plus 6 for the jaxson hook) (`indices_test.go` 12,
+`validate_test.go` 12, `paths_test.go` 6, `forms_test.go` 12). Each
+sub-step was mutation-checked on a scratch copy: 4.1 12/12 killed, 4.2 16
+of 17 killed plus one equivalent survivor ("mode optional": the later
+switch fails anyway, so behaviour is identical), 4.3 12/12, 4.4 15/15.
+
+| Step | Files | What it adds |
+|---|---|---|
+| 4.1 Indices and relations | `indices.go` | `IndexSet`: build, cache, reuse by the mutation log, `Lookup` (satisfies `IndexResolver`), `Refresh`, `Elements`, `Inverse`. One-to-one check. `index.element` events |
+| 4.2 Targets and `validate` | `targets.go`, `validate.go`, `check.go` | The five target kinds, `ParseValidate`, `Runtime`, `unique`, report delivery, and the `check` instruction (`Runtime.Instructions()` = core + `check`). `target.resolve` events |
+| 4.3 Closures | `paths.go` | `$path*` / `$path+` as targets, `maxDepth` horizon, `PATH_DEPTH_EXCEEDED` finding. `closure.hop` events |
+| 4.4 Operand forms | `forms.go`, `pkg/jaxson/forms.go` | `$altPath`, `$inverse`, `$path*`, `$path+` in operand position, via a new jaxson hook (below) |
+
+### Decisions where the spec is silent or ambiguous
+
+The full wording of each is in the header of the file named; this table is
+the index, not a second copy. Where the two ever differ the code header is
+authoritative.
+
+| ID | File | Decision |
+|---|---|---|
+| P1 | `indices.go` | Reuse is invalidated by **overlap** of mutation path and dependency (either a prefix of the other), not by the literal "equal or prefix of the source" wording, which would serve a stale index after a write to `state.customers[3].id`. **Open: needs a spec ruling**; step counts differ from a literal reading |
+| P2 | `indices.go` | Dependencies include non-local paths read by the source and key operands; a computed segment truncates the path, i.e. the whole subtree is depended on |
+| P3 | `indices.go` | A relation is one unit: both sides built and charged together, one-to-one check at the same step |
+| P4 | `indices.go` | Key order: null < false < true < numbers < strings (code point) |
+| P5 | `indices.go` | An index is addressable (`$indexed`, `$inverse`) only if its source is a `$path`; otherwise SHAPE_ERROR on that use |
+| P6 | `indices.go` | One `index.element` charged per source element, before the key is evaluated |
+| T1 | `targets.go` | One `target.resolve` per target, sized by the elements it will scan (1 under `unit`) |
+| T2 | `targets.go` | `$each` on a scalar is TYPE_ERROR |
+| T3 | `targets.go` | `$discriminator` skips elements that are not objects or lack the field; compared with `jaxson.Equal` |
+| T4 | `targets.go` | Objects in code-point key order, arrays in index order |
+| T5 | `targets.go` | Target paths may carry operand segments, evaluated at resolve time |
+| V1 | `validate.go` | `mode` is mandatory on every entry and `check`. **Open: needs a ruling** (the spec states no default) |
+| V2 | `validate.go` | `into` only in report mode, and must be writable |
+| V3 | `validate.go` | Delivery: `validate` SETS the report value at `into`; `check` APPENDS each violation. Both go through synthesised `set`/`append` programs, so they cost steps and are visible to the mutation log. **Open: needs a ruling** |
+| V4 | `validate.go` | `unique` skips objects lacking the field (an index build raises MISSING_PATH instead) |
+| V5 | `validate.go` | A `unique` violation has a null `shape` and no `constraintPath` |
+| V6 | `validate.go` | `severity`/`message` only with `unique`; on a `shape` entry they are a SHAPE_ERROR |
+| V7 | `validate.go` | Indices are refreshed eagerly by static reachability; freshness never depends on the analysis, only the moment of the charge |
+| C1 | `paths.go` | `local.step` is the current node's VALUE |
+| C2 | `paths.go` | A hop that does not resolve ends the chain, including a step operand that reads a missing member |
+| C3 | `paths.go` | The `maxDepth` horizon gives a PATH_DEPTH_EXCEEDED structural finding at the last node taken |
+| C4 | `paths.go` | Each attempted hop is a `closure.hop` event, charged before the hop is tried |
+| C5 | `paths.go` | `$path*` always includes the base, `$path+` never; `$path+` with zero hops is MISSING_PATH |
+| C6 | `paths.go` | `maxDepth` missing or not a positive integer is a PROGRAM_ERROR |
+| F1 | `forms.go` | `$altPath` gives a value; `$inverse` and closures give arrays of path values |
+| F2 | `forms.go` | The four forms do not nest |
+| F3 | `forms.go` | A closure takes its base from `from`, else the ambient position (focus node in a `check`, element in an index key) |
+| F4 | `forms.go` | A horizon hit in operand position raises EXECUTION_ERROR/`SHAX_PATH_DEPTH_EXCEEDED` |
+| F5 | `forms.go` | The multi-key closure forms are not usable directly inside `$tpl` |
+| F6 | `forms.go` | `$inverse` names are checked after the whole package is parsed; an index named there must be `multi` |
+| F7 | `forms.go` | An index whose key asks for its own `$inverse` (directly or transitively) is a SHAPE_ERROR |
+
+### Deviation from the plan: a fifth jaxson extension point
+
+Plan §4 listed the jaxson extension points Shaxon needs "and no others".
+Phase 4.4 needed one more: the core operand checker and evaluator knew four
+operand forms and could not be told about `$altPath`, `$inverse`, `$path*`
+or `$path+`. `pkg/jaxson/forms.go` adds a small hook: `FormDef{Check, Eval}`,
+`Checker.Forms`, `Machine.SetForms`/`HasForm`, `Hooks.Forms()`, and
+`CheckOperandWith`/`CheckPathWith`/`CheckProgramForms`. A form is a map in
+which exactly one key is a registered `$name`; other keys are allowed
+(`from`, `maxDepth`). With nothing registered, behaviour is unchanged; the
+frozen `unit-step-counts.json` and the whole fixture suite are unaffected.
+`Hooks` gained a method, so any external `Hooks` implementation must add
+`Forms()` (returning nil is fine); `NoHooks` already does.
+
+The hook has its own tests in `pkg/jaxson/forms_test.go` (6, using a toy
+`$twice` form, independent of any dialect), mutation-checked 7/7. The first
+version of that check let one mutant survive (`Checker.clone` dropping
+`Forms`, i.e. a form inside a `for` body); a nested-scope test now kills it.
+
+### Other behaviour changes in this phase
+
+- `SHAX_NO_INDEX_RESOLVER` is gone (see "Closed in Phase 4" above).
+- A `unique` violation renders `"shape": null` in the report (was an empty
+  string for shape-less violations).
+- `Options.Ambient` and the `Evaluator`'s private `IndexSet` exist so a
+  shape `check` can use closure forms from its focus node.
+
+### Open items
+
+1. **Spec rulings wanted:** P1 (overlap vs. literal reuse), V1 (`mode`
+   mandatory), V3 (delivery forms), and G11 from Phase 3 (`extends` drops
+   the parent's primitive keywords). Code follows the choices above until
+   told otherwise.
+2. A stray `pkg/shaxon/.ed-journal.json` (repoman's journal, created by an
+   edit run from the wrong directory) is still present. Deleting it was
+   refused by the sandbox, so it was left alone; it is not source and
+   should be removed before packaging for release.
+3. `VERSION` is still 0.3.1; whether this work warrants a bump is a release
+   decision.
+4. Phase 2 has no CHANGELOG entry of its own.
+
+## Phase 5 — `shaxon.Run`, version, pipeline order (plan §8) — done
+
+Status as of 2026-10-04: code and tests complete; build, vet, gofmt and
+`go test -race` clean across the module. 24 tests in `pkg/shaxon/run_test.go`
+and 5 in `pkg/jaxson/parse_test.go`. Mutation-checked on a scratch copy: 21
+mutants, 21 killed (one survivor in the first pass, the cost-table error
+path, was killed by a test that pins the error's wording).
+
+There is no second pipeline. `jaxson.Profile.Run` is the one pipeline;
+Shaxon is a `Profile` (`shaxon`, `"3.1"`) plus the `Hooks` in `run.go`:
+`Static` parses shapes, indices, relations, computes and the `validate`
+list, and resolves the cost table; `Instructions`/`Host`/`Forms` supply
+`check`, the registries and the path forms to the program check; `Start`
+binds the `Runtime` and installs the cost table; `AfterInput` and
+`AfterOutput` run the `validate` entries. The stage order is the one core
+§9 states and is pinned stage by stage by `TestPipelineOrder`.
+
+| Piece | File | What it is |
+|---|---|---|
+| `shaxon.Run(pkg)`, `RunJSON(raw)`, `Result{Output, Report, Steps}` | `pkg/shaxon/run.go` | The entry points. `RunJSON` also does the parse stage |
+| `jaxson.ParseJSON(raw)` | `pkg/jaxson/parse.go` | Strict reader: duplicate keys at any depth, non-JSON and trailing data are `PARSE_ERROR` (the core design required this; nothing implemented it). `cmd/jaxrun` now uses it too, so it rejects duplicate keys where before it silently kept the last |
+| `Profile.SchemasOptional` | `pkg/jaxson/profile.go`, `run.go` | Lets a dialect omit `inputSchema`/`outputSchema` |
+| `cmd/shaxonrun` | `cmd/shaxonrun/main.go` | CLI: `shaxonrun [-pretty] [-steps] package.json [input.json]`; prints `{"output", "report"}` |
+| `examples/shaxon/orders.json` | | A package to try; pinned by `TestExamplePackageProducesItsDocumentedFindings` |
+
+### Decisions where the spec is silent or ambiguous
+
+| ID | Decision |
+|---|---|
+| R1 | Which stage a `validate` entry runs in: an entry whose target is rooted wholly in `input` (for `$indexed`, the root of the index's source) runs before the program; every other entry, or one whose root cannot be known statically, runs after it. Declared order is kept within each group. Core §9 names an input stage and an output stage but does not say how a mixed list is split. It fits §7's own example (an input-rooted report written `into` `state` for the program to use). **Open: needs a spec ruling** |
+| R2 | A report written `into` a path under `output` by a post-program entry lands after `outputSchema` was checked, so the schema does not cover it. Allowed (V2), recorded rather than closed: closing it means checking the schema twice or moving those entries ahead of it, and §9 lists the schema first |
+| R3 | The result: the output; the combined report only if a report-mode entry or `check` without `into` actually ran (concatenated in execution order); and the step total |
+| R4 | A failure returns the error alone; a report collected before a gate failure is not returned with it |
+| R5 | Only `"3.1"` is accepted; `"1.0"`-`"3.0"` and the `jaxson` key are `VERSION_ERROR` (plan §11) |
+| R6 | `limits` may carry `steps`, `maxShapeDepth` and `costTable`; any other member is `VERSION_ERROR`. `maxShapeDepth`, when present, must be a positive integer even where nothing recurses |
+| R7 | `inputSchema`/`outputSchema` are optional for Shaxon (§2: "either, both, or neither"); the core language still requires both |
+
+Under the only table defined so far, `unit`, the cost-table path is
+exercised end to end with a test-only table (`TestTheCostTableReachesTheMachine`);
+`weighted-1` is CM-3.
+
+### Authorisation examples (2026-10-04)
+
+`examples/shaxon/authz/` holds five packages in which access follows a trail
+of earlier actions (four-eyes release, Chinese wall, delegation chain, rolling
+quota, break-glass), 51 cases pinned by `TestAuthzExamples`, and a README.
+The cases discriminate: mutating a rule in an example package (comparison
+operators, window bounds, ignored index, horizon, budget) is caught by
+`examples/shaxon/authz/mutants.py` in all 23 mutants tried. Earlier
+hand-run rounds had found uncaught mutants and led to added cases (an approval
+before creation, an over-long chain with a revoked link); the scripted 23 are
+all caught. Writing them showed where the
+language is awkward, recorded here as observations, not defects:
+
+| Observation | Effect |
+|---|---|
+| No filter or map operator, and `compute` has no loop | Counting, summing and extremes are the `aggregate` sugar (core 8a, from 2026-10-05); any other fold is a `for` in `program`. Either way the rule runs under `check`, not a `validate` list entry |
+| `$inverse` and closures give paths, and no operator reads the value at a path | A rule that needs a field of an indexed event has to encode it in the index key, or fold first |
+| A shape carries one `check` | One rule per shape; several rules over one request means several shapes and several `check` instructions |
+| `set` does not create a missing parent | The program creates `state.x` before writing under it |
+| A closure target that hits its horizon reports `SHAX_PATH_DEPTH_EXCEEDED` once per `check` | `delegation-chain` runs the structural check first and the rules only if it was clean |
+
+### The same examples in SHACL-SPARQL (2026-10-04)
+
+`examples/shacl/authz/` holds the five examples as SHACL-SPARQL shapes
+(`sh:sparql`, constraint IRIs equal to the Shaxon ids), a lift from the JSON
+input to RDF, and `run_cases.py`, which feeds every Shaxon case file to
+pyshacl and Apache Jena. Measured, not argued:
+
+| Question | Result |
+|---|---|
+| Same decision and the same reasons | 50 of 50 comparable cases agree; the 51st (a trail too long for `limits.steps`) has no SHACL meaning |
+| Malformed request | Shaxon refuses to judge (`EXECUTION_ERROR`); SHACL allows all 6 unless a closed structure shape is written per request, then it denies |
+| Order of reasons | Shaxon's are ordered and stable; SHACL's report is an unordered set, so the harness compares sets |
+| Step budget, fail closed | Shaxon only; SHACL has no counterpart |
+| Rule text (comments stripped) | SHACL 9611 characters against Shaxon 13975, but the SHACL side needs `lift.py`, and the Shaxon figure includes the program that builds the decision |
+| Speed at 4000 events | Two profiles (`./run.sh timing`), re-run 2026-10-05 after the performance work. End to end: Shaxon 5-12 ms (Go process), pyshacl 360-518 ms, Jena 1234-1438 ms (about 0.7 s JVM start); the SHACL figures include the RDF lift. Validation only (`timing-engine`): Shaxon 0.9-5.3 ms, pyshacl 211-296 ms, Jena 2.4-7.9 ms warmed up. Shaxon is faster than Jena on rolling-quota at every size (3.9 against 12.4 ms at 20000); Jena is faster on chinese-wall from between 1000 and 4000 events and barely grows to 20000 (3.9 ms against Shaxon's 22). Before the performance work Shaxon was 28 ms and 11-17 ms. Says little about the languages |
+| Second processor | Apache Jena SHACL 6.2.0: same 50 of 50 once reasons are read from `sh:resultMessage`; its `sh:sourceConstraint` names the shape, not the constraint |
+| Rule mutation check | 19 mutants (`mutants.py`), all killed; one survivor exposed a missing case (a withdrawal by someone other than the approver), now added to the shared cases |
+
+A second processor, Apache Jena SHACL 6.2.0, reaches the same decisions and
+reasons on the same 50 comparable cases, with one difference in the report:
+Jena's `sh:sourceConstraint` names the shape, not the `sh:sparql` constraint,
+so the harness reads Jena's reasons from `sh:resultMessage` (26 of 51 cases
+differ if it does not). All five use `sh:sparql`, so this measures Shaxon against
+SHACL-SPARQL: the SPARQL bodies carry all the rule logic (about two fifths of
+the shape text), and nothing here says what SHACL Core alone can express.
+Not tested: exactness of SPARQL decimals beyond the
+two processors' own, and whether `chinese-wall` and `break-glass` fit in SHACL
+Core without SPARQL.
+`SETUP.md` there is the setup guide, with `setup.sh` and `run.sh` to install and launch the harnesses. The README in that folder has the lifting decisions (arrays lose their order
+in RDF, so `ex:seq` carries it) and where SHACL-SPARQL was the better fit.
+
+### Open items
+
+1. **Spec rulings wanted:** R1 joins P1, V1, V3 and G11.
+2. The stray `pkg/shaxon/.ed-journal.json` from Phase 4 is still present.
+3. `costs.Validate` (table coverage) has no test that can fail: `unit` has a
+   fallback. It starts to matter with a table that has none.
+4. Phase 7.1 is done (2026-10-05); see its entry under Phase 7 for the decisions
+   the plan left open (the signature of `Validate`; `Number` not yet in results).
+5. **Aggregation gap against SPARQL.** Settled 2026-10-05, in part: `aggregate`
+   (core section 8a) is sugar over the existing `set`/`for`/`if` and `$compute`
+   machinery, expanded in `hooks.Static` before the program is checked
+   (`pkg/shaxon/aggregate.go`). It offers `count`, `sum`, `min` and `max`, with
+   an optional `where`. It adds no evaluation primitive, no new cost rule (an
+   aggregate costs exactly its expansion: 473, 4073 and 16073 steps for
+   `rolling-quota` at 100, 1000 and 4000 events, before and after) and no new
+   state to the Machine; `Run` copies the top-level package so the caller's
+   program keeps its `aggregate`. Decisions: A1 the result is an object `set` at
+   `into`; A2 over nothing `count` and `sum` are 0, `min` and `max` null; A3 no
+   average, since `div` loses digits; A4 a malformed form is `PROGRAM_ERROR`;
+   A5 `as` follows `for`'s shadowing rule. `rolling-quota` now uses it.
+   **Still open:** aggregation inside a constraint (a `check` expression or an
+   index key), which would need an operator over arrays; `aggregate` is an
+   instruction, so it runs in `program` only. Also not offered: grouping,
+   `any`/`all`, average.
+6. **SHACL Core alone is untested** for `chinese-wall` and `break-glass`. The
+   SHACL comparison uses `sh:sparql` throughout, so it says nothing about Core.
+7. **Which `sh:sourceConstraint` reading follows the W3C text** (pyshacl names
+   the constraint, Jena the shape) is not settled; the harness reads Jena's
+   reasons from `sh:resultMessage`.
+8. **`setup.sh` install branches not exercised end to end** (venv creation and
+   the pip and Maven fetches); `--check`, `run.sh` and `scale.py` were run
+   against existing environments.
+9. **Phase 5 source mutants are not reproducible.** The 21 mutants of
+   `pkg/shaxon` source run on a scratch copy were not kept as a script. The
+   authorisation packages' mutants are (`examples/shaxon/authz/mutants.py`),
+   and since Phase 6 so are 26 engine mutants judged by the fixtures
+   (`pkg/shaxon/fixtures_mutants.py`); the 21 themselves are not.
+10. **Tooling:** repoman's provenance check, run from the repository root,
+    reports `CHANGELOG.md` as changed outside repoman after every edit made
+    through the `src/` root's journal. Each time it was sanctioned with that
+    reason. A fix belongs upstream in gorepoman.
+
+## Dormant guards
+
+Verifications that do not run in the default `go test ./...`. A guard's
+existence and its execution record are different facts; only the second is
+evidence. All rows below were last run in this sandbox (Linux, 2 CPUs).
+
+| Guard | Gating | Canonical invocation | Last exercised | Result |
+|---|---|---|---|---|
+| Authorisation cases through pyshacl | Python 3, pyshacl 0.40.1 (`./setup.sh`) | `examples/shacl/authz/run.sh cases` | 2026-10-04, Python 3.13, rdflib 7.6.0 | 50 agree, 0 differ, 1 n/a |
+| The same through Apache Jena | Java 17+, Maven fetch (`./setup.sh --jena`) | `run.sh jena` | 2026-10-04, Java 21, Jena 6.2.0 | 50 agree, 0 differ, 1 n/a |
+| Fail-open check (structure shapes dropped) | as pyshacl | `run.sh no-structure` | 2026-10-04, as above | exactly 6 differ, as expected |
+| SHACL rule mutants | as pyshacl | `run.sh mutants` | 2026-10-04, as above | 19 tried, 19 killed |
+| Cross-engine timing and verdict agreement | Go, pyshacl, Jena optional | `run.sh timing` | 2026-10-04, as above | verdicts agree on every row |
+| Shaxon authorisation mutants | Go on `PATH` | `examples/shaxon/authz/mutants.py` | 2026-10-05, Go 1.27.1 | 23 tried, 23 killed, 1 bad anchor fixed first |
+| Conformance fixtures against engine mutants | Go on `PATH` | `python3 pkg/shaxon/fixtures_mutants.py -v` | 2026-10-05, Go 1.27.1 | 43 tried, 41 killed, 2 expected survivors (recorded in the script) |
+| Parser fuzzing against encoding/json | Go on `PATH` | `go test ./pkg/jaxson -run '^$' -fuzz FuzzParseJSON -fuzztime 40s` | 2026-10-05, Go 1.27.1, 2 CPUs | 384329 inputs, 0 disagreements |
+| Concurrency tests under `-race` | true multi-core parallelism | `go test -race -count=1 ./pkg/shaxon` | 2026-10-04, a 2-CPU sandbox | pass; a 2-CPU pass is weak evidence for races and should be repeated on a many-core machine |
+
+`run.sh all` runs the first four in one go. Every run above is the author's;
+none has been run on another machine yet.
+
+## Phase 6 — Fixtures and conformance (plan §9) — mostly done, 2026-10-05
+
+`pkg/shaxon/shaxon-v0.3.1-fixtures.json` holds 161 fixtures, all passing under
+`TestFixtures` (`fixtures_test.go`); `pkg/shaxon/FIXTURES.md` describes the
+format, the coverage by core section and what was left out. They were written
+from the core specification, with the expected result fixed before the run;
+every failure while writing them was a fault in the fixture (a wrong assert
+form, an output that starts as null, a premise the 3.1 text had dropped), a
+difference in spelling (S1), or, once, a defect in the engine (S8, `closed`
+under `extends`). 70 expect an error, the rest a result.
+
+| Item | Status |
+|---|---|
+| Runner, with spec-fixed-only matching of report violations | done |
+| Fixtures for the plan's priorities (granularity split, `qualified` charge, `unique` ordering and gate rule; the purity priority became "no `into`, nothing is written" once S3 was ruled) | done |
+| The six attic fixtures, rewritten for 3.1 | done (three premises had changed; recorded in each note) |
+| Mutation check of the fixtures against the engine (`pkg/shaxon/fixtures_mutants.py`) | done: 43 mutants, 41 killed, 2 expected survivors with reasons |
+| Navy Wars replay as an integration test (plan §9, optional) | not started |
+| Fixtures run by a second, independent runtime | not started; none exists |
+
+**Not independent evidence.** The fixtures and the engine share an author and
+a reading of the specification. They show that the engine does what the text
+says as one reader understood it; they do not show the reading is the only
+one. The spec-gap list below is where the readings diverge.
+
+### Spec findings from writing the fixtures
+
+These add to P1, V1, V3, G11 and R1. IDs of decisions already logged above are
+cited, not repeated.
+
+| ID | Finding | State |
+|---|---|---|
+| S1 | Identifier prefix. The implementation prefixed Shaxon's own identifiers with `SHA_`, which the core did not. Settled 2026-10-05: the prefix is `SHAX_` (`SHA_` reads as the SHA family of hash functions) and the core now specifies it (§9, "Identifier prefix"). Code, tests, the authorisation cases, the fixtures, TRACKER, CHANGELOG and the v0.3.2 walk proposal follow; the runner's mapping is gone. | settled, 2026-10-05 |
+| S2 | The merge table wrote `"override": true` on the child's `and`/`or`/`xone`/`not`/`check`, which a JSON array or a `check` object cannot carry. Settled 2026-10-05: the core now uses the implementation's spellings (`closedOverride`, `andOverride`, `orOverride`, `xoneOverride`, `notOverride`, `checkOverride`; per-item `override` for `fields` and the `{value, override}` form for `requiredIds`), states the `requiredIds` collision rule and that `check` with `checkOverride` is an error. 16 fixtures cover it. | settled, 2026-10-05 |
+| S3 | Section 0 and section 1 said `check` and `validate` never write to any root; sections 7 and 8 give them an `into` that writes to `state` or `output`. Ruled 2026-10-05: the core makes no claim about it. The invariant (now "the three invariants") and the section 1 paragraph are removed, with nothing in their place; the editorial, limitations and v0.3.2 walk texts that cited purity follow. Revisit when there are users; analysis kept below. | settled, 2026-10-05: deliberately unspecified |
+| S4 | The section 10 table is called exhaustive but has no row for a failed `qualified` count or an extra member of a closed object (G2, G3). The fixtures test both only through gate mode. | open, spec edit |
+| S5 | Section 2 said a 3.1 runtime must also execute packages declaring `"1.0"` to `"3.0"`; R5 accepts only `"3.1"`. Settled 2026-10-05: the core now says a runtime accepts exactly the versions it implements and rejects any other with `VERSION_ERROR`; it need not execute earlier versions. R5 stands. | settled, 2026-10-05 |
+| S6 | Not stated by the core: what counts as one level of `maxShapeDepth` (G8); what a plain shape activation costs (G1); whether `unique` skips an element lacking its field (V4); where a `PATH_DEPTH_EXCEEDED` finding is attached (C3). The fixtures assert none of them. | open, spec edit |
+| S7 | Section 6 stops a chain at the first hop that does not resolve. A member holding `null` resolves, so a null-terminated list overruns a horizon one hop earlier than it looks. The text supports this; it is easy to miss, and one attic fixture was written the other way. Now `closure-through-a-null-link-still-resolves-and-can-overrun`. | recorded; no change needed |
+| S8 | `closed` under `extends`. The merge table says AND, "most restrictive of parent/child wins". The implementation took AND to mean a boolean AND of the two `closed` flags, so the most permissive won: a closed parent extended by a child writing `closed: false`, or an open parent extended by a child writing `closed: true`, gave an open shape. Found by a fixture written from the spec. 2026-10-05: changed to the spec's reading (closed if either stated value is closed, unless `closedOverride`). A child that does not write `closed` still inherits the parent's posture; the core is silent on that and it stays an implementation decision. Revert is one `switch` in `mergeShapes`. | fixed, 2026-10-05; accepted by the user the same day |
+
+| S9 | The core does not say in what order the members of a `$tpl` object are evaluated. The first interpreter ranged over a Go map, so with a failing member the error and the step total at the failure varied between runs (found 2026-10-05 by the oracle test, which compared the same program twice). The implementation now evaluates in sorted key order, as `$compute` bindings are. Proposed ruling: say so in the core (section on `$tpl`), and add a fixture. | open, spec edit |
+
+### S3 in depth: is validation pure?
+
+**Ruling, 2026-10-05: the core says nothing about purity.** The text below is the analysis that preceded it, kept as a record. It speaks of "four invariants" and of options A to C; none was taken. The invariant and the section 1 paragraph were removed instead, and the implementation behaves as the "What the implementation does" table describes.
+
+**What the texts say.** Section 0 lists "validation purity" as one of the four
+invariants: `check` and `validate` never write to `state`, `output` or any
+root, "under any circumstance". Section 1 repeats it and adds the reason:
+anything a validation needs is derived by an ordinary program step before the
+`check`, which "keeps program state transition and predicate evaluation from
+blurring". Section 7 then gives a report-mode `validate` an `into` ("the report
+is written to the path named by `into`") and its own example writes
+`state.lineWarnings`; section 8 says a report-mode `check` appends into its
+`into` so "a program can accumulate a running log of non-fatal findings turn
+over turn". The core forbids and requires the same write.
+
+**What the implementation does** (all run, 2026-10-05):
+
+| Case | Behaviour |
+|---|---|
+| No `into` | Nothing is written. Findings go to the combined report returned beside `output` (fixture `check-in-report-mode-without-into-never-aborts-and-leaves-state-alone`). |
+| `into` under `state` or `output` | Allowed. The write is a synthesised `set` (`validate`) or `append` (`check`) run through the machine (V3), so it is an ordinary program write: one step per violation appended (22 steps against 15 for the same program without `into`), recorded in the mutation log, and indices over the written path rebuild. |
+| `into` under `input` | `SHAX_SHAPE_ERROR`, "cannot write to root input". |
+| `into` in gate mode | `SHAX_SHAPE_ERROR` (V2). |
+
+**What purity is for.** Three things could go wrong if validation wrote:
+(a) it changes the data other validation sees, so a result depends on the order
+things were evaluated in; (b) the write escapes step accounting; (c) the write
+is invisible to index reuse and leaves an index stale. The implementation
+closes (b) and (c) by making the write an ordinary charged, logged program
+write. It does not close (a).
+
+**The hazard that remains.** Three report-mode `check`s of `state` with `into:
+["state","log"]`, where `log` items must be strings, grew the log to 1, then 3,
+then 7 entries: each pass validated the previous passes' reports as data. It is
+deterministic and charged, so it breaks no invariant the core states other than
+purity itself; but the second report is not a function of the data the author
+thought they were validating. The same program without `into` gives three
+identical reports.
+
+**Verdict.** Neither text is right as it stands. The core's sentence is false
+of its own sections 7 and 8, and the use it forbids is one the authorisation
+examples depend on (all five deliver a report into `state` with `into` and read it
+in their program). The implementation is the more defensible, because the write is
+the program's own, made on validation's behalf, and is accounted for. What the
+core should say is narrower than "never writes": validation never mutates the
+data it validates, its only effects are the report and the step charge, and
+delivering the report to `into` is an ordinary write. The feedback hazard is
+real and not covered by that wording.
+
+| Option | What changes | For | Against |
+|---|---|---|---|
+| A. Strict purity | Remove `into`. Add a pure expression operand (say `$validate`) that yields the report as a value; the program writes it with ordinary `set`/`append`. | The invariant is true as written; no feedback by construction; V2, V3 and R2 disappear; a report is usable mid-program as a value. | New operand form (v0.4.0 surface); the authorisation examples and the section 7 example are rewritten; the pre-program entries lose their direct delivery to `state`. |
+| B. Narrow the invariant, keep `into` (recommended for 3.1 text) | Reword sections 0 and 1 as above; settle V3 (replace for `validate`, append for `check`); add a static rule that a literal `into` may not equal, contain or lie under a literal target path. | Matches what runs and what the examples use; one sentence and one load-time check. | The static rule cannot see dynamic targets (`$each` over a computed path), so feedback stays possible there and has to be documented. |
+| C. B plus a run-time overlap check | As B, and raise an error when a delivery path overlaps any focus node evaluated in the same entry. | Closes (a) fully for one entry. | Costs a path comparison per delivery; does not stop feedback across two entries or two `check`s, as in the experiment. |
+
+**Recommendation.** B for the 3.1 text now, and A on the v0.4.0 list as the
+route to making the invariant true without a qualifier. The user ruled
+for none of them (see the ruling above); the A route stays available for v0.4.0.
+
+### Phase 6 open items
+
+1. Navy Wars replay as an integration test (plan §9).
+2. `fixtures_mutants.py` is a dormant guard (see the table above); its first
+   record is 2026-10-05.
+3. A fixture that pins `steps` exactly is possible only where the core fixes the
+   whole total; none does yet, so `steps` is supported by the runner and
+   unused.
+
+## Performance, 2026-10-05
+
+Six steps, none changing a result or a step count (the 161 fixtures and the 51
+authorisation cases pin both); see CHANGELOG for the detail. Benchmarks
+(`go test -run '^$' -bench Engine -benchmem ./pkg/shaxon/`, 2 CPUs, in ms):
+
+| Benchmark | Original | Copy avoidance | Compiler | Maps, tuned | Objects |
+|---|---|---|---|---|---|
+| rolling-quota, 4000 events | 16.5 | 10.6 | 1.5 | 1.0 | 0.7 |
+| rolling-quota, 20000 events | 82 | 46 | 7.3 | 4.6 | 2.9 |
+| chinese-wall, 4000 events | 22.3 | 17.0 | 9.3 | 6.0 | 5.2 |
+| chinese-wall, 20000 events | 91 | 78 | 37 | 23.5 | 22 |
+
+The last column leaves the compile (the first run) out of the timing and holds
+the input as Objects; the compile is under the run-to-run noise (the first run
+takes about as long as a later one). The same benchmark with a map input, where
+`Run` converts it each time, gives 1.5, 6.3, 6.6 and 24 ms.
+
+Other measurements: 20000 `append`s 2100 ms to 4 ms; `ParseJSON` of a 920 KB trail
+38 ms to 13.7 ms, `ParseData` of it 12.7 ms. After this, reading and building the value dominates:
+at 20000 events `ParseJSON` (about 14 ms) now costs more than running the
+rolling-quota package (3 ms). Objects were done in step 6 and gained 35-40% on
+rolling-quota but only 6% on chinese-wall, which spends its time building and
+sorting two indices. What is left is building `*big.Rat` values and, in the
+parser, allocating them; getting past that needs a small-decimal number type,
+which touches every operator and was not attempted. Tried and rejected: a global
+string-to-integer dictionary and a packed `[4]uint64` key (no faster than the
+string map in a lookup benchmark, and a dictionary of data-dependent keys never
+shrinks). Not done, and why: specialised fixed-arity
+operator calls (the argument slice is already scratch); a tokenizer-only
+`ParseJSON` in the style of queryfy's superjsonic, which validates without building
+values and so cannot feed the interpreter, which needs the tree.
+
+### Open items
+
+| ID | Item | State |
+|---|---|---|
+| PF1 | Delete the tree interpreter oracle when the compiler has been in use long enough: `pkg/jaxson/tree_oracle.go`, the `tree` switch and `UseTreeInterpreter`, the derived `OperatorDef.Apply`, the `Exec` members of the eight core instructions, `compile_oracle_test.go`, `shaxon/oracle_test.go` and the `SHAXON_BENCH_TREE` switch. The header of `tree_oracle.go` has the full list. | open |
+| PF2 | `FuzzParseJSON` as a dormant guard: only its seed corpus runs in the default test run. | recorded in the table above |
+| PF3 | **Wall time is quadratic in the trail on `four-eyes-release` and `break-glass`** (steps stay linear). Measured 2026-10-05 with all five authorisation examples (`examples/shacl/authz/results/REPORT.md`): four-eyes at 4000 events takes 2.8 s, at 20000 80 s; break-glass 4.6 s and 148 s; warmed-up Jena takes 8 and 144 ms at 4000 on the same two. Cause in four-eyes: the replay binds the whole `state.pay` map in a `$compute` `with` (`{"$path":["state","pay"]}`) only to ask `has` of it, and a composite read of `state` is cloned, so every event copies the growing map (profile: `Clone` and GC, 56%). Cause in break-glass: a review event has no `id`, so the key of its `reviews` binding is `""`, which matches every break-glass event in the index; `with` bindings are evaluated eagerly, so the unused value is built anyway (profile: `evalInverse`/`pathValue`, 52%). Candidate fixes: borrow, not clone, a `with` binding whose uses are all in operators that cannot keep or return it (`has`, `len`, `type_of`, `keys`, comparisons), and cloning only a composite result of `get`/`get_or`; and, in the package, a key that cannot collide for events that are not break-glass uses. Neither is done; the second changes an example package. | open |
 
 ## Phase 7 — Public API and tooling (plan §10) — partial
 
-- [ ] **7.1 Core API surface** (`shaxon.Validate`, the `jaxson.Number`
-  boundary type, immutable-after-construction tables) — not started;
-  depends on Phases 1–5 existing first.
+- [x] **7.1 Core API surface** (`shaxon.Validate`, the `jaxson.Number`
+  boundary type, immutable-after-construction tables) — done and verified
+  2026-10-05. `pkg/shaxon/api.go`, `pkg/jaxson/number.go`, `RunJSON` in
+  `pkg/jaxson/profile.go`; tests `api_test.go`, `number_test.go`,
+  `runjson_test.go`. Decisions where the plan is loose (**the signature and the
+  Number scope need your confirmation**):
+  - **A1** `Validate(pkg, shape, doc) (Report, *jaxson.Err)`, not the plan's
+    `(pkg, target)`: `target` is a shape name and the document is a separate
+    argument, so one package can validate many documents. `ValidateJSON` takes
+    raw bytes for both.
+  - **A2** What runs: the static checks, then one report-mode validation of
+    `doc` placed at `input`. Not run: `program`, the package's own `validate`
+    entries, `inputSchema`, `outputSchema`. Computes and `check` islands inside
+    shapes do run. Indices and relations are built over `doc`, so their
+    `source` paths start at `input`.
+  - **A3** The result is always a Report (never a gate); errors are those Run
+    would give.
+  - **A4** Step limit is `limits.steps` or Run's default 100000; neither
+    argument is changed.
+  - **N1** `jaxson.Number`: an immutable exact decimal (`ParseNumber`,
+    `NumberFromInt64`, `NumberFromRat`, `AsNumber`; `String`, `Rat` (a copy),
+    `Sign`, `IsInt`, `Int64`, `Float64` with exactness, `Cmp`, `MarshalJSON`).
+  - **N2** Results still hold `*big.Rat`; `AsNumber` converts. Changing the
+    element type of every result would break each existing caller, and the
+    machine shares Rats on purpose. A caller who keeps a Rat from a result must
+    not change it; with `Number` they cannot. If you want results to hold
+    `Number`, that is a separate, breaking step.
+  - `jaxson.RunJSON` added to match `shaxon.RunJSON` (the plan asks for both).
+    `Err` is documented (categories and the Cat/Code/Msg contract) and its text
+    no longer has a stray `/` when Code is empty (`PARSE_ERROR: msg`).
+  - Immutable tables: `CoreOperators` and the instruction tables are built per
+    call and the compile cache belongs to a Machine; pinned by
+    `TestConcurrentRunAndValidateShareAPackage` (8 goroutines, `Run` and
+    `Validate` on one package, under `-race`).
 - [x] **7.2 Session helper.** `src/jaxson-v0.1.0/play.go` (145 lines, in
   the pre-split `package main` tree, not `pkg/jaxson`) already implements
   the input/output-threading pattern the plan describes — clone the
@@ -445,17 +1017,17 @@ Parses and statically validates `shapes`/`indices`/`relations`/`computes`
 shaped to be called from a future `Hooks.Static`, not yet wired to one.
 
 **Settled, on request, rather than left open:**
-- An `extends` cycle is unconditionally `SHA_SHAPE_ERROR`, never valid
+- An `extends` cycle is unconditionally `SHAX_SHAPE_ERROR`, never valid
   under any `maxShapeDepth` value — static merging has no focus node to
   descend through, so no depth bound makes a literal cycle terminate.
 - `validate`/`check` shape-xor-`unique` structural checks belong in
   `targets.go` (Phase 4), not here — this package's `registries.go` stays
   scoped to exactly the four registries the plan's file layout names.
 
-**Error identifiers: every one Shaxon introduces is prefixed `SHA_`**
-(`SHA_SHAPE_ERROR`, `SHA_VALIDATION_ERROR`/`SHA_SHAPE_MISMATCH`,
-`SHA_DANGLING_REFERENCE`, `SHA_SHAPE_DEPTH_EXCEEDED`,
-`SHA_PATH_DEPTH_EXCEEDED`). `EXECUTION_ERROR` itself keeps Jaxson's own
+**Error identifiers: every one Shaxon introduces is prefixed `SHAX_`**
+(`SHAX_SHAPE_ERROR`, `SHAX_VALIDATION_ERROR`/`SHAX_SHAPE_MISMATCH`,
+`SHAX_DANGLING_REFERENCE`, `SHAX_SHAPE_DEPTH_EXCEEDED`,
+`SHAX_PATH_DEPTH_EXCEEDED`). `EXECUTION_ERROR` itself keeps Jaxson's own
 spelling (core section 9: "the existing Jaxson category, extended," not a
 new one), and `TYPE_ERROR`/`MISSING_PATH` keep Jaxson's spelling where
 reused unchanged — only Shaxon's own new codes within that category are
@@ -491,7 +1063,7 @@ better alternative, found a few steps later than it should have been.
 **Verified**: `go build`/`go vet`/`gofmt -l .` clean; `go test -race ./...`
 clean across every package including the new `pkg/shaxon`, which has its
 own 18-case test file covering a full valid package, the extends merge
-(including the `closed`-default bug below), and one test per `SHA_SHAPE_
+(including the `closed`-default bug below), and one test per `SHAX_SHAPE_
 ERROR` condition implemented so far.
 
 **Self-check note**: the first draft of the `closed` member's default got
@@ -501,6 +1073,171 @@ undeclared). Caught by `TestParseRegistries_ExtendsMerge` failing, not by
 inspection. Worth double-checking stated defaults against Go zero values
 specifically in any future section-4-adjacent work — this is exactly the
 class of bug Go's zero values make easy to introduce silently.
+
+## Phase 2 completion, 2026-09-30
+
+Closed the two gaps the scaffolding entry above flagged as remaining
+within Phase 2's own scope (the data-dependent and `targets.go`/`unique`
+items were never Phase 2's to close):
+
+- **Keyword-vs-kind legality**, mirroring jaxson's own `schemaKeys`
+  table: `minLen`/`maxLen` only on `string`, `min`/`max`/`int` only on
+  `number`, `minItems`/`maxItems` only on `array`. Plus cross-keyword
+  ordering (`minLen<=maxLen`, `min<=max`, `minItems<=maxItems`).
+- **A real ordering bug caught while wiring the above in**, not after:
+  keyword-vs-kind legality has to run *after* `extends` resolves `Kind`
+  inheritance, not on each shape's pre-merge body — a child extending a
+  `kind: "string"` parent and adding `minLen` without repeating `kind`
+  would otherwise be wrongly rejected (pre-merge `Kind` is still `""`).
+  Fixed by moving the check to run post-merge for named shapes, and by
+  restricting `extends` to named shapes only (every spec example already
+  uses it this way), which removes the same hazard for inline shapes by
+  construction rather than by special-casing it.
+- **A real gap found in the same pass**: an inline field/items/qualified-
+  target shape's own `"extends"` key was silently ignored — neither
+  honoured nor rejected. Now explicitly `SHAX_SHAPE_ERROR`
+  ("extends is only valid on a named, top-level shape"), consistent with
+  the restriction above.
+- **`parseQualified`'s inline branch bypassed `parseField` entirely**,
+  so it had neither the new extends-rejection nor the keyword/kind
+  validation call. Same fix applied there directly.
+
+**The `extends` `"override"` mechanism remains deliberately
+unimplemented**, as of this entry. Three candidate JSON syntaxes were
+drafted against core section 4's prose and rejected: (A) a flag inside the
+item itself (fits `fields`, has no slot for `closed`/`and`/`or`/`xone`/
+`not`/`check`); (B) a shape-level `"override": [...]` list of member names
+to replace outright (fits `closed` and the combinator lists, doesn't
+address per-field or per-`requiredIds`-key granularity, doesn't fit
+`check`'s documented `{"override": {with, expr}}` replacement-value
+form); (C) a single `override` object keyed by member name whose
+value-shape varies per key — internally inconsistent enough at the time to
+suggest reverse-engineering the wrong design rather than the real one.
+**Superseded a few hours later**, same day — see "extends override
+mechanism implemented" below: re-reading core section 4's merge table
+verbatim (rather than the paraphrase this entry was working from) showed
+the per-member value genuinely does vary, which is exactly what candidate
+C guessed and I wrongly treated as a red flag against it. Left standing
+here as the honest record of what going in circles on a spec gap actually
+looks like, not retouched to read as if the right answer were obvious
+from the start.
+
+**Verified**: `go build`/`go vet`/`gofmt -l .` clean; `go test -race
+./...` clean across every package. `pkg/shaxon`'s test count: 18 → 24.
+
+## Imported from a parallel checkpoint, 2026-10-04
+
+A separate drafting team delivered a checkpoint that branched from this
+repository and went its own direction rather than continuing Phase 2.
+Diffed in full first; imported only what was genuinely new, nothing that
+would regress anything here:
+
+**Imported:**
+- `shaxon-v0.3.2-proposal-walk.md` (+ `attic/`'s rev1/rev2 drafts) — a new
+  proposal: a "Walk profile," modeling a bounded session as a walk over a
+  reference graph, for checking access behaviour against a normative
+  model. Targets core 3.1.
+- `examples/walk/` — the proposal's first executable evidence: a hop
+  kernel as a pure Jaxson package, a Python differential test, and cost
+  measurements. **Re-run here, not just trusted from their report**:
+  `test_w3.py` — 600 slices, 0 mismatches against an independent
+  reference, 0 differences under replay or member-order shuffling,
+  matching their stated numbers exactly. `measure.py` also re-run
+  cleanly. Both are Python-only — no Shaxon evaluation layer exists yet
+  to validate against, by their own account and ours.
+- `examples/showcase/SHOWCASE-REPORT.md` — a written report on the
+  showcase examples, self-labelled by evidence type; explicitly notes
+  nothing in it was run against Go, since they had no Go toolchain.
+- `jaxson-intro.md`, and root-level `LICENSE`/`README.md` copies (content
+  identical to the existing nested `src/jaxson-shaxon-v0.3.1/` copies —
+  confirmed by diff before copying, not assumed).
+- One bugfix to `examples/showcase/tools/jaxsonpy.py`: a zero-iteration
+  `for` loop crashed the Python executor (`del` on an unbound key);
+  changed to `.pop(key, None)`, matching Go's `delete()`, which is always
+  a safe no-op. Applied as a targeted patch to the existing file, not an
+  overwrite. **Re-verified here**: `run_showcase.py` still 29/29 after
+  the patch.
+
+**Deliberately not imported:**
+- Their `pkg/shaxon` (`registries.go`/`parse_shapes.go`/
+  `registries_test.go`, 18 tests). Diffed and confirmed: it is this
+  repository's *original* Phase 2 scaffolding checkpoint, predating both
+  "Phase 2 completion" and the `extends` override mechanism above.
+  Importing it would have been a straight regression. Their `TRACKER.md`
+  still carries the original `## Phases 2–6 — not started` header despite
+  their own `pkg/shaxon/` containing Phase 2 scaffolding code — the same
+  stale-summary mistake caught and fixed in this document earlier, left
+  uncaught in theirs.
+- `jaxson-v0.1.0-core-design.md`'s rewrite: purely editorial (an added
+  Introduction section, depersonalized voice, reworded headers), no
+  technical content changed. Not an unambiguous improvement over the
+  existing copy, so left as-is rather than overwritten for a style
+  preference.
+
+**Verified**: Go side untouched by this import — `go build`/`go vet`/
+`gofmt -l .`/`go test -race ./...` all re-run clean. Python side: both
+newly-imported scripts actually executed here, not trusted from their own
+report; `run_showcase.py` re-run after the `jaxsonpy.py` patch, still
+29/29.
+
+## extends override mechanism implemented, 2026-09-30
+
+Prompted by asking which of the three rejected candidates above would
+match a SHACL specialist's expectations. Answering that properly meant
+re-pulling core section 4's merge table verbatim instead of trusting my
+own earlier paraphrase of it — the verbatim text settled the question
+outright rather than just favoring one candidate:
+
+```
+| closed      | AND         | "override": true makes the child's own value win outright        |
+| fields      | union, collision = error | per-field "override": true replaces the parent's field |
+| requiredIds | union by key | per-key "override": true replaces the parent's id for that key   |
+| and         | concatenate | "override": true on the child's and replaces the parent's list    |
+| not         | both apply  | "override": true on the child's not replaces the parent's         |
+| check       | ANDed       | "override": {"with":..., "expr":...} on the child replaces it     |
+```
+
+Implemented exactly this: whole-member `fooOverride` sibling keys
+(`closedOverride`, `andOverride`, `orOverride`, `xoneOverride`,
+`notOverride` — all booleans — and `checkOverride`, taking the literal
+`{with, expr}` replacement per the table's own distinct form for that
+row); per-item `"override": true` nested inside the item itself for
+`fields` (matching "per-field") and `requiredIds` (matching "per-key",
+via `requiredIds`' bare-string values now optionally promoted to
+`{"value":..., "override":...}` — resolving the one blocker none of the
+three earlier candidates could, by applying the same literal-to-object
+promotion RDF/SHACL use whenever a bare value needs metadata attached).
+`"override"` is rejected as an unknown key anywhere other than `fields`
+(items/qualified-target/and/or/xone/not list positions), rather than
+silently accepted and ignored — checked by
+`TestParseRegistries_OverrideRejectedOutsideFields`.
+
+**Two real ordering bugs surfaced while wiring this in, both the same
+class as the `Kind`-inheritance bug from the previous entry, caught by
+tests failing, not by inspection:**
+
+- `requiredIds`' "must name a member in `required`" check was validated
+  against each shape's own *pre-merge* `required` list. A child adding
+  `requiredIds` for a name only its *parent* requires was wrongly
+  rejected. Fixed by moving the check to run post-merge
+  (`validateRequiredIds`), parallel to `validateKeywordsAgainstKind`.
+- Also added, previously missing entirely: a `requiredIds` key colliding
+  between parent and child without `"override": true` now correctly
+  raises `SHAX_SHAPE_ERROR`, matching `fields`' existing collision
+  behaviour. Before this batch the child silently won on every
+  `requiredIds` collision regardless of any flag — not wrong relative to
+  anything tested before now, but inconsistent with `fields`' parallel
+  construct and with what the override table implies the *un-flagged*
+  default should be.
+
+**Verified**: `go build`/`go vet`/`gofmt -l .` clean; `go test -race
+./...` clean across every package. `pkg/shaxon`'s test count: 24 → 33 (9
+new cases: per-field override success and its still-an-error-without-the-
+flag counterpart, override rejected outside `fields`, `closedOverride`,
+`andOverride` replacing rather than concatenating, `checkOverride`
+replacing rather than ANDing, `check`/`checkOverride` mutual exclusivity,
+`requiredIds` per-key override, and `requiredIds` collision-without-
+override).
 
 ## Showcase examples merged into this branch, 2026-09-28
 

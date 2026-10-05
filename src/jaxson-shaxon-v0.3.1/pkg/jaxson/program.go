@@ -12,8 +12,6 @@ package jaxson
 // original jaxrun.go — this is a reshaping of the same logic into data,
 // not a rewrite of it.
 
-import "math/big"
-
 // Checker carries the state threaded through static checking of a
 // program. Locals is which `local.*` names are currently in scope (what
 // a bare `map[string]bool` carried before Phase 1); Instructions is the
@@ -27,6 +25,7 @@ type Checker struct {
 	Locals       map[string]bool
 	Instructions map[string]InstructionDef
 	Host         any
+	Forms        map[string]FormDef // operand forms beyond the core's (forms.go)
 }
 
 // clone returns a Checker sharing Instructions and Host with c, but with
@@ -37,7 +36,7 @@ func (c *Checker) clone() *Checker {
 	for k, v := range c.Locals {
 		l[k] = v
 	}
-	return &Checker{Locals: l, Instructions: c.Instructions, Host: c.Host}
+	return &Checker{Locals: l, Instructions: c.Instructions, Host: c.Host, Forms: c.Forms}
 }
 
 // NewChecker builds a Checker with no locals in scope, ready to check a
@@ -56,6 +55,92 @@ type InstructionDef struct {
 	Opt   []string
 	Check func(in map[string]any, c *Checker)
 	Exec  func(m *Machine, in map[string]any)
+	// Compile, if set, returns the compiled form of one instruction: a
+	// function that does what Exec does, with the instruction's operand,
+	// path and block fields compiled once through c. It is optional. An
+	// instruction without it is run through Exec, which evaluates its
+	// operands with Machine.Eval (compiled on first use and kept).
+	Compile func(c *Compiler, in map[string]any) func(*Machine)
+}
+
+// The four mutations, shared by the instructions' Exec (the interpreter) and
+// their Compile (the compiled path): what is written, and what OnMutate is
+// told, is defined once.
+
+func (m *Machine) doSet(r string, s []any, val any) {
+	m.putAt(r, s, val)
+	m.mutated(r, s)
+}
+
+func (m *Machine) doAppend(r string, s []any, val any) {
+	ar, ok := m.getAt(r, s).([]any)
+	if !ok {
+		execFail("TYPE_ERROR", "append target is not an array")
+	}
+	// Amortised: the array grows in place when it has room. That is safe
+	// because every array in state or output is owned by exactly one place
+	// (set, append and insert store a private copy, and a composite read
+	// from state or output is a copy), so no other holder can see, or
+	// append to, the same backing store. A loop that was handed the array
+	// earlier holds its own copy (read) or a header whose length does not
+	// change. TestAppendDoesNotAlias pins this.
+	m.putAt(r, s, append(ar, val))
+	m.mutated(r, s)
+}
+
+func (m *Machine) doInsert(r string, s []any, at int, val any) {
+	ar, ok := m.getAt(r, s).([]any)
+	if !ok {
+		execFail("TYPE_ERROR", "insert target is not an array")
+	}
+	if at > len(ar) {
+		execFail("BAD_INDEX", "insert position %d beyond length %d", at, len(ar))
+	}
+	out := make([]any, 0, len(ar)+1)
+	out = append(out, ar[:at]...)
+	out = append(out, val)
+	out = append(out, ar[at:]...)
+	m.putAt(r, s, out)
+	m.mutated(r, s)
+}
+
+func (m *Machine) doDelete(r string, s []any) {
+	par := m.getAt(r, s[:len(s)-1])
+	last := s[len(s)-1]
+	if kk, isKey := last.(Key); isKey {
+		last = kk.Value() // a delete is rare enough not to need the quick path
+	}
+	switch k := last.(type) {
+	case string:
+		o, ok := par.(*Object)
+		if !ok {
+			execFail("TYPE_ERROR", "delete member of %s", TypeName(par))
+		}
+		if !o.Delete(k) {
+			execFail("MISSING_PATH", "member %q not found", k)
+		}
+		// The mutated path reported is the container (the
+		// object whose membership changed), not the deleted
+		// member's own path — matching the array-delete case
+		// below, and simpler for a mutation-log consumer to
+		// treat uniformly: "this container's contents
+		// changed," not "this specific removed path is now
+		// gone."
+		m.mutated(r, s[:len(s)-1])
+	case int:
+		ar, ok := par.([]any)
+		if !ok {
+			execFail("TYPE_ERROR", "delete index of %s", TypeName(par))
+		}
+		if k >= len(ar) {
+			execFail("BAD_INDEX", "index %d out of range", k)
+		}
+		out := make([]any, 0, len(ar)-1)
+		out = append(out, ar[:k]...)
+		out = append(out, ar[k+1:]...)
+		m.putAt(r, s[:len(s)-1], out)
+		m.mutated(r, s[:len(s)-1])
+	}
 }
 
 // CoreInstructions returns Jaxson's eight core instructions, unchanged in
@@ -71,10 +156,17 @@ func CoreInstructions() map[string]InstructionDef {
 				checkOperand(in["value"], c)
 			},
 			Exec: func(m *Machine, in map[string]any) {
-				val := m.eval(in["value"])
+				val := m.own(m.eval(in["value"]))
 				r, s := m.segs(in["path"].([]any))
-				m.putAt(r, s, val)
-				m.mutated(r, s)
+				m.doSet(r, s, val)
+			},
+			Compile: func(c *Compiler, in map[string]any) func(*Machine) {
+				value, path := c.Operand(in["value"]), c.Path(in["path"].([]any))
+				return func(m *Machine) {
+					val := m.own(value(m))
+					r, s := path(m)
+					m.doSet(r, s, val)
+				}
 			},
 		},
 		"append": {
@@ -84,14 +176,17 @@ func CoreInstructions() map[string]InstructionDef {
 				checkOperand(in["value"], c)
 			},
 			Exec: func(m *Machine, in map[string]any) {
-				val := m.eval(in["value"])
+				val := m.own(m.eval(in["value"]))
 				r, s := m.segs(in["path"].([]any))
-				ar, ok := m.getAt(r, s).([]any)
-				if !ok {
-					execFail("TYPE_ERROR", "append target is not an array")
+				m.doAppend(r, s, val)
+			},
+			Compile: func(c *Compiler, in map[string]any) func(*Machine) {
+				value, path := c.Operand(in["value"]), c.Path(in["path"].([]any))
+				return func(m *Machine) {
+					val := m.own(value(m))
+					r, s := path(m)
+					m.doAppend(r, s, val)
 				}
-				m.putAt(r, s, append(ar[:len(ar):len(ar)], val))
-				m.mutated(r, s)
 			},
 		},
 		"insert": {
@@ -102,22 +197,19 @@ func CoreInstructions() map[string]InstructionDef {
 				checkOperand(in["value"], c)
 			},
 			Exec: func(m *Machine, in map[string]any) {
-				val := m.eval(in["value"])
+				val := m.own(m.eval(in["value"]))
 				at := m.toIndex(num(m.eval(in["at"])))
 				r, s := m.segs(in["path"].([]any))
-				ar, ok := m.getAt(r, s).([]any)
-				if !ok {
-					execFail("TYPE_ERROR", "insert target is not an array")
+				m.doInsert(r, s, at, val)
+			},
+			Compile: func(c *Compiler, in map[string]any) func(*Machine) {
+				value, atf, path := c.Operand(in["value"]), c.Operand(in["at"]), c.Path(in["path"].([]any))
+				return func(m *Machine) {
+					val := m.own(value(m))
+					at := m.toIndex(num(atf(m)))
+					r, s := path(m)
+					m.doInsert(r, s, at, val)
 				}
-				if at > len(ar) {
-					execFail("BAD_INDEX", "insert position %d beyond length %d", at, len(ar))
-				}
-				out := make([]any, 0, len(ar)+1)
-				out = append(out, ar[:at]...)
-				out = append(out, val)
-				out = append(out, ar[at:]...)
-				m.putAt(r, s, out)
-				m.mutated(r, s)
 			},
 		},
 		"delete": {
@@ -130,38 +222,13 @@ func CoreInstructions() map[string]InstructionDef {
 			},
 			Exec: func(m *Machine, in map[string]any) {
 				r, s := m.segs(in["path"].([]any))
-				par := m.getAt(r, s[:len(s)-1])
-				switch k := s[len(s)-1].(type) {
-				case string:
-					mp, ok := par.(map[string]any)
-					if !ok {
-						execFail("TYPE_ERROR", "delete member of %s", TypeName(par))
-					}
-					if _, has := mp[k]; !has {
-						execFail("MISSING_PATH", "member %q not found", k)
-					}
-					delete(mp, k)
-					// The mutated path reported is the container (the
-					// object whose membership changed), not the deleted
-					// member's own path — matching the array-delete case
-					// below, and simpler for a mutation-log consumer to
-					// treat uniformly: "this container's contents
-					// changed," not "this specific removed path is now
-					// gone."
-					m.mutated(r, s[:len(s)-1])
-				case int:
-					ar, ok := par.([]any)
-					if !ok {
-						execFail("TYPE_ERROR", "delete index of %s", TypeName(par))
-					}
-					if k >= len(ar) {
-						execFail("BAD_INDEX", "index %d out of range", k)
-					}
-					out := make([]any, 0, len(ar)-1)
-					out = append(out, ar[:k]...)
-					out = append(out, ar[k+1:]...)
-					m.putAt(r, s[:len(s)-1], out)
-					m.mutated(r, s[:len(s)-1])
+				m.doDelete(r, s)
+			},
+			Compile: func(c *Compiler, in map[string]any) func(*Machine) {
+				path := c.Path(in["path"].([]any))
+				return func(m *Machine) {
+					r, s := path(m)
+					m.doDelete(r, s)
 				}
 			},
 		},
@@ -179,6 +246,20 @@ func CoreInstructions() map[string]InstructionDef {
 					m.run(in["then"].([]any))
 				} else if e, has := in["else"]; has {
 					m.run(e.([]any))
+				}
+			},
+			Compile: func(c *Compiler, in map[string]any) func(*Machine) {
+				cond, then := c.Operand(in["cond"]), c.Block(in["then"])
+				var els func(*Machine)
+				if e, has := in["else"]; has {
+					els = c.Block(e)
+				}
+				return func(m *Machine) {
+					if boo(cond(m)) {
+						then(m)
+					} else if els != nil {
+						els(m)
+					}
 				}
 			},
 		},
@@ -208,17 +289,45 @@ func CoreInstructions() map[string]InstructionDef {
 				}
 				as := in["as"].(string)
 				idx, hasIdx := in["index"].(string)
+				base := len(m.locals)
+				m.locals = append(m.locals, localVar{name: as})
+				if hasIdx {
+					m.locals = append(m.locals, localVar{name: idx})
+				}
 				for i, el := range arr {
-					m.Step()
-					m.locals[as] = el
+					m.Charge(m.costs.LoopIter.At(int64(len(arr))))
+					m.locals[base].v = el
 					if hasIdx {
-						m.locals[idx] = new(big.Rat).SetInt64(int64(i))
+						m.locals[base+1].v = ratInt(i)
 					}
 					m.run(in["do"].([]any))
 				}
-				delete(m.locals, as)
-				if hasIdx {
-					delete(m.locals, idx)
+				m.dropLocals(base)
+			},
+			Compile: func(c *Compiler, in map[string]any) func(*Machine) {
+				over, body := c.Operand(in["in"]), c.Block(in["do"])
+				as := in["as"].(string)
+				idx, hasIdx := in["index"].(string)
+				return func(m *Machine) {
+					arr, ok := over(m).([]any)
+					if !ok {
+						execFail("TYPE_ERROR", "for: in must be an array")
+					}
+					each := m.costs.LoopIter.At(int64(len(arr)))
+					base := len(m.locals)
+					m.locals = append(m.locals, localVar{name: as})
+					if hasIdx {
+						m.locals = append(m.locals, localVar{name: idx})
+					}
+					for i, el := range arr {
+						m.Charge(each)
+						m.locals[base].v = el
+						if hasIdx {
+							m.locals[base+1].v = ratInt(i)
+						}
+						body(m)
+					}
+					m.dropLocals(base)
 				}
 			},
 		},
@@ -238,11 +347,23 @@ func CoreInstructions() map[string]InstructionDef {
 					execFail("ASSERTION_FAILED", "%s", msg)
 				}
 			},
+			Compile: func(c *Compiler, in map[string]any) func(*Machine) {
+				that := c.Operand(in["that"])
+				msg, _ := in["msg"].(string)
+				return func(m *Machine) {
+					if !boo(that(m)) {
+						execFail("ASSERTION_FAILED", "%s", msg)
+					}
+				}
+			},
 		},
 		"halt": {
 			Name:  "halt",
 			Check: func(in map[string]any, c *Checker) {},
 			Exec:  func(m *Machine, in map[string]any) { panic(haltSignal{}) },
+			Compile: func(c *Compiler, in map[string]any) func(*Machine) {
+				return func(*Machine) { panic(haltSignal{}) }
+			},
 		},
 	}
 }

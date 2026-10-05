@@ -117,11 +117,30 @@ func norm(v any) any {
 func Clone(v any) any {
 	switch t := v.(type) {
 	case *big.Rat:
-		return new(big.Rat).Set(t)
+		// Immutable: no operation changes a *big.Rat held in a value, so
+		// copies share it.
+		return t
 	case []any:
 		o := make([]any, len(t))
 		for i, x := range t {
 			o[i] = Clone(x)
+		}
+		return o
+	case *Object:
+		o := &Object{}
+		if len(t.ents) <= len(o.inline) {
+			o.ents = o.inline[:len(t.ents)]
+		} else {
+			o.ents = make([]objEnt, len(t.ents))
+		}
+		for i := range t.ents {
+			o.ents[i] = objEnt{t.ents[i].k, Clone(t.ents[i].v)}
+		}
+		if t.idx != nil {
+			o.idx = make(map[string]int32, len(t.idx))
+			for k, i := range t.idx {
+				o.idx[k] = i
+			}
 		}
 		return o
 	case map[string]any:
@@ -158,18 +177,49 @@ func Equal(a, b any) bool {
 			}
 		}
 		return true
-	case map[string]any:
-		y, ok := b.(map[string]any)
-		if !ok || len(x) != len(y) {
-			return false
-		}
-		for k, xv := range x {
-			yv, ok := y[k]
-			if !ok || !Equal(xv, yv) {
+	case *Object:
+		switch y := b.(type) {
+		case *Object:
+			if x.Len() != y.Len() {
 				return false
 			}
+			for i := range x.ents {
+				yv, ok := y.GetKey(x.ents[i].k)
+				if !ok || !Equal(x.ents[i].v, yv) {
+					return false
+				}
+			}
+			return true
+		case map[string]any:
+			if x.Len() != len(y) {
+				return false
+			}
+			for i := range x.ents {
+				yv, ok := y[x.ents[i].k.Value()]
+				if !ok || !Equal(x.ents[i].v, yv) {
+					return false
+				}
+			}
+			return true
 		}
-		return true
+		return false
+	case map[string]any:
+		switch y := b.(type) {
+		case map[string]any:
+			if len(x) != len(y) {
+				return false
+			}
+			for k, xv := range x {
+				yv, ok := y[k]
+				if !ok || !Equal(xv, yv) {
+					return false
+				}
+			}
+			return true
+		case *Object:
+			return Equal(b, a)
+		}
+		return false
 	}
 	return false
 }
@@ -186,7 +236,7 @@ func TypeName(v any) string {
 		return "string"
 	case []any:
 		return "array"
-	case map[string]any:
+	case *Object, map[string]any:
 		return "object"
 	}
 	return "unknown"
@@ -216,6 +266,14 @@ func show(v any) string {
 			parts[i] = show(x)
 		}
 		return "[" + strings.Join(parts, ",") + "]"
+	case *Object:
+		var parts []string
+		for _, k := range t.SortedKeys() {
+			kb, _ := json.Marshal(k)
+			v, _ := t.Get(k)
+			parts = append(parts, string(kb)+":"+show(v))
+		}
+		return "{" + strings.Join(parts, ",") + "}"
 	case map[string]any:
 		var parts []string
 		for _, k := range SortedKeys(t) {

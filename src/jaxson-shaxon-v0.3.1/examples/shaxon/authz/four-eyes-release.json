@@ -1,0 +1,727 @@
+{
+  "shaxon": "3.1",
+  "limits": {
+    "steps": 100000
+  },
+  "input": {
+    "events": [
+      {
+        "seq": 1,
+        "type": "create",
+        "payment": "P1",
+        "actor": "ann"
+      },
+      {
+        "seq": 2,
+        "type": "approve",
+        "payment": "P1",
+        "actor": "bob"
+      }
+    ],
+    "request": {
+      "payment": "P1",
+      "actor": "dee"
+    }
+  },
+  "shapes": {
+    "PaymentKnown": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "payment",
+        "actor"
+      ],
+      "fields": {
+        "payment": {
+          "kind": "string"
+        },
+        "actor": {
+          "kind": "string"
+        }
+      },
+      "check": {
+        "id": "PAYMENT_UNKNOWN",
+        "with": {
+          "pays": {
+            "$path": [
+              "state",
+              "pay"
+            ]
+          },
+          "p": {
+            "$path": [
+              "local",
+              "focus",
+              "payment"
+            ]
+          },
+          "none": {
+            "$lit": {
+              "creator": "",
+              "approvers": {}
+            }
+          }
+        },
+        "expr": [
+          "has",
+          {
+            "$v": "pays"
+          },
+          {
+            "$v": "p"
+          }
+        ]
+      },
+      "message": "no such payment in the trail"
+    },
+    "NotCreator": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "payment",
+        "actor"
+      ],
+      "fields": {
+        "payment": {
+          "kind": "string"
+        },
+        "actor": {
+          "kind": "string"
+        }
+      },
+      "check": {
+        "id": "CREATOR_CANNOT_RELEASE",
+        "with": {
+          "pays": {
+            "$path": [
+              "state",
+              "pay"
+            ]
+          },
+          "p": {
+            "$path": [
+              "local",
+              "focus",
+              "payment"
+            ]
+          },
+          "none": {
+            "$lit": {
+              "creator": "",
+              "approvers": {}
+            }
+          },
+          "who": {
+            "$path": [
+              "local",
+              "focus",
+              "actor"
+            ]
+          }
+        },
+        "expr": [
+          "ne",
+          [
+            "get_or",
+            [
+              "get_or",
+              {
+                "$v": "pays"
+              },
+              {
+                "$v": "p"
+              },
+              {
+                "$v": "none"
+              }
+            ],
+            "creator",
+            ""
+          ],
+          {
+            "$v": "who"
+          }
+        ]
+      },
+      "message": "the person who created a payment cannot release it"
+    },
+    "FreshApproval": {
+      "kind": "object",
+      "closed": true,
+      "required": [
+        "payment",
+        "actor"
+      ],
+      "fields": {
+        "payment": {
+          "kind": "string"
+        },
+        "actor": {
+          "kind": "string"
+        }
+      },
+      "check": {
+        "id": "NO_FRESH_APPROVAL",
+        "with": {
+          "pays": {
+            "$path": [
+              "state",
+              "pay"
+            ]
+          },
+          "p": {
+            "$path": [
+              "local",
+              "focus",
+              "payment"
+            ]
+          },
+          "none": {
+            "$lit": {
+              "creator": "",
+              "approvers": {}
+            }
+          },
+          "who": {
+            "$path": [
+              "local",
+              "focus",
+              "actor"
+            ]
+          }
+        },
+        "expr": [
+          "gt",
+          [
+            "sub",
+            [
+              "len",
+              [
+                "keys",
+                [
+                  "get_or",
+                  [
+                    "get_or",
+                    {
+                      "$v": "pays"
+                    },
+                    {
+                      "$v": "p"
+                    },
+                    {
+                      "$v": "none"
+                    }
+                  ],
+                  "approvers",
+                  {
+                    "$v": "none"
+                  }
+                ]
+              ]
+            ],
+            [
+              "select",
+              [
+                "has",
+                [
+                  "get_or",
+                  [
+                    "get_or",
+                    {
+                      "$v": "pays"
+                    },
+                    {
+                      "$v": "p"
+                    },
+                    {
+                      "$v": "none"
+                    }
+                  ],
+                  "approvers",
+                  {
+                    "$v": "none"
+                  }
+                ],
+                {
+                  "$v": "who"
+                }
+              ],
+              1,
+              0
+            ]
+          ],
+          0
+        ]
+      },
+      "message": "needs an approval since the last amendment, from someone other than the creator and the releaser"
+    }
+  },
+  "program": [
+    {
+      "op": "set",
+      "path": [
+        "state",
+        "pay"
+      ],
+      "value": {
+        "$lit": {}
+      }
+    },
+    {
+      "op": "set",
+      "path": [
+        "state",
+        "findings"
+      ],
+      "value": {
+        "$lit": []
+      }
+    },
+    {
+      "op": "for",
+      "in": {
+        "$path": [
+          "input",
+          "events"
+        ]
+      },
+      "as": "e",
+      "do": [
+        {
+          "op": "if",
+          "cond": {
+            "$compute": {
+              "with": {
+                "t": {
+                  "$path": [
+                    "local",
+                    "e",
+                    "type"
+                  ]
+                }
+              },
+              "expr": [
+                "eq",
+                {
+                  "$v": "t"
+                },
+                "create"
+              ]
+            }
+          },
+          "then": [
+            {
+              "op": "set",
+              "path": [
+                "state",
+                "pay",
+                {
+                  "$path": [
+                    "local",
+                    "e",
+                    "payment"
+                  ]
+                }
+              ],
+              "value": {
+                "$tpl": {
+                  "creator": {
+                    "$path": [
+                      "local",
+                      "e",
+                      "actor"
+                    ]
+                  },
+                  "approvers": {}
+                }
+              }
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "$compute": {
+              "with": {
+                "pays": {
+                  "$path": [
+                    "state",
+                    "pay"
+                  ]
+                },
+                "p": {
+                  "$path": [
+                    "local",
+                    "e",
+                    "payment"
+                  ]
+                },
+                "t": {
+                  "$path": [
+                    "local",
+                    "e",
+                    "type"
+                  ]
+                }
+              },
+              "expr": [
+                "and",
+                [
+                  "eq",
+                  {
+                    "$v": "t"
+                  },
+                  "amend"
+                ],
+                [
+                  "has",
+                  {
+                    "$v": "pays"
+                  },
+                  {
+                    "$v": "p"
+                  }
+                ]
+              ]
+            }
+          },
+          "then": [
+            {
+              "op": "set",
+              "path": [
+                "state",
+                "pay",
+                {
+                  "$path": [
+                    "local",
+                    "e",
+                    "payment"
+                  ]
+                },
+                "approvers"
+              ],
+              "value": {
+                "$lit": {}
+              }
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "$compute": {
+              "with": {
+                "pays": {
+                  "$path": [
+                    "state",
+                    "pay"
+                  ]
+                },
+                "p": {
+                  "$path": [
+                    "local",
+                    "e",
+                    "payment"
+                  ]
+                },
+                "t": {
+                  "$path": [
+                    "local",
+                    "e",
+                    "type"
+                  ]
+                }
+              },
+              "expr": [
+                "and",
+                [
+                  "eq",
+                  {
+                    "$v": "t"
+                  },
+                  "approve"
+                ],
+                [
+                  "has",
+                  {
+                    "$v": "pays"
+                  },
+                  {
+                    "$v": "p"
+                  }
+                ]
+              ]
+            }
+          },
+          "then": [
+            {
+              "op": "if",
+              "cond": {
+                "$compute": {
+                  "with": {
+                    "c": {
+                      "$path": [
+                        "state",
+                        "pay",
+                        {
+                          "$path": [
+                            "local",
+                            "e",
+                            "payment"
+                          ]
+                        },
+                        "creator"
+                      ]
+                    },
+                    "a": {
+                      "$path": [
+                        "local",
+                        "e",
+                        "actor"
+                      ]
+                    }
+                  },
+                  "expr": [
+                    "ne",
+                    {
+                      "$v": "a"
+                    },
+                    {
+                      "$v": "c"
+                    }
+                  ]
+                }
+              },
+              "then": [
+                {
+                  "op": "set",
+                  "path": [
+                    "state",
+                    "pay",
+                    {
+                      "$path": [
+                        "local",
+                        "e",
+                        "payment"
+                      ]
+                    },
+                    "approvers",
+                    {
+                      "$path": [
+                        "local",
+                        "e",
+                        "actor"
+                      ]
+                    }
+                  ],
+                  "value": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "op": "if",
+          "cond": {
+            "$compute": {
+              "with": {
+                "pays": {
+                  "$path": [
+                    "state",
+                    "pay"
+                  ]
+                },
+                "p": {
+                  "$path": [
+                    "local",
+                    "e",
+                    "payment"
+                  ]
+                },
+                "t": {
+                  "$path": [
+                    "local",
+                    "e",
+                    "type"
+                  ]
+                }
+              },
+              "expr": [
+                "and",
+                [
+                  "eq",
+                  {
+                    "$v": "t"
+                  },
+                  "revoke"
+                ],
+                [
+                  "has",
+                  {
+                    "$v": "pays"
+                  },
+                  {
+                    "$v": "p"
+                  }
+                ]
+              ]
+            }
+          },
+          "then": [
+            {
+              "op": "if",
+              "cond": {
+                "$compute": {
+                  "with": {
+                    "ap": {
+                      "$path": [
+                        "state",
+                        "pay",
+                        {
+                          "$path": [
+                            "local",
+                            "e",
+                            "payment"
+                          ]
+                        },
+                        "approvers"
+                      ]
+                    },
+                    "a": {
+                      "$path": [
+                        "local",
+                        "e",
+                        "actor"
+                      ]
+                    }
+                  },
+                  "expr": [
+                    "has",
+                    {
+                      "$v": "ap"
+                    },
+                    {
+                      "$v": "a"
+                    }
+                  ]
+                }
+              },
+              "then": [
+                {
+                  "op": "delete",
+                  "path": [
+                    "state",
+                    "pay",
+                    {
+                      "$path": [
+                        "local",
+                        "e",
+                        "payment"
+                      ]
+                    },
+                    "approvers",
+                    {
+                      "$path": [
+                        "local",
+                        "e",
+                        "actor"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "op": "check",
+      "target": {
+        "$path": [
+          "input",
+          "request"
+        ]
+      },
+      "shape": "PaymentKnown",
+      "mode": "report",
+      "into": [
+        "state",
+        "findings"
+      ]
+    },
+    {
+      "op": "check",
+      "target": {
+        "$path": [
+          "input",
+          "request"
+        ]
+      },
+      "shape": "NotCreator",
+      "mode": "report",
+      "into": [
+        "state",
+        "findings"
+      ]
+    },
+    {
+      "op": "check",
+      "target": {
+        "$path": [
+          "input",
+          "request"
+        ]
+      },
+      "shape": "FreshApproval",
+      "mode": "report",
+      "into": [
+        "state",
+        "findings"
+      ]
+    },
+    {
+      "op": "set",
+      "path": [
+        "output"
+      ],
+      "value": {
+        "$tpl": {
+          "decision": {
+            "$compute": {
+              "with": {
+                "f": {
+                  "$path": [
+                    "state",
+                    "findings"
+                  ]
+                }
+              },
+              "expr": [
+                "select",
+                [
+                  "eq",
+                  [
+                    "len",
+                    {
+                      "$v": "f"
+                    }
+                  ],
+                  0
+                ],
+                "allow",
+                "deny"
+              ]
+            }
+          },
+          "findings": {
+            "$path": [
+              "state",
+              "findings"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

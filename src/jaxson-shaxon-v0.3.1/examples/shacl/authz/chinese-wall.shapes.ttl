@@ -1,0 +1,36 @@
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix ex:  <https://example.org/authz#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# The data graph hangs everything from one root node: ex:events (the trail),
+# ex:companies (id and class of each company) and ex:request.
+
+ex:  sh:declare [ sh:prefix "ex" ; sh:namespace "https://example.org/authz#"^^xsd:anyURI ] .
+
+ex:RequestShape a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:sparql ex:CONFLICTING_PRIOR_ACCESS .
+
+ex:CONFLICTING_PRIOR_ACCESS a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "actor has already touched a different company in this conflict class" ;
+    sh:select """
+        SELECT $this
+        WHERE {
+            $this ex:actor ?actor ; ex:company ?company .
+            ?k1 ex:id ?company ; ex:class ?class .
+            ?k2 ex:id ?other   ; ex:class ?class .
+            ?root ex:events ?event .
+            ?event ex:actor ?actor ; ex:company ?other .
+            FILTER (?other != ?company)
+        }""" .
+
+# Structure of the request, as the Shaxon package's closed Request shape
+# states it. Without it a request missing a member matches none of the
+# rules above and the data conforms (examples/shacl/authz/README.md).
+ex:RequestStructure a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:closed true ;
+    sh:ignoredProperties ( ) ;
+    sh:property [ sh:path ex:actor ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path ex:company ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] .

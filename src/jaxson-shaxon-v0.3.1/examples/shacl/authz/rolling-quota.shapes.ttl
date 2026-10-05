@@ -1,0 +1,61 @@
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix ex:  <https://example.org/authz#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:  sh:declare [ sh:prefix "ex" ; sh:namespace "https://example.org/authz#"^^xsd:anyURI ] .
+
+# Data graph: ex:policy (ex:windowHours, ex:limitMb, ex:maxExports),
+# ex:events (ex:t, ex:actor, ex:mb) and ex:request (same members).
+# The window is (t - windowHours, t], as in the Shaxon package.
+#
+# There is nothing here for the Shaxon "fuel" case: SHACL defines no step
+# budget, so a trail too long to judge simply takes as long as it takes.
+
+ex:RequestShape a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:sparql ex:DAILY_VOLUME_EXCEEDED , ex:TOO_MANY_EXPORTS .
+
+ex:DAILY_VOLUME_EXCEEDED a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "the volume already exported in the window plus this export exceeds the limit" ;
+    sh:select """
+        SELECT $this
+        WHERE {
+            ?root ex:request $this ; ex:policy ?policy .
+            $this ex:actor ?actor ; ex:t ?rt ; ex:mb ?rmb .
+            ?policy ex:windowHours ?window ; ex:limitMb ?limit .
+            OPTIONAL {
+                ?root ex:events ?e .
+                ?e ex:actor ?actor ; ex:t ?t ; ex:mb ?mb .
+                FILTER (?t > ?rt - ?window && ?t <= ?rt)
+            }
+        }
+        GROUP BY $this ?rmb ?limit
+        HAVING (COALESCE(SUM(?mb), 0) + ?rmb > ?limit)""" .
+
+ex:TOO_MANY_EXPORTS a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "too many exports already made in the window" ;
+    sh:select """
+        SELECT $this
+        WHERE {
+            ?root ex:request $this ; ex:policy ?policy .
+            $this ex:actor ?actor ; ex:t ?rt .
+            ?policy ex:windowHours ?window ; ex:maxExports ?max .
+            ?root ex:events ?e .
+            ?e ex:actor ?actor ; ex:t ?t .
+            FILTER (?t > ?rt - ?window && ?t <= ?rt)
+        }
+        GROUP BY $this ?max
+        HAVING (COUNT(?e) >= ?max)""" .
+
+# Structure of the request, as the Shaxon package's closed Request shape
+# states it. Without it a request missing a member matches none of the
+# rules above and the data conforms (examples/shacl/authz/README.md).
+ex:RequestStructure a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:closed true ;
+    sh:ignoredProperties ( ) ;
+    sh:property [ sh:path ex:actor ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path ex:t ; sh:minCount 1 ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ] ;
+    sh:property [ sh:path ex:mb ; sh:minCount 1 ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ; sh:minInclusive 0 ] .

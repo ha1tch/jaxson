@@ -1,0 +1,119 @@
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix ex:  <https://example.org/authz#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:  sh:declare [ sh:prefix "ex" ; sh:namespace "https://example.org/authz#"^^xsd:anyURI ] .
+
+# Data graph: ex:owner, ex:revocations and ex:uses (each with ex:grant, an id),
+# and ex:request (ex:at, ex:grant): the presented link, whose ex:grantedBy
+# leads to its parent link, and so on. A link has ex:id, ex:holder,
+# ex:expires, ex:maxUses.
+#
+# Depth: the Shaxon package walks at most 3 hops from the presented link and
+# reports a chain that continues past that. SPARQL has no bounded repetition,
+# so the horizon is written out: three optional hops (0 to 3), and a fixed
+# four-hop path for "goes further".
+#
+# Staging: the Shaxon package judges the four rules only when the chain is
+# within the horizon. SHACL evaluates every constraint independently, so each
+# rule repeats the horizon test as a FILTER NOT EXISTS.
+
+ex:RequestShape a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:sparql ex:PATH_DEPTH_EXCEEDED , ex:LINK_REVOKED , ex:LINK_EXPIRED ,
+              ex:LINK_EXHAUSTED , ex:CHAIN_NOT_ROOTED_AT_OWNER ;
+    # Every link reachable from the presented one must be well formed. A path
+    # with zero-or-more repetition reaches them without a recursive shape.
+    sh:property [
+        sh:path ( ex:grant [ sh:zeroOrMorePath ex:grantedBy ] ) ;
+        sh:node ex:LinkShape
+    ] .
+
+ex:LinkShape a sh:NodeShape ;
+    sh:closed true ;
+    sh:ignoredProperties ( ex:grantedBy ) ;
+    sh:property [ sh:path ex:id ;      sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path ex:holder ;  sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+    sh:property [ sh:path ex:expires ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ] ;
+    sh:property [ sh:path ex:maxUses ; sh:minCount 1 ; sh:maxCount 1 ;
+                  sh:datatype xsd:integer ; sh:minInclusive 1 ] .
+
+ex:PATH_DEPTH_EXCEEDED a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "path closure exceeded maxDepth" ;
+    sh:select """
+        SELECT $this
+        WHERE {
+            $this ex:grant ?head .
+            ?head ex:grantedBy/ex:grantedBy/ex:grantedBy/ex:grantedBy ?beyond .
+        }""" .
+
+ex:LINK_REVOKED a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "a link in the chain has been revoked" ;
+    sh:select """
+        SELECT $this ?value
+        WHERE {
+            $this ex:grant ?head .
+            FILTER NOT EXISTS { ?head ex:grantedBy/ex:grantedBy/ex:grantedBy/ex:grantedBy ?beyond }
+            ?head ex:grantedBy?/ex:grantedBy?/ex:grantedBy? ?value .
+            ?value ex:id ?id .
+            ?root ex:revocations ?r .
+            ?r ex:grant ?id .
+        }""" .
+
+# Expired when the expiry is not after the time of the request.
+ex:LINK_EXPIRED a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "a link in the chain has expired" ;
+    sh:select """
+        SELECT $this ?value
+        WHERE {
+            $this ex:grant ?head ; ex:at ?at .
+            FILTER NOT EXISTS { ?head ex:grantedBy/ex:grantedBy/ex:grantedBy/ex:grantedBy ?beyond }
+            ?head ex:grantedBy?/ex:grantedBy?/ex:grantedBy? ?value .
+            ?value ex:expires ?expires .
+            FILTER (?expires <= ?at)
+        }""" .
+
+ex:LINK_EXHAUSTED a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "a link in the chain has used up its allowed uses" ;
+    sh:select """
+        SELECT $this ?value
+        WHERE {
+            $this ex:grant ?head .
+            FILTER NOT EXISTS { ?head ex:grantedBy/ex:grantedBy/ex:grantedBy/ex:grantedBy ?beyond }
+            ?head ex:grantedBy?/ex:grantedBy?/ex:grantedBy? ?value .
+            ?value ex:id ?id ; ex:maxUses ?max .
+            ?root ex:uses ?use .
+            ?use ex:grant ?id .
+        }
+        GROUP BY $this ?value ?max
+        HAVING (COUNT(?use) >= ?max)""" .
+
+ex:CHAIN_NOT_ROOTED_AT_OWNER a sh:SPARQLConstraint ;
+    sh:prefixes ex: ;
+    sh:message "the chain does not end at the resource owner" ;
+    sh:select """
+        SELECT $this ?value
+        WHERE {
+            $this ex:grant ?head .
+            FILTER NOT EXISTS { ?head ex:grantedBy/ex:grantedBy/ex:grantedBy/ex:grantedBy ?beyond }
+            ?head ex:grantedBy?/ex:grantedBy?/ex:grantedBy? ?value .
+            FILTER NOT EXISTS { ?value ex:grantedBy ?parent }
+            ?value ex:holder ?holder .
+            ?root ex:owner ?owner .
+            FILTER (?holder != ?owner)
+        }""" .
+
+# Structure of the request, as the Shaxon package's closed Request shape
+# states it. Without it a request missing a member matches none of the
+# rules above and the data conforms (examples/shacl/authz/README.md).
+ex:RequestStructure a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:closed true ;
+    sh:ignoredProperties ( ) ;
+    sh:property [ sh:path ex:at ; sh:minCount 1 ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ] ;
+    sh:property [ sh:path ex:grant ; sh:minCount 1 ; sh:maxCount 1 ] .

@@ -1,0 +1,298 @@
+{
+  "shaxon": "3.1",
+  "limits": {
+    "steps": 100000
+  },
+  "input": {
+    "classOf": {
+      "acme": "fuel",
+      "borealis": "fuel",
+      "cobalt": "banks",
+      "delta": "banks",
+      "echo": "retail"
+    },
+    "events": [
+      {
+        "actor": "ines",
+        "company": "acme"
+      },
+      {
+        "actor": "ines",
+        "company": "acme"
+      },
+      {
+        "actor": "ines",
+        "company": "echo"
+      },
+      {
+        "actor": "omar",
+        "company": "cobalt"
+      }
+    ],
+    "request": {
+      "actor": "ines",
+      "company": "borealis"
+    }
+  },
+  "indices": {
+    "touchedClass": {
+      "source": {
+        "$path": [
+          "input",
+          "events"
+        ]
+      },
+      "key": {
+        "$compute": {
+          "with": {
+            "a": {
+              "$path": [
+                "local",
+                "item",
+                "actor"
+              ]
+            },
+            "k": {
+              "$path": [
+                "input",
+                "classOf",
+                {
+                  "$path": [
+                    "local",
+                    "item",
+                    "company"
+                  ]
+                }
+              ]
+            }
+          },
+          "expr": [
+            "concat",
+            {
+              "$v": "a"
+            },
+            "|",
+            {
+              "$v": "k"
+            }
+          ]
+        }
+      },
+      "multi": true
+    },
+    "touchedCompany": {
+      "source": {
+        "$path": [
+          "input",
+          "events"
+        ]
+      },
+      "key": {
+        "$compute": {
+          "with": {
+            "a": {
+              "$path": [
+                "local",
+                "item",
+                "actor"
+              ]
+            },
+            "c": {
+              "$path": [
+                "local",
+                "item",
+                "company"
+              ]
+            }
+          },
+          "expr": [
+            "concat",
+            {
+              "$v": "a"
+            },
+            "|",
+            {
+              "$v": "c"
+            }
+          ]
+        }
+      },
+      "multi": true
+    }
+  },
+  "shapes": {
+    "Request": {
+      "kind": "object",
+      "required": [
+        "actor",
+        "company"
+      ],
+      "closed": true,
+      "fields": {
+        "actor": {
+          "kind": "string"
+        },
+        "company": {
+          "kind": "string"
+        }
+      },
+      "check": {
+        "id": "CONFLICTING_PRIOR_ACCESS",
+        "with": {
+          "inClass": {
+            "$inverse": {
+              "index": "touchedClass",
+              "key": {
+                "$compute": {
+                  "with": {
+                    "a": {
+                      "$path": [
+                        "local",
+                        "focus",
+                        "actor"
+                      ]
+                    },
+                    "k": {
+                      "$path": [
+                        "input",
+                        "classOf",
+                        {
+                          "$path": [
+                            "local",
+                            "focus",
+                            "company"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "expr": [
+                    "concat",
+                    {
+                      "$v": "a"
+                    },
+                    "|",
+                    {
+                      "$v": "k"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "same": {
+            "$inverse": {
+              "index": "touchedCompany",
+              "key": {
+                "$compute": {
+                  "with": {
+                    "a": {
+                      "$path": [
+                        "local",
+                        "focus",
+                        "actor"
+                      ]
+                    },
+                    "c": {
+                      "$path": [
+                        "local",
+                        "focus",
+                        "company"
+                      ]
+                    }
+                  },
+                  "expr": [
+                    "concat",
+                    {
+                      "$v": "a"
+                    },
+                    "|",
+                    {
+                      "$v": "c"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "expr": [
+          "eq",
+          [
+            "sub",
+            [
+              "len",
+              {
+                "$v": "inClass"
+              }
+            ],
+            [
+              "len",
+              {
+                "$v": "same"
+              }
+            ]
+          ],
+          0
+        ]
+      },
+      "message": "actor has already touched a different company in this conflict class"
+    }
+  },
+  "validate": [
+    {
+      "target": {
+        "$path": [
+          "input",
+          "request"
+        ]
+      },
+      "shape": "Request",
+      "mode": "report",
+      "into": [
+        "state",
+        "verdict"
+      ]
+    }
+  ],
+  "program": [
+    {
+      "op": "set",
+      "path": [
+        "output"
+      ],
+      "value": {
+        "$tpl": {
+          "decision": {
+            "$compute": {
+              "with": {
+                "ok": {
+                  "$path": [
+                    "state",
+                    "verdict",
+                    "conforms"
+                  ]
+                }
+              },
+              "expr": [
+                "select",
+                {
+                  "$v": "ok"
+                },
+                "allow",
+                "deny"
+              ]
+            }
+          },
+          "findings": {
+            "$path": [
+              "state",
+              "verdict",
+              "violations"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

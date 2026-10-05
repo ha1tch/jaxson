@@ -43,6 +43,10 @@ func checkOperand(x any, c *Checker) {
 }
 
 func checkForm(mp map[string]any, c *Checker) {
+	if d, ok := formOf(c.Forms, mp); ok {
+		d.Check(mp, c)
+		return
+	}
 	if len(mp) != 1 {
 		progFail("a $-form must have exactly one key")
 	}

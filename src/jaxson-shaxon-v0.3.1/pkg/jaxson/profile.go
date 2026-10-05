@@ -25,6 +25,12 @@ type Profile struct {
 	// hooks.
 	Limits []string
 
+	// SchemasOptional lets a package omit inputSchema and/or outputSchema,
+	// in which case that edge is not schema-checked. The core language
+	// requires both (the zero value); Shaxon's package, section 2, may use
+	// "either, both, or neither".
+	SchemasOptional bool
+
 	// Begin is called once per run, after the version gate, and returns
 	// the Hooks for that run. Because it is called per run, a dialect keeps
 	// per-run state in the value it returns, and every table is built
@@ -64,6 +70,9 @@ type Hooks interface {
 	// Host is delivered to every registered instruction's Check as
 	// Checker.Host.
 	Host() any
+	// Forms returns the operand forms the dialect adds to the core's, for
+	// the static check of the program and for evaluation. Nil means none.
+	Forms() map[string]FormDef
 	// Start receives the machine before anything runs: set OnMutate here.
 	Start(m *Machine)
 	// AfterInput runs once the input has passed inputSchema.
@@ -83,6 +92,9 @@ func (NoHooks) Static(map[string]any) {}
 
 // Host returns nil.
 func (NoHooks) Host() any { return nil }
+
+// Forms returns no extra operand forms.
+func (NoHooks) Forms() map[string]FormDef { return nil }
 
 // Start does nothing.
 func (NoHooks) Start(*Machine) {}
@@ -128,6 +140,16 @@ func (pr Profile) ownsLimit(name string) bool {
 	return false
 }
 
+// hasSchema reports whether the named schema member is to be checked: always
+// under the core's rules, and only when present under SchemasOptional.
+func (pr Profile) hasSchema(p map[string]any, name string) bool {
+	if !pr.SchemasOptional {
+		return true
+	}
+	_, has := p[name]
+	return has
+}
+
 func (pr Profile) begin(p map[string]any) Hooks {
 	if pr.Begin != nil {
 		if h := pr.Begin(p); h != nil {
@@ -140,3 +162,21 @@ func (pr Profile) begin(p map[string]any) Hooks {
 // Run executes a core Jaxson package and returns either its output or a
 // failure.
 func Run(p map[string]any) (out any, err *Err) { return CoreProfile().Run(p) }
+
+// RunJSON is Run on raw JSON: the bytes must be exactly one JSON object, with
+// no duplicate key at any depth, or the failure is a PARSE_ERROR. The package's
+// input is read straight into the machine's own representation.
+func RunJSON(raw []byte) (out any, err *Err) { return CoreProfile().RunJSON(raw) }
+
+// RunJSON is Run on raw JSON; see the package-level RunJSON.
+func (pr Profile) RunJSON(raw []byte) (out any, err *Err) {
+	v, err := ParsePackage(raw)
+	if err != nil {
+		return nil, err
+	}
+	p, ok := v.(map[string]any)
+	if !ok {
+		return nil, &Err{Cat: "PARSE_ERROR", Msg: "a package must be a JSON object"}
+	}
+	return pr.Run(p)
+}

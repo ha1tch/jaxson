@@ -1,0 +1,104 @@
+[
+ {
+  "name": "touched a company in the same class, asks for another",
+  "input": {},
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "CONFLICTING_PRIOR_ACCESS"
+   ]
+  }
+ },
+ {
+  "name": "returning to a company already touched is fine",
+  "input": {
+   "request": {
+    "actor": "ines",
+    "company": "acme"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "a company in an untouched class",
+  "input": {
+   "request": {
+    "actor": "ines",
+    "company": "cobalt"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "the same actor's other class is unaffected",
+  "input": {
+   "request": {
+    "actor": "ines",
+    "company": "echo"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "another person's trail is theirs alone",
+  "input": {
+   "request": {
+    "actor": "zed",
+    "company": "borealis"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "the wall works for every class",
+  "input": {
+   "request": {
+    "actor": "omar",
+    "company": "delta"
+   }
+  },
+  "expect": {
+   "decision": "deny",
+   "reasons": [
+    "CONFLICTING_PRIOR_ACCESS"
+   ]
+  }
+ },
+ {
+  "name": "an empty trail permits anything",
+  "input": {
+   "events": [],
+   "request": {
+    "actor": "omar",
+    "company": "delta"
+   }
+  },
+  "expect": {
+   "decision": "allow",
+   "reasons": []
+  }
+ },
+ {
+  "name": "a request with no actor is not judged at all",
+  "input": {
+   "request": {
+    "company": "acme"
+   }
+  },
+  "expect": {
+   "error": "EXECUTION_ERROR/MISSING_PATH"
+  }
+ }
+]
