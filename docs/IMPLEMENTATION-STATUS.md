@@ -1,3 +1,6 @@
+OUTDATED AS OF 2026-10-05
+NEEDS REFRESH
+
 # Jaxson and Shaxon — Implementation Status Matrix
 
 **Snapshot:** current `jaxson-shaxon-v0.3.1` package
