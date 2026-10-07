@@ -1,13 +1,13 @@
-{"kind": "host", "when": "2026-10-05 09:52:31", "profile": "engine", "examples": ["break-glass"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v70-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 100, "engine": "shaxon", "ms": 2.0799, "steps": 1969, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 100, "engine": "pyshacl", "ms": 1104.5454579998477, "repeats": 10, "lift_ms": 10.948605000066891, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 100, "engine": "jena", "ms": 36.1274, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 1000, "engine": "shaxon", "ms": 289.5315, "steps": 19398, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 1000, "engine": "pyshacl", "ms": 12239.672639999753, "repeats": 10, "lift_ms": 118.46669099986684, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 1000, "engine": "jena", "ms": 68.1536, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 4000, "engine": "shaxon", "ms": 4583.1604, "steps": 77617, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 4000, "engine": "pyshacl", "ms": 50675.50714100026, "repeats": 2, "lift_ms": 446.93426399999225, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 4000, "engine": "jena", "ms": 143.8015, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 20000, "engine": "shaxon", "ms": 147696.0632, "steps": 387551, "repeats": 1, "allow": false}
+{"kind": "host", "when": "2026-10-07 09:23:00", "profile": "engine", "examples": ["break-glass"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v77-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 100, "engine": "shaxon", "ms": 1.2047, "steps": 1969, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 100, "engine": "pyshacl", "ms": 1219.8457479998979, "repeats": 10, "lift_ms": 7.788745999960156, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 100, "engine": "jena", "ms": 25.7411, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 1000, "engine": "shaxon", "ms": 13.657, "steps": 19398, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 1000, "engine": "pyshacl", "ms": 13200.232271999994, "repeats": 9, "lift_ms": 120.1437789998181, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 1000, "engine": "jena", "ms": 87.2941, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 4000, "engine": "shaxon", "ms": 66.9301, "steps": 77617, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 4000, "engine": "pyshacl", "ms": 56231.07217100005, "repeats": 2, "lift_ms": 490.1732280000033, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 4000, "engine": "jena", "ms": 275.1469, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 20000, "engine": "shaxon", "ms": 333.6841, "steps": 387551, "repeats": 10, "allow": false}
 {"kind": "cell", "profile": "engine", "example": "break-glass", "events": 20000, "engine": "pyshacl", "ms": null, "skipped": "projected single run over the 120 s budget"}
-{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 20000, "engine": "jena", "ms": 945.0889, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "break-glass", "events": 20000, "engine": "jena", "ms": 966.9853, "repeats": 10, "allow": false}

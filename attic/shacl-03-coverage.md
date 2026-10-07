@@ -100,7 +100,7 @@ This workload corresponds closely to the capabilities present in the Shaxon desi
 | Relational cardinality      | `relations`                                     | **Covered**                                   |
 | Uniqueness                  | `unique`, index uniqueness                      | **Covered**                                   |
 | Validation reports          | explicit Shaxon report                          | **Covered**                                   |
-| Severity                    | violation/warning/info                          | **Covered**                                   |
+| Severity                    | violation/warning/info                          | **Covered, but `conforms` differs**: only `violation` makes it false, where in SHACL 1.1 any result does (limitations section 8) |
 | Stable constraint IDs       | `constraintId`                                  | **Covered**                                   |
 | Gate/conformance validation | `mode: gate`                                    | **Covered**                                   |
 | Non-fatal reporting         | `mode: report`                                  | **Covered**                                   |

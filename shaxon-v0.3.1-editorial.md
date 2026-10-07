@@ -137,7 +137,7 @@ Listed for completeness; nothing here moved:
 Two substantial bodies of external material exist alongside this revision
 and are deliberately not reflected in it:
 
-- A second round of review (`analysis-WIP/`, seven documents) checked
+- A second round of review (seven documents, kept outside this repository) checked
   against the live W3C SHACL 1.2 Core draft, going considerably further
   than the material this revision closes — dynamic node/value expressions,
   set algebra over graph-derived collections, a proposed unifying
@@ -146,5 +146,5 @@ and are deliberately not reflected in it:
   tidy-up revision by the same reasoning that governs every deferred item
   above.
 - A from-scratch delta/diff/merge algebra for graph-shaped state
-  (`shaxon-delta/`), which is a versioning/merging concern unrelated to
+  (kept outside this repository), which is a versioning/merging concern unrelated to
   validation and explicitly out of scope for the language itself.

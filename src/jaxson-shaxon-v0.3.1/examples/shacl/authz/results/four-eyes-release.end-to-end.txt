@@ -1,7 +1,7 @@
 END-TO-END (the JSON input to a verdict; the RDF lift is inside the SHACL figures)
 example            events     shaxon   steps       pyshacl          jena  verdict
-four-eyes-release     100       6 ms    1546      80 ms    1084 ms  allow []
-four-eyes-release    1000     137 ms   15101    2338 ms    1276 ms  allow []
-four-eyes-release    4000    2826 ms   60339   37626 ms    2062 ms  allow []
-four-eyes-release   20000   80411 ms  301568       skipped    6475 ms  allow []
+four-eyes-release     100       5 ms    1546     145 ms    1149 ms  allow []
+four-eyes-release    1000       6 ms   15101    2622 ms    1593 ms  allow []
+four-eyes-release    4000      18 ms   60339   42964 ms    2437 ms  allow []
+four-eyes-release   20000      92 ms  301568       skipped    7291 ms  allow []
 best of up to 3; shaxon is the whole process, pyshacl and jena include the RDF lift; 'skipped' = projected over the budget

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 haitch <h@ual.li>
-// Licensed under the Apache License, Version 2.0.
-// https://www.apache.org/licenses/LICENSE-2.0
+// Licensed under the GNU General Public License, version 3.
+// https://www.gnu.org/licenses/gpl-3.0.html
 package shaxon
 
 // Core section 4. KNOWN GAP, flagged rather than guessed: the merge
@@ -14,6 +14,7 @@ package shaxon
 
 import (
 	"math/big"
+	"reflect"
 
 	"github.com/ha1tch/jaxson/pkg/jaxson"
 )
@@ -62,6 +63,7 @@ func resolveNamedShape(name string, rawShapes map[string]map[string]any, resolve
 	}
 	inProgress[name] = true
 	own := parseShapeBody(name, raw, r)
+	own.Name = name // the merge's errors name the extending shape
 	if parentName, has := raw["extends"]; has {
 		pn, ok := parentName.(string)
 		if !ok {
@@ -148,28 +150,117 @@ func mergeShapes(parent, child ShapeDecl) ShapeDecl {
 		out.Check = append(append([]CombinatorCheck{}, parent.Check...), child.Check...)
 	}
 
-	if child.Kind == "" {
-		out.Kind = parent.Kind
-	}
-	if child.Items == nil {
+	// The kind, the reference members, the primitive keywords, items and
+	// qualified are merged so that the child can only narrow the parent
+	// (core section 4; ruling G11): a shape that extends another never
+	// accepts a value the parent would refuse by these members.
+	out.Kind = mergeKind(child.Name, parent, child)
+	mergeReference(child.Name, parent, child, &out)
+	out.Keywords = mergeKeywords(parent.Keywords, child.Keywords)
+
+	switch {
+	case child.Items == nil:
 		out.Items = parent.Items
+	case parent.Items != nil && !reflect.DeepEqual(parent.Items, child.Items):
+		failLoad("shapes.%s: items differs from the extended shape's items; an extending shape may repeat the parent's items but not replace them", child.Name)
 	}
 	switch {
 	case child.Qualified == nil:
 		out.Qualified = parent.Qualified
 	case parent.Qualified == nil:
 		out.Qualified = child.Qualified
-	default:
-		q := map[string]QualifiedDecl{}
-		for k, v := range parent.Qualified {
-			q[k] = v
-		}
-		for k, v := range child.Qualified {
-			q[k] = v
-		}
-		out.Qualified = q
+	case !reflect.DeepEqual(parent.Qualified, child.Qualified):
+		failLoad("shapes.%s: qualified differs from the extended shape's qualified; an extending shape may repeat the parent's qualified rule but not replace it", child.Name)
 	}
 	return out
+}
+
+// mergeKind: the child's kind stands when the parent's is unset, "node" or
+// "any" (all three accept every value, so naming a kind only narrows);
+// otherwise the child must repeat the parent's kind or leave it out.
+func mergeKind(name string, parent, child ShapeDecl) string {
+	switch {
+	case child.Kind == "":
+		return parent.Kind
+	case parent.Kind == "" || parent.Kind == "node" || parent.Kind == "any":
+		return child.Kind
+	case child.Kind != parent.Kind:
+		failLoad("shapes.%s: kind %q conflicts with the extended shape's kind %q", name, child.Kind, parent.Kind)
+	}
+	return child.Kind
+}
+
+func hasReference(s ShapeDecl) bool {
+	return s.RefIndex != "" || s.RefRelation != "" || s.RefOf != nil || s.RefBy != nil
+}
+
+// mergeReference: a child inherits the parent's reference target; one that
+// states a different target is an error. Identical targets are accepted.
+func mergeReference(name string, parent, child ShapeDecl, out *ShapeDecl) {
+	if !hasReference(parent) {
+		return
+	}
+	if !hasReference(child) {
+		out.RefIndex, out.RefRelation, out.RefOf, out.RefBy = parent.RefIndex, parent.RefRelation, parent.RefOf, parent.RefBy
+		return
+	}
+	if child.RefIndex != parent.RefIndex || child.RefRelation != parent.RefRelation ||
+		!reflect.DeepEqual(child.RefOf, parent.RefOf) || !reflect.DeepEqual(child.RefBy, parent.RefBy) {
+		failLoad("shapes.%s: reference target differs from the extended shape's; an extending shape may not retarget a reference", name)
+	}
+}
+
+// mergeKeywords: where both shapes state a keyword the stricter bound wins
+// (larger minimum, smaller maximum, int if either asks, the intersection of
+// the enums, in the parent's order); where one states it, it stands.
+func mergeKeywords(p, c KeywordDecl) KeywordDecl {
+	out := c
+	out.MinLen = maxInt(p.MinLen, c.MinLen)
+	out.MaxLen = minInt(p.MaxLen, c.MaxLen)
+	out.MinItems = maxInt(p.MinItems, c.MinItems)
+	out.MaxItems = minInt(p.MaxItems, c.MaxItems)
+	out.WantInt = p.WantInt || c.WantInt
+	switch {
+	case p.MinRat == nil:
+	case c.MinRat == nil || p.MinRat.Cmp(c.MinRat) > 0:
+		out.Min, out.MinRat = p.Min, p.MinRat
+	}
+	switch {
+	case p.MaxRat == nil:
+	case c.MaxRat == nil || p.MaxRat.Cmp(c.MaxRat) < 0:
+		out.Max, out.MaxRat = p.Max, p.MaxRat
+	}
+	switch {
+	case p.Enum == nil:
+	case c.Enum == nil:
+		out.Enum = p.Enum
+	default:
+		both := make([]any, 0, len(p.Enum))
+		for _, pe := range p.Enum {
+			for _, ce := range c.Enum {
+				if jaxson.Equal(pe, ce) {
+					both = append(both, pe)
+					break
+				}
+			}
+		}
+		out.Enum = both
+	}
+	return out
+}
+
+func maxInt(a, b *int64) *int64 {
+	if a == nil || (b != nil && *b >= *a) {
+		return b
+	}
+	return a
+}
+
+func minInt(a, b *int64) *int64 {
+	if a == nil || (b != nil && *b <= *a) {
+		return b
+	}
+	return a
 }
 
 func unionStrings(a, b []string) []string {

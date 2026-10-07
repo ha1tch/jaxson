@@ -1,6 +1,6 @@
 // Copyright (c) 2026 haitch <h@ual.li>
-// Licensed under the Apache License, Version 2.0.
-// https://www.apache.org/licenses/LICENSE-2.0
+// Licensed under the GNU General Public License, version 3.
+// https://www.gnu.org/licenses/gpl-3.0.html
 package shaxon
 
 // Phase 5 (plan section 8): shaxon.Run, the version gate, and the pipeline
@@ -37,7 +37,7 @@ package shaxon
 //	    or whose root cannot be known statically) after it. Each group keeps
 //	    declared order. This fits section 7's own example, whose report-mode
 //	    entry reads `input` and writes `into` ["state", "lineWarnings"] so
-//	    that the program can use it. Needs a spec ruling.
+//	    that the program can use it. Ruled 2026-10-07: core section 7 says this.
 //	R2  A report written `into` a path under `output` by a post-program
 //	    entry lands after outputSchema was checked, so outputSchema does not
 //	    cover it. Writing there is allowed (V2); the gap is recorded, not

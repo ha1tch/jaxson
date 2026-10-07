@@ -1,6 +1,6 @@
 // Copyright (c) 2026 haitch <h@ual.li>
-// Licensed under the Apache License, Version 2.0.
-// https://www.apache.org/licenses/LICENSE-2.0
+// Licensed under the GNU General Public License, version 3.
+// https://www.gnu.org/licenses/gpl-3.0.html
 package jaxson
 
 // Compiled execution. A program (or an operand, or a `$compute` island) is
@@ -65,7 +65,7 @@ func (c *Compiler) Operand(x any) func(*Machine) any {
 		for k, v := range mp {
 			switch k {
 			case "$path":
-				return c.pathRead(v.([]any))
+				return c.pathReadMode(v.([]any), false)
 			case "$lit":
 				lit := Data(v)
 				return func(*Machine) any { return lit }
@@ -239,6 +239,15 @@ func (m *Machine) tryIndex(r *big.Rat) (idx int, ok bool) {
 // ---------------------------------------------------------------- paths
 
 func (c *Compiler) pathRead(p []any) func(*Machine) any {
+	return c.pathReadMode(p, false)
+}
+
+// pathReadMode is pathRead, except that with borrow set a composite read of
+// state or output is returned as it is held, not cloned. The caller must not
+// keep it, return it, or run anything that writes to the machine while it
+// is in use; compute does this only for a binding it has checked is used
+// by operators that read a value and keep none of it (see borrowOnly).
+func (c *Compiler) pathReadMode(p []any, borrow bool) func(*Machine) any {
 	root := p[0].(string)
 	if root == "local" {
 		if fixed, static := c.fixedSegs(p[1:]); static && len(fixed) > 0 {
@@ -270,6 +279,9 @@ func (c *Compiler) pathRead(p []any) func(*Machine) any {
 		r, s := plan(m)
 		v := m.getAt(r, s)
 		m.release(base)
+		if borrow {
+			return v
+		}
 		return Clone(v)
 	}
 }
@@ -375,6 +387,14 @@ func (c *Compiler) compute(cm map[string]any) func(*Machine) any {
 	if w, ok := cm["with"].(map[string]any); ok {
 		for i, n := range SortedKeys(w) {
 			slots[n] = i
+			if pm, ok := w[n].(map[string]any); ok && len(pm) == 1 && borrowOnly(cm["expr"], n) {
+				if pv, isPath := pm["$path"].([]any); isPath {
+					if _, overridden := formOf(c.m.forms, pm); !overridden {
+						withs = append(withs, c.pathReadMode(pv, true))
+						continue
+					}
+				}
+			}
 			withs = append(withs, c.Operand(w[n]))
 		}
 	}
@@ -395,6 +415,52 @@ func (c *Compiler) compute(cm map[string]any) func(*Machine) any {
 		m.release(base)
 		return r
 	}
+}
+
+// borrowOps are the core operators that read their arguments and return
+// nothing that aliases them: a boolean, a number, a type name, a fresh list
+// of key names.
+var borrowOps = map[string]bool{"has": true, "len": true, "type_of": true, "keys": true, "eq": true, "ne": true}
+
+// borrowOnly reports whether the binding name in expr can be read without
+// copying it: nothing in the island can change it, keep it, or hand it back.
+// A value from the binding may flow through `get`, `get_or` and the branches
+// of `select`, which return a part of their operand as it is, but only into
+// an operator in borrowOps, and never out of the island. A binding that is
+// not used at all qualifies.
+func borrowOnly(e any, name string) bool { return borrowFlow(e, name, true) }
+
+// borrowFlow checks every use of name in e. escaping says whether the value
+// of e itself leaves the island, or goes into an operator that may keep it.
+func borrowFlow(e any, name string, escaping bool) bool {
+	switch t := e.(type) {
+	case map[string]any:
+		return t["$v"] != name || !escaping
+	case []any:
+		op, _ := t[0].(string)
+		args := t[1:]
+		for i, a := range args {
+			esc := true
+			switch {
+			case borrowOps[op], op == "and", op == "or":
+				esc = false
+			case op == "get", op == "get_or":
+				esc = escaping
+				if i == 1 {
+					esc = false // the key is only looked up
+				}
+			case op == "select":
+				esc = escaping
+				if i == 0 {
+					esc = false
+				}
+			}
+			if !borrowFlow(a, name, esc) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (c *Compiler) expr(e any, slots map[string]int) (exprFn, bool) {

@@ -2,6 +2,106 @@
 
 ## Unreleased
 
+### Specification (severity)
+- Core section 7 now says a `warning` or `info` finding, of a shape or of a
+  `unique` entry, never aborts a `gate` (the implementation already behaved so;
+  the text said "first violation"). Two fixtures (196 in all) and two mutants
+  (71, 69 killed) pin it. `shaxon-v0.3.1-limitations.md` has a new section 8 on
+  how `conforms` and severity differ from SHACL, and the SHACL coverage and
+  comparison tables no longer call severity plainly "covered". The Layer 2 and
+  3 proposal (`docs/proposals/extends-narrowing.md`) compares the two in full.
+
+### Changed
+- A shape that extends another can now only narrow it (ruling G11, layer 1).
+  `extends` carries the parent's `kind`, reference target (`index`,
+  `relation`, `of`/`by`), primitive keywords, `items` and `qualified`. Where
+  both shapes state a keyword the stricter wins: the larger of two minimums,
+  the smaller of two maximums, `int` if either asks, the intersection of two
+  enums. A different kind, reference target, `items` or `qualified` from the
+  child's is a load-time `SHAX_SHAPE_ERROR`; restating the parent's is
+  accepted. Before this a child lost all of these unless it restated them, so
+  extending a `minLen` shape silently dropped the bound, and extending a
+  `reference` shape panicked at load. This reverses the specification entry
+  below, which had settled on "the child's own keywords only". Core section 4's
+  merge table has a row for each member. `severity` and `message` are still
+  the child's own only (layer 2, open). The error message for a merge failure
+  now names the extending shape (it was empty). 19 conformance fixtures (194 at
+  that point) and 22 new mutants of the engine (69 then, 67 killed) pin the change.
+
+### Specification
+- The eight points the specification left open were settled by writing the
+  implementation's behaviour into it, since that behaviour passes every
+  fixture and example and is the fastest of the options. Shaxon core section 3
+  (index reuse is invalidated by any overlap with what the build reads, P1),
+  section 4 (`extends` carries kind, fields, required, the combinators, `check`
+  and `qualified`, not the parent's primitive keywords, G11; one step per shape
+  activation, G1), section 2 (`maxShapeDepth` counts named-shape descents
+  only, G8), section 6 (a depth overrun is attached at the last node taken,
+  C3), section 7 (`mode` is required, V1; a `validate` entry sets its report
+  and a `check` appends to it, V3; entries rooted wholly in `input` run before
+  the program and the rest after, R1; `unique` skips an element lacking the
+  field, V4) and section 10 (rows for a closed object's extra members and an
+  unmet `qualified` count, S4); and Jaxson core design section 5 (the members
+  of a `$tpl` object are evaluated in sorted key order, S9). Fourteen new
+  conformance fixtures pin them (175 in all), and three new mutants of the
+  engine (the literal reuse reading, one stage for every entry, reversed
+  template order) are killed by them; a shape activation made free, which no
+  fixture used to catch, is now killed too. The mutant check's anchor for the
+  `$indexed` sort, broken by the earlier sort change, is repaired and split in
+  two, and the numeric-key order it exposed as unpinned by fixtures is
+  recorded in its list of known survivors.
+
+### Changed
+- An index whose key is a `concat` of string literals and bound values is built
+  into a byte slab: `Machine.ConcatKey` (new, `pkg/jaxson/concatkey.go`) appends
+  each key to a caller's buffer with the island's bindings, charges and TYPE_ERROR,
+  and declines when the host has replaced `concat` or the `$compute` form;
+  `pkg/shaxon/slabindex.go` keeps the keys in an open-addressing table over
+  parallel arrays and makes entries only for distinct keys, in three allocations
+  (one string, one entry block, one positions array). `Lookup` and `Inverse` read
+  that table. No result or step count changes (the 161 fixtures and 51
+  authorisation cases pin both, compared against the tree interpreter, which
+  never takes this path; new `slabindex_test.go`). `chinese-wall` at 20000 events,
+  engine only, same host: about 18 ms to 7.5 ms (30-35 to 11-13 ms on a slower
+  host). The five examples were re-run together on one host; see TRACKER PF4 for
+  the figures against Jena.
+- Engine speed-ups in index building and compute-binding borrowing, none changing
+  a result or a step count (the 161 fixtures and 51 authorisation cases pin
+  both). An index is sorted only when its order is first needed, and its key map
+  is presized when it is not `multi`; the loop variable is bound once per build
+  (`Machine.WithLocalSet`) and not once per element; the mutation log keeps only
+  mutations that overlap a built index's dependencies, and path segments compare
+  without printing; and a `$compute` binding is now borrowed through `get`,
+  `get_or` and the branches of `select` as long as it only reaches `has`, `len`,
+  `type_of`, `keys`, `eq`, `ne` (or `and`/`or`) and never leaves the island. At
+  20000 events, engine only: `chinese-wall` 22 to 18 ms, `four-eyes-release` 28 to
+  18 ms, `delegation-chain` 19 to 14 ms. Five further micro-changes (a presized
+  map for `multi` indices, a hoisted cost lookup, a per-build compiled key,
+  exact-size position lists, cheaper ambient updates) measured no gain and were
+  not kept.
+- Wall time on `four-eyes-release` and `break-glass` was quadratic in the trail
+  (TRACKER PF3). Two causes, both fixed, with no change to any result or step
+  count (the 161 fixtures and the 51 authorisation cases pin both). In the
+  compiler, a `$compute` binding of the form `{"$path": [...]}` whose every use
+  in the expression is an argument of `has`, `len`, `type_of`, `keys`, `eq` or `ne`
+  (or that is not used) is now read without cloning a composite from state or
+  output (`borrowOnly`, `pathReadMode` in `compile.go`), where it used to copy
+  the whole `state.pay` map for every event. In `break-glass.json` the two
+  lookup keys that default a missing `id` now default to `(no id)`, not `""`,
+  which every break-glass event's index key also was. At 4000 events
+  `four-eyes-release` takes 7.5 ms (was 2.8 s) and `break-glass` 40 ms (was 4.6
+  s); at 20000, 33 ms and 176 ms (were 80 s and 148 s). Both example batches were
+  re-run and `results/REPORT.md` regenerated. Tests for the borrow analysis in
+  `pkg/jaxson/borrow_test.go`, including cases taken from a parallel draft of the
+  same fix.
+- Documentation brought into line with the published repository layout: the
+  top-level `README.md` rewritten (layout table, quick start, links fixed,
+  benchmark findings); `docs/IMPLEMENTATION-STATUS.md`
+  refreshed, as it still described Shaxon as having no evaluator; the core
+  specification's status line and section 13 now say an implementation exists;
+  this directory's README and TRACKER point at the root specifications and
+  at the renamed Walk proposal.
+
 ### Added
 - SHACL comparison harness, all five examples and in batches: `scale.py` now
   generates trails for `four-eyes-release`, `delegation-chain` and `break-glass`
@@ -16,8 +116,8 @@
   `setup-mac.sh` and `env-mac.sh` (Homebrew: go, openjdk, maven; asks before
   installing; not tested on a Mac, only against a stub `brew`),
   `enginetime -cpuprofile`. `pom.xml` had `--` inside an XML comment, which
-  current Maven rejects; reworded. Finding: Shaxon is quadratic in wall time on
-  `four-eyes-release` and `break-glass` (TRACKER PF3).
+  current Maven rejects; reworded. The first full run found Shaxon quadratic in
+  wall time on `four-eyes-release` and `break-glass`; fixed, see Changed.
 - Phase 7.1, the core API surface: `shaxon.Validate(pkg, shape, doc)` and
   `ValidateJSON` check one document against a declared shape without running
   the package's program; `jaxson.Number`, an immutable exact decimal for the API

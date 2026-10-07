@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright (c) 2026 haitch <h@ual.li>
-# Licensed under the Apache License, Version 2.0.
-# https://www.apache.org/licenses/LICENSE-2.0
+# Licensed under the GNU General Public License, version 3.
+# https://www.gnu.org/licenses/gpl-3.0.html
 #
 # Sets up everything the SHACL harnesses and bench.sh need on macOS, with
 # Homebrew. Run it from this folder. It asks before it installs anything.

@@ -1,6 +1,6 @@
 # Shaxon v3.1 core: a deterministic, JSON-native constraint and validation layer over Jaxson
 
-Status: proposal, unimplemented.
+Status: proposal. Implemented in Go (`src/jaxson-shaxon-v0.3.1`) and checked against 196 conformance fixtures; see `docs/IMPLEMENTATION-STATUS.md`.
 
 ## 0. Stance
 
@@ -128,7 +128,12 @@ produces one `Violation`. `Index` feeds the `reference`/`$inverse`/
   not a silent default — recursion is never accidentally unbounded.
   `maxShapeDepth` and `maxDepth` (section 6) are **validation horizons**: a
   declared boundary past which the language does not promise to look, not a
-  claim that no further structure exists past it.
+  claim that no further structure exists past it. `maxShapeDepth` counts
+  named-shape descents only: the root shape is depth 1 and each `{"shape": N}`
+  followed is one deeper; an inline structured field is not a descent. Going
+  past the bound is one structural `SHAPE_DEPTH_EXCEEDED` finding at that
+  node, whose subtree is not visited; in `gate` mode it raises `EXECUTION_ERROR`
+  with that code.
 - `inputSchema`/`outputSchema` keep Jaxson's original narrow contract vocabulary
   for the common case where a package only needs type-and-shape gating at the
   two edges. `shapes`/`validate` are for everything a plain schema can't say. A
@@ -190,12 +195,22 @@ each `validate` entry resolves its targets, and before each `check`
 instruction — except where the reuse rule below applies.
 
 **Reuse.** An index build is reused without recharge whenever no `set`/
-`delete`/`append`/`insert` since that build targeted a path equal to, or a
-prefix of, its declared `source`. Reuse is mandatory, not an optional
+`delete`/`append`/`insert` since that build targeted a path that overlaps
+what the build reads. Reuse is mandatory, not an optional
 optimisation: whether a package succeeds within its declared `limits.steps`
 must not depend on which conformant runtime executes it. Reuse is decidable
 from the mutation-path log already required for the no-aliasing guarantee — it
 is a lookup against that log, not a deep-equality scan.
+
+A build reads its `source` path and every non-`local` path named by a `$path`
+operand in its `source` or `key` (a key that reads `state.rate` depends on
+`state.rate`); a path with a computed segment counts as the whole subtree up to
+that segment. Two paths **overlap** when one is equal to, or a prefix of, the
+other, so a write below the source (`state.customers[3].id` for the source
+`state.customers`) invalidates the build, as does a write above it. Reading
+the rule as "a prefix of the source" alone would serve a stale index after
+such a write, against this section's own rule that a program is always
+validated against current data.
 
 ## 4. Shapes
 
@@ -249,7 +264,9 @@ Schema's.
   finite snapshot — that is what "costs nothing new" refers to. It is not a
   step-cost exemption: each element checked against `qualified`'s `shape` is
   charged the ordinary shape-evaluation step cost, the same as if each had
-  been checked individually.
+  been checked individually. **One step per shape activation**: a named
+  shape, a combinator alternative, a `qualified` element, an `items` element,
+  or an inline field that has structure. Leaf primitive checks cost nothing.
 - `check` is a `$compute` island: `with` binds named operands (the focus node
   is always available as `local.focus`, without needing to be listed), `expr`
   must reduce to a boolean, and an optional `"id"` gives it a stable
@@ -301,6 +318,25 @@ that member `"override": true`, which replaces instead of accumulating.
 | `xone` | concatenate parent's list then child's, then apply "exactly one" over the combined pool | `"override": true` replaces instead of pooling |
 | `not` | parent's and child's `not` targets both apply — focus must satisfy neither | `"override": true` on the child's `not` replaces the parent's instead of adding to it |
 | `check` | parent's and child's `check` are ANDed — focus must pass both | `"override": {"with": ..., "expr": ...}` on the child replaces the parent's `check` instead of ANDing |
+| `kind` | the child's if the parent's is unset, `node` or `any` (all three accept every value); otherwise the child repeats the parent's or omits it, and a different kind is `SHAPE_ERROR` | none; a child cannot change a kind |
+| `index`, `relation`, `of`/`by` (a `reference` shape's target) | inherited with the kind; a child that names a different target is `SHAPE_ERROR` | none; a child cannot retarget a reference |
+| `items` | the child's if the parent has none; a child that states the same items as the parent's is accepted; different items are `SHAPE_ERROR` | none; a child cannot replace the parent's `items` |
+| `qualified` | the child's if the parent has none; the same rule restated is accepted; a different rule is `SHAPE_ERROR` | none; a child cannot replace the parent's `qualified` |
+| Primitive keywords (`min`, `max`, `int`, `minLen`, `maxLen`, `enum`, `minItems`, `maxItems`) | both apply: the larger of two minimums (`min`, `minLen`, `minItems`), the smaller of two maximums, `int` if either asks, and the intersection of two enums; a keyword only one shape states stands as stated. The merged shape is then validated like any other, so a merged minimum above its maximum is `SHAPE_ERROR` | none needed; a child only ever narrows |
+| `severity`, `message` | the child's own only; the parent's are **not** carried | restate them in the child |
+
+A shape that extends another therefore never accepts a value the parent would
+refuse by `kind`, a reference target, a primitive keyword, `items` or
+`qualified`: the child can narrow these and cannot loosen them. The other
+members follow their own rows. Pooling `or` alternatives, adding to
+`ignoredProperties`, and every `override` can make the merged shape accept more
+than its parent does.
+
+Two `items`, `qualified` rules or reference targets are the same when they are
+equal once parsed, so a field written as `{"shape": "X"}` and an inline copy of
+shape `X` are different, and a child that restates the parent's rule in the
+other form is `SHAPE_ERROR`. Two enums whose intersection is empty are not an
+error: the merged shape accepts no value of its kind.
 
 Pooling `xone` can turn a focus node that satisfied the child's own list into a
 violation, because "exactly one" is evaluated over the merged pool, not the
@@ -522,7 +558,8 @@ base case and still the only form allowed where Jaxson itself uses paths
   `PATH_DEPTH_EXCEEDED` (section 9) — a violation, not a silent stop, and
   distinct from the shape-recursion `SHAPE_DEPTH_EXCEEDED` — reportable
   precisely because it means the document asked for more traversal than the
-  package declared itself willing to perform.
+  package declared itself willing to perform. The finding is attached at the
+  last node the closure took.
 - `$inverse` reads a `multi` index (section 3), directly or via a `relations`
   entry's `from` side (section 4a), rather than walking anything. It yields
   paths, each composable with any other path-expression form exactly as a
@@ -564,15 +601,21 @@ base case and still the only form allowed where Jaxson itself uses paths
   non-object elements, the element itself) for repeats across the target's
   population, in target-visiting order. Every element sharing a key with an
   earlier one produces a violation at the declared `severity`; the first
-  occurrence of each key is never flagged. `unique` may carry the same
+  occurrence of each key is never flagged. An element that is an object
+  lacking `field` has no key and is skipped, not an error (an index build over
+  the same field raises `MISSING_PATH`, section 3). `unique` may carry the same
   optional `"id"` member `check` and field shapes do (section 10). This does
   not replace the existing build-time uniqueness check on a non-`multi`
   index (section 3, still `SHAPE_ERROR`, still fatal at build time) — that
   check is about an index's own well-formedness as a function; `unique` is
   an ordinary, `report`-mode-compatible data constraint over any population,
   independent of whether an index happens to exist over the same field.
-- `mode: "gate"` — first violation aborts the pipeline with
-  `VALIDATION_ERROR` (section 9); `program` does not run.
+- `mode` is required on every `validate` entry and `check` instruction; there
+  is no default, and omitting it is `SHAPE_ERROR`.
+- `mode: "gate"` — the first violation-severity finding aborts the pipeline with
+  `VALIDATION_ERROR` (section 9); `program` does not run. A `warning` or
+  `info` finding, of a shape or of a `unique` entry, never aborts a gate: it is
+  collected and the pipeline goes on, as `conforms` ignores it.
   `["input"]`/`["output"]` gate targets are the direct generalisation of
   Jaxson's `INPUT_ERROR`/`OUTPUT_ERROR`. For a `unique` entry in `gate` mode,
   the first element, in target-visiting order, that repeats an already-seen
@@ -581,8 +624,19 @@ base case and still the only form allowed where Jaxson itself uses paths
   (section 5).
 - `mode: "report"` — every violation for that target is collected, never
   aborts; the report is written to the path named by `into`, or returned
-  alongside `output` if `into` is omitted.
-- Validation entries run in declared order; each entry's index rebuilds
+  alongside `output` if `into` is omitted. `into` is valid only in `report`
+  mode and must be a writable path (`state` or `output`). A `validate` entry
+  **sets** the whole report value, `{"conforms", "violations"}`, at `into`; a
+  `check` **appends** each violation to the array already at `into`. Either
+  write is an ordinary program write: it costs what the equivalent `set` or
+  `append` costs (one step per violation appended) and is visible to the
+  mutation log, so an index over the written path is rebuilt on its next use.
+- Validation entries run in declared order within two stages. An entry whose
+  target is rooted wholly in `input` (for `$indexed`, the root of the index's
+  source) runs before the program, as the generalisation of the input schema;
+  every other entry, including one whose root cannot be known statically,
+  runs after it, as the generalisation of the output schema. Declared order is
+  kept within each stage. Each entry's index rebuilds
   (section 3) happen first; focus nodes within a target are visited in
   array-index or code-point-sorted-key order.
 - When more than one `report`-mode target or `check` instruction omits
@@ -610,7 +664,7 @@ program can accumulate a running log of non-fatal findings turn over turn.
 
 | Category | Raised when | Codes |
 |---|---|---|
-| `SHAPE_ERROR` | malformed shape, index, `relations`, or `computes` entry; `extends` cycle without a depth bound; missing `maxShapeDepth` when required; a repeated key in a non-`multi` index or the `to` side of a relation; `cardinality: "one-to-one"` uniqueness violation on `from.field`; a redundant relation/shorthand pair (section 4c); a malformed `unique` declaration, or a `validate`/`check` entry declaring both `shape` and `unique` (section 7); a `requiredIds` key naming a member not in `required` (section 4); `enum` present on a `kind` other than `string`/`number`/`boolean`/`null` (section 4) | |
+| `SHAPE_ERROR` | malformed shape, index, `relations`, or `computes` entry; `extends` cycle without a depth bound; missing `maxShapeDepth` when required; a repeated key in a non-`multi` index or the `to` side of a relation; `cardinality: "one-to-one"` uniqueness violation on `from.field`; a redundant relation/shorthand pair (section 4c); a malformed `unique` declaration, or a `validate`/`check` entry declaring both `shape` and `unique` (section 7); a `requiredIds` key naming a member not in `required` (section 4); `enum` present on a `kind` other than `string`/`number`/`boolean`/`null` (section 4); an `extends` whose child conflicts with its parent: a different `kind`, reference target, `items` or `qualified`, or a merged range that is empty (a minimum above its maximum), or a field-name collision without `override` (section 4) | |
 | `VALIDATION_ERROR` | a `gate`-mode target fails to conform | `SHAPE_MISMATCH` |
 | `EXECUTION_ERROR` | (existing Jaxson category, extended) | `DANGLING_REFERENCE`, `SHAPE_DEPTH_EXCEEDED`, `PATH_DEPTH_EXCEEDED`, plus Jaxson's own `TYPE_ERROR`/`MISSING_PATH` where index keys and `reference` values resolve to a value of the wrong JSON type, and `TYPE_ERROR` where `local.step` resolves to a non-scalar-segment value |
 
@@ -685,6 +739,8 @@ produces more than one violation per row's own unit.
 | A shape's own `check` (a `$compute` island) fails | One violation. `focusPath` = the shape's own focus node; no `constraintPath`. |
 | A shape's own `and`/`or`/`xone`/`not` combinator fails | One violation for the whole shape (section 4), using the shape's own `severity`/`message` — never one per failing or unevaluated alternative. |
 | A `unique` declaration finds a repeat | One violation per repeating element (section 7). `focusPath` = the repeating element's own path; no `constraintPath`. |
+| A closed object has members its shape does not name | One violation per unexpected member, in code-point order of the member names. `focusPath` = the object; `constraintPath` = `[memberName]`. |
+| A `qualified` count is not met | One violation for the whole collection. `focusPath` = the collection's own focus node; no `constraintPath`. |
 
 `gate` mode aborts on the *first* failure, in the fixed order `required`
 names (listed order), then `fields` members (code-point order), then
@@ -726,8 +782,10 @@ author-configurable, and always carry `kind: "structural"`:
 
 ## 13. Implementation status
 
-No reference interpreter exists for this specification. A conformant
-implementation requires, at minimum: an index builder, including the
+A Go implementation exists (`src/jaxson-shaxon-v0.3.1`), with conformance
+fixtures in `pkg/shaxon/shaxon-v0.3.1-fixtures.json`; the rulings it
+raised, settled in this document, are recorded in its `TRACKER.md`. A conformant implementation requires, at
+minimum: an index builder, including the
 mandatory reuse rule of section 3; a `relations` desugarer (section 4a) with
 the redundant-declaration check of section 4c; a `computes` registry
 (section 4d); a shape evaluator covering

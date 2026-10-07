@@ -198,7 +198,7 @@ validation alone costs about as much as its lift. And Jena, warmed up, behaves
 differently on the two examples. On `rolling-quota`, a single fold written with
 `aggregate`, Shaxon is faster at every size, 2.4 ms against 12.4 ms at 20000 events.
 On `chinese-wall` Jena is faster from somewhere between 1000 and 4000 events and
-grows much more slowly (3.9 ms at 20000 against Shaxon's 22): Shaxon builds two
+grows much more slowly (in that run, 3.9 ms at 20000 against Shaxon's 22): Shaxon builds two
 indices with a computed key over every event, so its cost grows with the trail,
 while Jena's figure moves little between 100 and 20000 events. That is consistent
 with its SPARQL engine reaching one actor's events through an index; this was not
@@ -208,16 +208,23 @@ comparison also favours Jena in another way: its figure is a warmed-up JVM, whic
 a caller starting a process per verdict does not get.
 
 All five examples were later timed the same way (`./bench.sh run`, then
-`./bench.sh report`, which writes `results/REPORT.md`). Shaxon is much the fastest
-end to end on `rolling-quota`, `chinese-wall` and `delegation-chain` at every
-size, and engine-only on `rolling-quota`. On `four-eyes-release` and
-`break-glass` it is not: its wall time grows quadratically with the trail
-(steps grow linearly), so at 4000 events it takes 2.8 s and 4.8 s, against about
-8 and 144 ms for warmed-up Jena, and at 20000 events 80 s and 148 s; the cause
-is in the engine and the package, not in the language (TRACKER PF3). pyshacl is
-slower still on both (35 s and 51 s at 4000 events engine-only). Delegation
-chain, engine-only, goes from Shaxon 4.1 ms (Jena 16) at 4000 events to Shaxon
-28 ms (Jena 12) at 20000.
+`./bench.sh report`, which writes `results/REPORT.md`). End to end Shaxon is the
+fastest of the three on all five examples at every size. Engine-only it is ahead
+of warmed-up Jena on all five examples at 4000 events (by 23x to 1.2x). At 20000 events
+it is ahead on `rolling-quota` (18x), `break-glass` (2.9x) and `four-eyes-release` (1.2x),
+level on `delegation-chain` (19 ms against 20) and behind on `chinese-wall` (10 ms
+against 7.6, Jena 1.4x faster). The five were re-run together on one host on
+2026-10-07, so the Shaxon and Jena figures come from the same conditions; that host
+was slower than the one used for the earlier runs, so the absolute times are higher.
+Jena's own figures move by up to a third between runs, so the smaller ratios are not
+firm. `chinese-wall` was 3.0x behind at 20000 events before indices whose key is a
+`concat` of bound values were built into a byte slab (TRACKER PF4). `four-eyes-release` and
+`break-glass` first showed Shaxon's wall time growing quadratically with the
+trail (2.8 s and 4.8 s at 4000 events, steps linear); the engine copied a whole
+state map for each event and the break-glass package looked up a key that matched
+every event, and both are fixed (TRACKER PF3): they now take 7.5 ms and 40 ms at
+4000 events and 33 ms and 176 ms at 20000, with the same step counts. pyshacl is
+slower than both throughout (32 s and 41 s at 4000 events engine-only).
 
 The rolling-quota package is a temporary copy with `limits.steps` raised, since
 the shipped one refuses long trails on purpose. The figures compare a Go
@@ -252,7 +259,7 @@ examples), so that flag is not a hidden switch here.
   `four-eyes-release` (1937 against 4158 characters); for the quota the gap is
   small (1855 against 1959) since the `aggregate` instruction replaced the
   hand-written fold.
-- Warm and in-process, with the lift out of the count, Jena validated the larger trails faster than Shaxon (Speed, engine-only): its figure barely moved between 100 and 20000 events, where Shaxon's fold grows with the trail.
+- Warm and in-process, with the lift out of the count, Jena validated the larger trails of `chinese-wall` (and at 20000 events of `four-eyes-release` and `delegation-chain`) faster than Shaxon (Speed, engine-only; by 3.0x at 20000 events): its figure barely moved between 100 and 20000 events, where Shaxon's fold grows with the trail.
 - It is an existing standard with several processors, tooling, and a shared
   vocabulary for the report (`sh:focusNode`, `sh:sourceConstraint`).
 - Rules over a graph that already is RDF need no lift at all.

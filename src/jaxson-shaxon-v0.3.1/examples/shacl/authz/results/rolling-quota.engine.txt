@@ -1,8 +1,8 @@
 ENGINE-ONLY (validation alone, on data already in each engine's form; the lift is shown, not counted)
 example            events      shaxon   steps       pyshacl          jena       lift  verdict
-rolling-quota         100     0.31 ms     473      77 ms     8.5 ms      12 ms  deny
-rolling-quota        1000     0.28 ms    4073     117 ms    16.3 ms     183 ms  deny
-rolling-quota        4000     0.84 ms   16073     350 ms    11.6 ms     383 ms  deny
-rolling-quota       20000     2.98 ms   80073    2422 ms    24.7 ms    2451 ms  deny
+rolling-quota         100     0.21 ms     473      66 ms     7.5 ms       9 ms  deny
+rolling-quota        1000     0.37 ms    4073     138 ms    15.6 ms     178 ms  deny
+rolling-quota        4000     0.82 ms   16073     447 ms    18.9 ms     443 ms  deny
+rolling-quota       20000     3.61 ms   80073    2523 ms    63.4 ms    2447 ms  deny
 best of up to 10 after a warm-up; the verdict compared is allow/deny (the end-to-end profile compares reasons too)
 lift = lift.py on the same input: the cost the end-to-end profile adds for pyshacl and Jena, and Shaxon does not have

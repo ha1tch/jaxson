@@ -1,6 +1,6 @@
 // Copyright (c) 2026 haitch <h@ual.li>
-// Licensed under the Apache License, Version 2.0.
-// https://www.apache.org/licenses/LICENSE-2.0
+// Licensed under the GNU General Public License, version 3.
+// https://www.gnu.org/licenses/gpl-3.0.html
 package jaxson
 
 // The exported surface a dialect built on this package needs and cannot
@@ -38,6 +38,17 @@ func (m *Machine) WithLocal(name string, v any, fn func()) {
 	m.locals = append(m.locals, localVar{name, v})
 	defer m.dropLocals(n)
 	fn()
+}
+
+// WithLocalSet is WithLocal for a loop: it binds name once, calls fn, and
+// gives fn a function that sets the binding's value. The binding is dropped
+// when fn returns or panics. A host that evaluates one operand against many
+// elements uses it to avoid pushing and dropping a binding per element.
+func (m *Machine) WithLocalSet(name string, fn func(set func(v any))) {
+	n := len(m.locals)
+	m.locals = append(m.locals, localVar{name, nil})
+	defer m.dropLocals(n)
+	fn(func(v any) { m.locals[n].v = v })
 }
 
 func hostChecker(locals []string) *Checker {

@@ -115,7 +115,7 @@ Jaxson deliberately uses `$path`, not `$ref`. A jsonplate cannot be mistaken for
 }}
 ```
 
-- Inside a template, any form is substituted at any depth; everything else is copied.
+- Inside a template, any form is substituted at any depth; everything else is copied. The members of a template object are evaluated in code-point order of their keys, as `$compute` bindings are, so a template with several failing members always fails on the first in that order.
 - `{"$opt": path}` is valid only inside a template. If the path resolves, its value is used, **including `null`**. If the path is missing, the member (or array element) is omitted entirely.
 - Only `MISSING_PATH` is absorbed. A `TYPE_ERROR` is still an error. A malformed path is caught at program validation, never at run time.
 - So the template distinguishes present-`null` from absent, which the jsonplate original cannot.

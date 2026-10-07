@@ -1,7 +1,7 @@
 END-TO-END (the JSON input to a verdict; the RDF lift is inside the SHACL figures)
 example            events     shaxon   steps       pyshacl          jena  verdict
-break-glass           100       7 ms    1969    1304 ms    1377 ms  deny ['BREAK_GLASS_BUDGET', 'UNREVIEWED_BREAK_GLASS']
-break-glass          1000     326 ms   19398   11759 ms    1929 ms  deny ['BREAK_GLASS_BUDGET', 'UNREVIEWED_BREAK_GLASS']
-break-glass          4000    4811 ms   77617   52741 ms    4115 ms  deny ['BREAK_GLASS_BUDGET', 'UNREVIEWED_BREAK_GLASS']
-break-glass         20000  137036 ms  387551       skipped    9543 ms  deny ['BREAK_GLASS_BUDGET', 'UNREVIEWED_BREAK_GLASS']
+break-glass           100       8 ms    1969    1717 ms    1595 ms  deny ['BREAK_GLASS_BUDGET', 'UNREVIEWED_BREAK_GLASS']
+break-glass          1000      22 ms   19398   14148 ms    2541 ms  deny ['BREAK_GLASS_BUDGET', 'UNREVIEWED_BREAK_GLASS']
+break-glass          4000      80 ms   77617   63156 ms    4375 ms  deny ['BREAK_GLASS_BUDGET', 'UNREVIEWED_BREAK_GLASS']
+break-glass         20000     468 ms  387551       skipped   12180 ms  deny ['BREAK_GLASS_BUDGET', 'UNREVIEWED_BREAK_GLASS']
 best of up to 3; shaxon is the whole process, pyshacl and jena include the RDF lift; 'skipped' = projected over the budget

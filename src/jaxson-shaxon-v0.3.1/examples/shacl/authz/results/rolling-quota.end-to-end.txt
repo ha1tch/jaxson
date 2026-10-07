@@ -1,7 +1,7 @@
 END-TO-END (the JSON input to a verdict; the RDF lift is inside the SHACL figures)
 example            events     shaxon   steps       pyshacl          jena  verdict
-rolling-quota         100       6 ms     473      85 ms    1185 ms  deny ['TOO_MANY_EXPORTS']
-rolling-quota        1000       5 ms    4073     205 ms    1373 ms  deny ['TOO_MANY_EXPORTS']
-rolling-quota        4000       7 ms   16073     708 ms    2492 ms  deny ['TOO_MANY_EXPORTS']
-rolling-quota       20000      31 ms   80073    4556 ms    6708 ms  deny ['TOO_MANY_EXPORTS']
+rolling-quota         100       4 ms     473      73 ms    1366 ms  deny ['TOO_MANY_EXPORTS']
+rolling-quota        1000       6 ms    4073     226 ms    1708 ms  deny ['TOO_MANY_EXPORTS']
+rolling-quota        4000       8 ms   16073     813 ms    2814 ms  deny ['TOO_MANY_EXPORTS']
+rolling-quota       20000      49 ms   80073    5446 ms    7427 ms  deny ['TOO_MANY_EXPORTS']
 best of up to 3; shaxon is the whole process, pyshacl and jena include the RDF lift; 'skipped' = projected over the budget

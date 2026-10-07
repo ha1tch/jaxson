@@ -1,13 +1,13 @@
-{"kind": "host", "when": "2026-10-05 09:43:48", "profile": "end-to-end", "examples": ["delegation-chain"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v70-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 100, "engine": "shaxon", "ms": 3.121344000192039, "steps": 281, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 100, "engine": "pyshacl", "ms": 77.39266399994449, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 100, "engine": "jena", "ms": 1093.0622519999815, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 1000, "engine": "shaxon", "ms": 5.448547000014514, "steps": 2081, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 1000, "engine": "pyshacl", "ms": 363.47743599981186, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 1000, "engine": "jena", "ms": 1363.0315420000443, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 4000, "engine": "shaxon", "ms": 15.81781899994894, "steps": 8081, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 4000, "engine": "pyshacl", "ms": 1233.984547000091, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 4000, "engine": "jena", "ms": 2107.297336999636, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 20000, "engine": "shaxon", "ms": 96.82419599994319, "steps": 40081, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 20000, "engine": "pyshacl", "ms": 7129.004336999969, "repeats": 3, "allow": true, "reasons": []}
-{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 20000, "engine": "jena", "ms": 5359.039966000182, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "host", "when": "2026-10-07 09:19:18", "profile": "end-to-end", "examples": ["delegation-chain"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v77-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 100, "engine": "shaxon", "ms": 4.315582000117502, "steps": 281, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 100, "engine": "pyshacl", "ms": 121.68662199997016, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 100, "engine": "jena", "ms": 1084.0526800000134, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 1000, "engine": "shaxon", "ms": 5.116497000017262, "steps": 2081, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 1000, "engine": "pyshacl", "ms": 408.43111000003773, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 1000, "engine": "jena", "ms": 1373.756837999963, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 4000, "engine": "shaxon", "ms": 13.318290000142952, "steps": 8081, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 4000, "engine": "pyshacl", "ms": 1460.9308130000045, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 4000, "engine": "jena", "ms": 2057.1527019999394, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 20000, "engine": "shaxon", "ms": 48.65763599991624, "steps": 40081, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 20000, "engine": "pyshacl", "ms": 8296.610399999963, "repeats": 3, "allow": true, "reasons": []}
+{"kind": "cell", "profile": "end-to-end", "example": "delegation-chain", "events": 20000, "engine": "jena", "ms": 6662.744836999991, "repeats": 3, "allow": true, "reasons": []}

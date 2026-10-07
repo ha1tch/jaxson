@@ -68,7 +68,7 @@ pkg/shaxon/                  package shaxon, imports jaxson, changes nothing in 
   fixtures_test.go
 
 cmd/jaxrun/       thin CLI, calls jaxson.Run
-cmd/shaxrun/      thin CLI, calls shaxon.Run
+cmd/shaxonrun/    thin CLI, calls shaxon.Run
 examples/game/    Navy Wars, importing jaxson as a library instead of
                   living inside package main
 ```
@@ -348,9 +348,8 @@ Recorded here so they are visible choices, not silent ones:
   `$conforms` structural targeting, a named-profile pattern operator,
   cross-package imports) are not addressed here. This plan implements
   v0.3.1 as specified; it does not extend the spec.
-- The `analysis-WIP` review series' proposed "bounded compositional
-  expressions" layer, and the `shaxon-delta` (Delta-G) graph-transformation
-  formalism, are separate, larger design questions and are not part of
+- A further review series' proposed "bounded compositional
+  expressions" layer, and a graph-transformation formalism (Delta-G), are separate, larger design questions and are not part of
   this implementation plan. Building the v0.3.1 reference interpreter is
   a prerequisite for evaluating either seriously, not a step toward
   either.
@@ -368,4 +367,4 @@ Recorded here so they are visible choices, not silent ones:
 | 6 | 5 | New v0.3.1 fixture set; Navy Wars as an integration test |
 | 7 | 0 (7.2, 7.3 can start once Phase 0 lands) | Public API polish, `Session`, `build` package |
 
-Copyright (c) 2026 haitch. Licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
+Copyright (c) 2026 haitch. Licensed under the GNU General Public License, version 3: https://www.gnu.org/licenses/gpl-3.0.html

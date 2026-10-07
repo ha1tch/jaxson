@@ -1,6 +1,6 @@
 // Copyright (c) 2026 haitch <h@ual.li>
-// Licensed under the Apache License, Version 2.0.
-// https://www.apache.org/licenses/LICENSE-2.0
+// Licensed under the GNU General Public License, version 3.
+// https://www.gnu.org/licenses/gpl-3.0.html
 package shaxon
 
 // ORACLE TEST: SCHEDULED FOR DELETION together with pkg/jaxson/tree_oracle.go.
@@ -120,7 +120,7 @@ func TestOracleFixtures(t *testing.T) {
 		}
 		runs += compareBoth(t, fmt.Sprint(fx["name"]), pkg)
 	}
-	if len(cases) < 161 {
+	if len(cases) < 196 {
 		t.Fatalf("only %d fixtures compared", len(cases))
 	}
 	t.Logf("%d fixtures, %d runs (including tightened step limits): compiled and tree agree", len(cases), runs)

@@ -1,8 +1,8 @@
 ENGINE-ONLY (validation alone, on data already in each engine's form; the lift is shown, not counted)
 example            events      shaxon   steps       pyshacl          jena       lift  verdict
-chinese-wall          100     0.20 ms     411      22 ms     3.3 ms      11 ms  allow
-chinese-wall         1000     1.49 ms    4011      91 ms     3.7 ms      66 ms  allow
-chinese-wall         4000     9.78 ms   16011     300 ms     3.7 ms     243 ms  deny
-chinese-wall        20000    31.44 ms   80011    1696 ms     9.3 ms    1397 ms  deny
+chinese-wall          100     0.20 ms     411      27 ms     3.1 ms      14 ms  allow
+chinese-wall         1000     0.82 ms    4011      85 ms     4.3 ms      90 ms  allow
+chinese-wall         4000     3.28 ms   16011     303 ms     3.8 ms     226 ms  deny
+chinese-wall        20000    10.35 ms   80011    1934 ms     7.6 ms    1434 ms  deny
 best of up to 10 after a warm-up; the verdict compared is allow/deny (the end-to-end profile compares reasons too)
 lift = lift.py on the same input: the cost the end-to-end profile adds for pyshacl and Jena, and Shaxon does not have

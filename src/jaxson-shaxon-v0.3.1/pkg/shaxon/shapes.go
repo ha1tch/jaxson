@@ -1,6 +1,6 @@
 // Copyright (c) 2026 haitch <h@ual.li>
-// Licensed under the Apache License, Version 2.0.
-// https://www.apache.org/licenses/LICENSE-2.0
+// Licensed under the GNU General Public License, version 3.
+// https://www.gnu.org/licenses/gpl-3.0.html
 package shaxon
 
 // Phase 3 (plan section 6): shape evaluation. Given a parsed Registries
@@ -61,9 +61,11 @@ package shaxon
 //	    descriptive and NOT normative.
 //	G10 An `"id"` member on a shape is accepted and becomes constraintId
 //	    (section 10 names it; the Phase 2 parser rejected it).
-//	G11 Not a decision: `extends` does not carry the parent's primitive
-//	    keywords (minLen, enum, ...) into the child — mergeShapes keeps the
-//	    child's only. The spec's merge table is silent. Left as found.
+//	G11 RULED 2026-10-07: a child may only narrow what it extends.
+//	    mergeShapes carries kind, reference target, items, qualified and the
+//	    primitive keywords (stricter bound wins, enums intersect); a
+//	    conflicting kind, target, items or qualified is a SHAPE_ERROR. Layer
+//	    1 is done; severity/message inheritance (layer 2) is open.
 
 import (
 	"fmt"

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 haitch <h@ual.li>
-// Licensed under the Apache License, Version 2.0.
-// https://www.apache.org/licenses/LICENSE-2.0
+// Licensed under the GNU General Public License, version 3.
+// https://www.gnu.org/licenses/gpl-3.0.html
 package shaxon
 
 // Phase 4.1 (plan section 7): index build, reuse, and the lookups that
@@ -27,8 +27,8 @@ package shaxon
 //	    Here a mutation invalidates a build when either path is a prefix of
 //	    the other. Whenever the literal rule reuses, this rule reuses too;
 //	    it recharges only in the cases where the literal rule would serve
-//	    wrong data. NEEDS A SPEC RULING: it changes step counts relative to
-//	    a literal reading.
+//	    wrong data. RULED 2026-10-07: core section 3 now says this; it changes
+//	    step counts relative to a literal reading.
 //	P2  Dependencies are the source path AND every non-local path the
 //	    source and key operands read (a key such as
 //	    {"$path": ["state", "rate"]} depends on state.rate). They are found
@@ -58,6 +58,7 @@ import (
 	"math/big"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/ha1tch/jaxson/pkg/jaxson"
 )
@@ -87,6 +88,14 @@ type indexEntry struct {
 	one  [1]int  // backing store for pos while the key has a single element
 }
 
+// val is the key as a value. A key built into a slab keeps only its text.
+func (e *indexEntry) val() any {
+	if e.flag.kind == 's' {
+		return e.flag.text
+	}
+	return e.key
+}
+
 // flagKey is a scalar key's canonical form: its kind and, for strings and
 // numbers, its text. A struct rather than a prefixed string so that looking up
 // or storing a string key does not build a new string.
@@ -98,9 +107,11 @@ type flagKey struct {
 // indexData is one built index.
 type indexData struct {
 	spec    indexSpec
-	byKey   map[flagKey]*indexEntry
-	ordered []*indexEntry // ascending key order (P4)
-	srcPath []any         // root + segments of the source; nil if not addressable (P5)
+	byKey   map[flagKey]*indexEntry // nil when tab holds the entries
+	tab     *slabTable              // set instead of byKey for a concat key built into a slab
+	ordered []*indexEntry           // ascending key order (P4) once sorted is set; see inOrder
+	sorted  bool
+	srcPath []any // root + segments of the source; nil if not addressable (P5)
 }
 
 // unit is what the set builds, reuses and invalidates as one: an index, or
@@ -132,7 +143,11 @@ func NewIndexSet(m *jaxson.Machine, reg *Registries) *IndexSet {
 	s := &IndexSet{m: m, reg: reg, units: map[string]*unit{}}
 	prev := m.OnMutate
 	m.OnMutate = func(root string, segs []any) {
-		s.log = append(s.log, mutation{root: root, segs: append([]any(nil), segs...)})
+		// A mutation that overlaps no built unit's dependencies can never make
+		// one stale, and a unit built later starts after it, so it is not kept.
+		if s.relevant(root, segs) {
+			s.log = append(s.log, mutation{root: root, segs: append([]any(nil), segs...)})
+		}
 		if prev != nil {
 			prev(root, segs)
 		}
@@ -210,6 +225,19 @@ func (s *IndexSet) ensure(t ReferenceTarget) *unit {
 	return u
 }
 
+// relevant reports whether a mutation overlaps the dependencies of any unit
+// that has been built.
+func (s *IndexSet) relevant(root string, segs []any) bool {
+	for _, u := range s.units {
+		for _, d := range u.deps {
+			if overlaps(root, segs, d) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // stale reports whether a mutation after the unit's last check overlaps one
 // of its dependencies, and advances the checked position when none does.
 func (s *IndexSet) stale(u *unit) bool {
@@ -236,11 +264,27 @@ func overlaps(root string, segs []any, dep []any) bool {
 		n = len(d)
 	}
 	for i := 0; i < n; i++ {
-		if fmt.Sprint(segs[i]) != fmt.Sprint(d[i]) {
+		if !segEqual(segs[i], d[i]) {
 			return false
 		}
 	}
 	return true
+}
+
+// segEqual compares two path segments as their printed forms compare, with
+// the common cases (two names, two integers) handled without printing.
+func segEqual(a, b any) bool {
+	switch x := a.(type) {
+	case string:
+		if y, ok := b.(string); ok {
+			return x == y
+		}
+	case int:
+		if y, ok := b.(int); ok {
+			return x == y
+		}
+	}
+	return fmt.Sprint(a) == fmt.Sprint(b)
 }
 
 // depsOf lists what a build reads: the source's own path and every
@@ -299,34 +343,66 @@ func normaliseSegs(p []any) []any {
 
 func (s *IndexSet) build(sp indexSpec) *indexData {
 	srcPath, arr := s.resolveSource(sp)
-	d := &indexData{spec: sp, byKey: map[flagKey]*indexEntry{}, srcPath: srcPath}
-	for i, el := range arr {
-		s.m.ChargeEvent(EventIndexElement, 0)
-		var key any
-		s.ambient.withElem(srcPath, i, func() {
-			s.m.WithLocal("item", el, func() { key = s.m.Eval(sp.key) })
-		})
-		flag, ok := keyFlag(key)
-		if !ok {
-			jaxson.Fail("EXECUTION_ERROR", "TYPE_ERROR", "%s: the key of element %d must be a scalar, got %s", sp.label, i, jaxson.TypeName(key))
+	if slabOK(len(arr)) {
+		if fn, ok := s.m.ConcatKey(sp.key); ok {
+			return s.buildSlab(sp, srcPath, arr, fn)
 		}
-		if e, seen := d.byKey[flag]; seen {
-			if !sp.multi {
-				jaxson.Fail(CatShapeError, "", "%s: key %s repeats (elements %d and %d); an index is a function unless it declares multi", sp.label, jaxson.Show(key), e.pos[0], i)
-			}
-			e.pos = append(e.pos, i)
-			continue
-		}
-		e := &indexEntry{key: key, flag: flag}
-		e.one[0] = i
-		e.pos = e.one[:1]
-		d.byKey[flag] = e
-		d.ordered = append(d.ordered, e)
 	}
-	// Keys are distinct (equal keys share an entry), so no two entries
-	// compare equal and an unstable sort gives the one order.
-	slices.SortFunc(d.ordered, func(a, b *indexEntry) int { return compareKeys(a.key, b.key) })
+	d := &indexData{spec: sp, byKey: make(map[flagKey]*indexEntry, len(arr)), srcPath: srcPath}
+	// The element and its path are bound once for the whole loop and updated
+	// per element; the ambient state is restored when the loop ends or fails.
+	if a := s.ambient; a != nil {
+		old := *a
+		defer func() { *a = old }()
+	}
+	s.m.WithLocalSet("item", func(set func(any)) {
+		for i, el := range arr {
+			s.m.ChargeEvent(EventIndexElement, 0)
+			if a := s.ambient; a != nil {
+				if srcPath == nil {
+					*a = Ambient{}
+				} else {
+					*a = Ambient{src: srcPath, at: i, lazy: true}
+				}
+			}
+			set(el)
+			key := s.m.Eval(sp.key)
+			flag, ok := keyFlag(key)
+			if !ok {
+				jaxson.Fail("EXECUTION_ERROR", "TYPE_ERROR", "%s: the key of element %d must be a scalar, got %s", sp.label, i, jaxson.TypeName(key))
+			}
+			if e, seen := d.byKey[flag]; seen {
+				if !sp.multi {
+					jaxson.Fail(CatShapeError, "", "%s: key %s repeats (elements %d and %d); an index is a function unless it declares multi", sp.label, jaxson.Show(key), e.pos[0], i)
+				}
+				e.pos = append(e.pos, i)
+				continue
+			}
+			e := &indexEntry{key: key, flag: flag}
+			e.one[0] = i
+			e.pos = e.one[:1]
+			d.byKey[flag] = e
+			d.ordered = append(d.ordered, e)
+		}
+	})
 	return d
+}
+
+// inOrder returns the entries in key order (P4), sorting on first use: most
+// indices are only looked up by key and never listed. Keys are distinct
+// (equal keys share an entry), so no two entries compare equal and an
+// unstable sort gives the one order.
+func (d *indexData) inOrder() []*indexEntry {
+	if !d.sorted {
+		slices.SortFunc(d.ordered, func(a, b *indexEntry) int {
+			if a.flag.kind == 's' && b.flag.kind == 's' {
+				return strings.Compare(a.flag.text, b.flag.text)
+			}
+			return compareKeys(a.val(), b.val())
+		})
+		d.sorted = true
+	}
+	return d.ordered
 }
 
 // resolveSource evaluates a spec's source to an array. When the source is
@@ -358,9 +434,9 @@ func (s *IndexSet) resolveSource(sp indexSpec) (path []any, arr []any) {
 // requireUniqueEntries raises SHAPE_ERROR if any key of d has more than one
 // element (the one-to-one check, P3).
 func (s *IndexSet) requireUniqueEntries(d *indexData, why string) {
-	for _, e := range d.ordered {
+	for _, e := range d.inOrder() {
 		if len(e.pos) > 1 {
-			jaxson.Fail(CatShapeError, "", "%s: %s; key %s is shared by elements %d and %d", d.spec.label, why, jaxson.Show(e.key), e.pos[0], e.pos[1])
+			jaxson.Fail(CatShapeError, "", "%s: %s; key %s is shared by elements %d and %d", d.spec.label, why, jaxson.Show(e.val()), e.pos[0], e.pos[1])
 		}
 	}
 }
@@ -433,7 +509,7 @@ func (s *IndexSet) Lookup(t ReferenceTarget, key any) bool {
 	if !ok {
 		jaxson.Fail("EXECUTION_ERROR", "TYPE_ERROR", "a reference must be a scalar, got %s", jaxson.TypeName(key))
 	}
-	_, found := s.ensure(t).primary.byKey[flag]
+	_, found := s.ensure(t).primary.find(flag)
 	return found
 }
 
@@ -466,7 +542,7 @@ func (s *IndexSet) Inverse(t ReferenceTarget, key any) [][]any {
 			jaxson.Fail(CatShapeError, "", "%s: $inverse needs a multi index", d.spec.label)
 		}
 	}
-	e, found := d.byKey[flag]
+	e, found := d.find(flag)
 	if !found {
 		return nil
 	}
@@ -479,7 +555,7 @@ func (s *IndexSet) pathsOf(d *indexData, only *indexEntry) [][]any {
 	if d.srcPath == nil {
 		jaxson.Fail(CatShapeError, "", "%s: its source is not a $path, so its elements have no paths", d.spec.label)
 	}
-	entries := d.ordered
+	entries := d.inOrder()
 	if only != nil {
 		entries = []*indexEntry{only}
 	}

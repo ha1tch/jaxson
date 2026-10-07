@@ -65,8 +65,8 @@ under "Left out on purpose" and filed in `TRACKER.md`.
 |---|---|---|
 | `granularity-*`, `severity-*` | 12 | 10 (the six-row granularity table, severity and `conforms`) |
 | `minimal-*`, `extends-*`, `check-and-check-override-*`, `override-outside-*` | 31 | 4 (minimal combinator evaluation, the `extends` merge rule and the spelling of each override) |
-| `gate-*`, `report-lists-*`, `report-orders-*` | 7 | 7, 10 (gate and report ordering) |
-| `unique-*` | 6 | 7 |
+| `gate-*`, `report-lists-*`, `report-orders-*` | 8 | 7, 10 (gate and report ordering) |
+| `unique-*` | 7 | 7 |
 | `qualified-*` | 8 | 4 (counting, inclusive bounds, the step charge) |
 | `reference-*`, `index-*`, `relation-*`, `two-relations-*` | 21 | 3, 4a, 4c, 5 (including the index build charge and the reuse rule) |
 | `indexed-*`, `inverse-*` | 4 | 6, 7 (visiting order) |
@@ -77,9 +77,41 @@ under "Left out on purpose" and filed in `TRACKER.md`.
 | `check-*`, `validate-*`, `only-*`, `report-entries-*` | 7 | 7, 8 (the `check` instruction, report delivery) |
 | `aggregate-*` | 22 | 8a (the measures, `where`, the empty result, exact sums, cost equal to the expansion, malformed forms) |
 | `attic-*` | 6 | mined from `attic/` (below) |
+| the rulings of 2026-10-07 (see below) | 14 | 3, 4, 6, 7, 10 and the Jaxson template section; each note names its ruling |
+| `extends-*` from the G11 layer 1 ruling (see below) | 19 | 4 (what `extends` carries and how a child narrows) |
 
-The counts add up to the 161 fixtures in the file. 70 of them expect an error,
-the rest a result.
+The counts add up to the 196 fixtures in the file: the 163 of the groups above, the 14 of
+the rulings of 2026-10-07 and the 19 of the `extends` narrowing group. The `extends-*` names of the
+last two groups are counted there and not in the `extends-*` row. 78 of the fixtures expect an
+error, the rest a result.
+
+Two fixtures in the `gate-*` and `unique-*` rows pin that only a violation-severity finding
+aborts a gate (`gate-does-not-abort-on-a-warning-or-info-finding`,
+`unique-gate-does-not-abort-on-a-warning-severity-repeat`).
+
+The 14 of the rulings row pin the rulings that settled the open points of the tracker
+(P1, V1, V3, R1, G11, S4, S6, S9) by writing the implementation's behaviour into the
+specification: `extends-carries-the-parents-primitive-keywords` (rewritten by the layer 1 ruling below),
+`tpl-members-are-evaluated-in-sorted-key-order`,
+`max-shape-depth-counts-only-named-shape-descents`,
+`max-shape-depth-does-not-count-inline-structure`,
+`a-shape-activation-costs-one-step`, `unique-skips-an-element-lacking-the-field`,
+`path-depth-exceeded-is-reported-at-the-last-node-taken`,
+`a-validate-entry-without-a-mode-is-a-shape-error`,
+`input-rooted-entries-run-before-the-program-and-the-rest-after`,
+`closed-object-reports-one-violation-per-extra-member`,
+`failed-qualified-count-is-one-violation-at-the-collection`,
+`index-reuse-is-invalidated-by-a-write-below-the-source`,
+`index-reuse-survives-a-write-that-overlaps-nothing-it-reads` and
+`validate-report-with-into-sets-the-whole-report`.
+
+The 19 of the `extends` narrowing group pin layer 1 of ruling G11, that a child can only narrow what it
+extends: the stricter numeric, length and item-count bound wins from either side
+(`extends-takes-the-stricter-numeric-bound-from-either-side` and its two siblings), `int` from either
+side, enum intersection, a chain of three, an inherited reference target, `items` and `qualified`,
+the same `items` or `qualified` restated, and a `SHAX_SHAPE_ERROR` each for a different reference target,
+kind, `items`, `qualified`, and a merged minimum above its maximum. Two more fix what "the same" means (a named shape and its inline copy differ) and that disjoint enums accept nothing. A parent of kind `node` may be
+narrowed to a kind (`extends-lets-a-node-parent-be-narrowed-to-a-kind`).
 
 ### Mined from the attic
 

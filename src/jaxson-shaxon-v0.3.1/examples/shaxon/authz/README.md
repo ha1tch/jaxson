@@ -61,8 +61,8 @@ the three stand on the points that were measured.
 | What names the rule that fired | `sh:sourceConstraint` is the constraint, e.g. `ex:CREATOR_CANNOT_RELEASE` | `sh:sourceConstraint` is the shape that holds it, e.g. `ex:RequestShape` | Each finding carries `constraintId` (e.g. `CREATOR_CANNOT_RELEASE`), plus `shape`, `focusPath` and `message`, as a field of the language |
 | Malformed requests, rules only | Allows all 6 | Allows all 6 | Not run without the request shape, which is part of each package |
 | Malformed requests, with structure shapes | Denies all 6, as violations | Denies all 6, as violations | Refuses all 6 with `EXECUTION_ERROR` and produces no decision |
-| Time at 4000 events, end to end | 360-518 ms | 1234-1438 ms, of which about 0.7 s is JVM start | 5-16 ms for `rolling-quota`, `chinese-wall` and `delegation-chain` (16073, 16011 and 8081 steps); 2.8 s for `four-eyes-release` and 4.8 s for `break-glass`, whose wall time is quadratic in the trail (TRACKER PF3) |
-| Time at 4000 events, validation only (lift, process start and parsing left out) | 211-296 ms | 2.4-7.9 ms (warmed-up JVM) | 0.6-5.0 ms for the first three examples; 2.9 s and 4.6 s for `four-eyes-release` and `break-glass` |
+| Time at 4000 events, end to end | 360-518 ms | 1234-1438 ms, of which about 0.7 s is JVM start | 8-18 ms for `rolling-quota`, `chinese-wall`, `four-eyes-release` and `delegation-chain` (16073, 16011, 60339 and 8081 steps); 80 ms for `break-glass` (77617 steps) |
+| Time at 4000 events, validation only (lift, process start and parsing left out) | 211-296 ms | 2.4-7.9 ms (warmed-up JVM) | 0.8-6.9 ms for the first four examples; 67 ms for `break-glass` |
 
 All five SHACL versions use `sh:sparql`, the SHACL-SPARQL extension, which
 carries the rule logic, so the SHACL columns are SHACL-SPARQL, not SHACL Core.

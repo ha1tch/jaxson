@@ -81,8 +81,8 @@ needs syntax.
 
 ## 3. Different severities for different constraints on the same shape
 
-**SHACL.** `sh:severity` can be attached to an individual constraint
-component inside a node shape, not only to the shape as a whole:
+**SHACL.** `sh:severity` can be attached to an individual property shape
+inside a node shape, not only to the node shape as a whole:
 
 ```turtle
 :OrderShape a sh:NodeShape ;
@@ -228,6 +228,50 @@ determinism or requiring the index/relation to be declared." Any narrowing
 of this gap should come from making index/relation declaration cheaper or
 more automatic, not from adding an escape hatch that reintroduces
 open-ended traversal.
+
+## 8. Severity as a label (SHACL) and as a gate (Shaxon)
+
+**SHACL.** A severity is a label on a result. In SHACL 1.1 `sh:conforms` is
+true only if validation produced no results at all, so a result of severity
+`sh:Warning` or `sh:Info` still makes it false (section 3.6.1.1). Tools offer
+their own way round it: pySHACL's `allow_warnings` and `allow_infos` options
+count such shapes as conforming, and are off by default. Any IRI can be a
+severity; SHACL 1.2 (Working Draft, 18 September 2026) adds `sh:Trace` and
+`sh:Debug`, described as not constraint violations. A shape that refers to
+another (`sh:node`, `sh:and`, `sh:or`, `sh:not`, `sh:xone`,
+`sh:qualifiedValueShape`) yields one result of its own, with its own severity;
+the nested shape's results are kept apart and at most appear as `sh:detail`.
+
+**Shaxon v0.3.1.** `info`, `warning` and `violation` only, and a severity is
+also a gate. `conforms` is false only if some finding has severity `violation`
+(core section 10); `warning` and `info` findings are collected in the report
+and never change it. A `gate` aborts only on a `violation` finding, of a shape
+or of a `unique` entry (core section 7). A package ported from SHACL whose
+shapes carry `sh:Warning` therefore reports `conforms: true` where SHACL
+reports false. A consumer that wants SHACL's reading tests whether the report's
+`violations` list is empty, which lists findings of every severity; a SHACL
+consumer that wants Shaxon's reading uses `allow_warnings`.
+
+Severity is also where `extends` differs from SHACL, which has no `extends`
+and so no inheritance of any value between shapes. Core section 4 gives the
+merge rule for `severity` and `message`, and `docs/proposals/extends-narrowing.md`
+(sections 2.1 and 2.2) compares the two treatments row by row and proposes what
+a child that states no severity inherits and how it may lower one.
+
+**What was checked.** The W3C SHACL 1.1 text for the `sh:conforms` definition,
+the default and any-IRI severities, the `sh:message` rule and the nested-shape
+results. The two engines the repository benchmarks against, run on a shape of
+severity `sh:Warning` that the data violates, on 2026-10-07: pySHACL 0.40.1
+returns non-conforming by default and conforming with `allow_warnings`, and
+Apache Jena 6.2.0 reports `conforms() == false`. Not confirmed: how the 1.2
+draft's `sh:conforms` treats a `Warning`, since the sentence defining it was not
+found in the text read; compare section 6.7 of the draft before relying on 1.1's
+reading for 1.2.
+
+**What Shaxon would need.** Nothing for correctness; the two readings are
+both consistent and each is reproducible from the other's report. An option on
+the report or on `gate` to count every severity (or none below a named one)
+would make a port mechanical, and is not proposed here.
 
 ## A note on scope
 

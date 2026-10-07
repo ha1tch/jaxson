@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (c) 2026 haitch <h@ual.li>
-# Licensed under the Apache License, Version 2.0.
-# https://www.apache.org/licenses/LICENSE-2.0
+# Licensed under the GNU General Public License, version 3.
+# https://www.gnu.org/licenses/gpl-3.0.html
 """Mutation check for the conformance fixtures (shaxon-v0.3.1-fixtures.json).
 
 Breaks one rule of the engine at a time in a scratch copy of the module and
@@ -50,8 +50,10 @@ M = [
     (P + "indices.go", "s.m.ChargeEvent(EventIndexElement, 0)", "_ = s", 1, "index builds are free"),
     (P + "indices.go", "if u.built && !s.stale(u) {", "if u.built {", 1, "an index is never rebuilt, even after its source was written"),
     (P + "indices.go", "if u.built && !s.stale(u) {", "if false {", 1, "an index is rebuilt for every use (reuse removed)"),
-    (P + "indices.go", "return compareKeys(a.key, b.key) })", "return -compareKeys(a.key, b.key) })", 1,
-     "$indexed visits keys in descending order"),
+    (P + "indices.go", "return strings.Compare(a.flag.text, b.flag.text)", "return -strings.Compare(a.flag.text, b.flag.text)", 1,
+     "$indexed visits string keys in descending order"),
+    (P + "indices.go", "return compareKeys(a.val(), b.val())", "return -compareKeys(a.val(), b.val())", 1,
+     "$indexed visits mixed-type or numeric keys in descending order"),
     (P + "report.go", "\t\tif v.Severity == SeverityViolation {\n\t\t\treturn false", "\t\tif v.Severity != \"\" {\n\t\t\treturn false", 1,
      "a warning or info finding flips conforms"),
     (P + "parse_shapes.go", "out.Or = append(append([]FieldDecl{}, parent.Or...), child.Or...)",
@@ -95,13 +97,70 @@ M = [
     (P + "aggregate.go", 'return []any{\n\t\tmap[string]any{"op": "set", "path": jaxson.Clone(into),',
      'return []any{\n\t\tmap[string]any{"op": "set", "path": jaxson.Clone(into), "value": map[string]any{"$lit": init}},\n\t\tmap[string]any{"op": "set", "path": jaxson.Clone(into),', 1,
      "aggregate expansion has one extra instruction (cost differs from the hand-written fold)"),
+    # The rulings of 2026-10-07 (TRACKER P1, R1, S9).
+    (P + "indices.go", "\td := dep[1:]\n\tn := len(segs)\n", "\td := dep[1:]\n\tif len(segs) > len(d) {\n\t\treturn false\n\t}\n\tn := len(segs)\n", 1,
+     "index reuse ignores a write below the source (the literal 'prefix of the source' reading)"),
+    (P + "run.go", "if e.Target.root(reg) == \"input\" {", "if true {", 1,
+     "every validate entry runs before the program"),
+    ("pkg/jaxson/compile.go", "\t\tsort.Strings(names)\n\t\tfns := make([]func(*Machine) any, len(names))", "\t\tsort.Sort(sort.Reverse(sort.StringSlice(names)))\n\t\tfns := make([]func(*Machine) any, len(names))", 1,
+     "template members are evaluated in reverse key order"),
+    # Ruling G11, layer 1: what extends carries and how it narrows.
+    (P + "parse_shapes.go", 'out.MinLen = maxInt(p.MinLen, c.MinLen)', 'out.MinLen = c.MinLen', 1,
+     "extends drops the parent's minLen"),
+    (P + "parse_shapes.go", 'out.MaxLen = minInt(p.MaxLen, c.MaxLen)', 'out.MaxLen = c.MaxLen', 1,
+     "extends drops the parent's maxLen"),
+    (P + "parse_shapes.go", 'out.MinItems = maxInt(p.MinItems, c.MinItems)', 'out.MinItems = c.MinItems', 1,
+     "extends drops the parent's minItems"),
+    (P + "parse_shapes.go", 'out.MaxItems = minInt(p.MaxItems, c.MaxItems)', 'out.MaxItems = c.MaxItems', 1,
+     "extends drops the parent's maxItems"),
+    (P + "parse_shapes.go", '(b != nil && *b >= *a)', '(b != nil && *b <= *a)', 1,
+     'extends keeps the smaller of two lower bounds (minLen, minItems)'),
+    # Severity and the gate: only a violation-severity finding aborts.
+    (P + "shapes.go", "if c.stop && v.Severity == SeverityViolation {", "if c.stop {", 1,
+     "a gate aborts on a warning or info finding of a shape"),
+    (P + "validate.go", "if e.Mode == ModeGate && u.Severity == SeverityViolation {", "if e.Mode == ModeGate {", 1,
+     "a gate aborts on a warning or info repeat of a unique entry"),
+    (P + "parse_shapes.go", "both := make([]any, 0, len(p.Enum))", "var both []any", 1,
+     "extends turns an empty enum intersection into no enum (accepts everything)"),
+    (P + "parse_shapes.go", '(b != nil && *b <= *a)', '(b != nil && *b >= *a)', 1,
+     'extends keeps the larger of two upper bounds (maxLen, maxItems)'),
+    (P + "parse_shapes.go", 'out.WantInt = p.WantInt || c.WantInt', 'out.WantInt = c.WantInt', 1,
+     "extends drops the parent's int"),
+    (P + "parse_shapes.go", 'case c.MinRat == nil || p.MinRat.Cmp(c.MinRat) > 0:', 'case c.MinRat == nil || p.MinRat.Cmp(c.MinRat) < 0:', 1,
+     'extends keeps the smaller of two min bounds'),
+    (P + "parse_shapes.go", 'case c.MaxRat == nil || p.MaxRat.Cmp(c.MaxRat) < 0:', 'case c.MaxRat == nil || p.MaxRat.Cmp(c.MaxRat) > 0:', 1,
+     'extends keeps the larger of two max bounds'),
+    (P + "parse_shapes.go", '\t\tout.Enum = both\n', '\t\tout.Enum = c.Enum\n', 1,
+     "extends lets the child's enum replace the parent's"),
+    (P + "parse_shapes.go", '\tcase c.Enum == nil:\n\t\tout.Enum = p.Enum\n', '\tcase c.Enum == nil:\n', 1,
+     "extends drops the parent's enum"),
+    (P + "parse_shapes.go", '\tcase child.Kind != parent.Kind:\n', '\tcase false:\n', 1,
+     'extends accepts a conflicting kind'),
+    (P + "parse_shapes.go", '\tcase child.Kind == "":\n\t\treturn parent.Kind\n', '\tcase child.Kind == "":\n\t\treturn ""\n', 1,
+     "extends drops the parent's kind when the child states none"),
+    (P + "parse_shapes.go", '\tif !hasReference(parent) {\n\t\treturn\n\t}\n', '\tif true {\n\t\treturn\n\t}\n', 1,
+     "extends drops the parent's reference target"),
+    (P + "parse_shapes.go", '\tif child.RefIndex != parent.RefIndex || child.RefRelation != parent.RefRelation ||\n\t\t!reflect.DeepEqual(child.RefOf, parent.RefOf) || !reflect.DeepEqual(child.RefBy, parent.RefBy) {', '\tif false {', 1,
+     'extends accepts a different reference target'),
+    (P + "parse_shapes.go", '\tcase parent.Items != nil && !reflect.DeepEqual(parent.Items, child.Items):\n', '\tcase false:\n', 1,
+     'extends accepts different items'),
+    (P + "parse_shapes.go", '\tcase parent.Items != nil && !reflect.DeepEqual(parent.Items, child.Items):\n', '\tcase parent.Items != nil:\n', 1,
+     'extends rejects items restated identically'),
+    (P + "parse_shapes.go", '\tcase child.Items == nil:\n\t\tout.Items = parent.Items\n', '\tcase child.Items == nil:\n', 1,
+     "extends drops the parent's items"),
+    (P + "parse_shapes.go", '\tcase !reflect.DeepEqual(parent.Qualified, child.Qualified):\n', '\tcase false:\n', 1,
+     'extends accepts a different qualified rule'),
+    (P + "parse_shapes.go", '\tcase !reflect.DeepEqual(parent.Qualified, child.Qualified):\n', '\tcase true:\n', 1,
+     'extends rejects a qualified rule restated identically'),
+    (P + "parse_shapes.go", '\tcase child.Qualified == nil:\n\t\tout.Qualified = parent.Qualified\n', '\tcase child.Qualified == nil:\n', 1,
+     "extends drops the parent's qualified rule"),
 ]
 
 # Mutants the core leaves open: a survivor here is expected and is not a failure.
 LEFT_OPEN = {
-    "shape evaluation (qualified elements included) is free":
-        "the core says a qualified element costs what it would individually but does not fix what a plain shape activation costs; "
-        "the cost fixtures rest on the check inside the shape, which is a compute island with a defined cost",
+    "$indexed visits mixed-type or numeric keys in descending order":
+        "the core names only the sorted-key convention and leaves the order of numeric and mixed-type keys to decision P4 (indices.go); "
+        "it is pinned by TestIndexedOrderAndGrouping, which is outside this fixtures-only run",
     "an array is accepted as a reference value":
         "equivalent through the real IndexSet, whose Lookup (indices.go) enforces the same scalar rule; the shape-side check is pinned by "
         "TestReferenceNonScalarIsTypeErrorWhateverTheResolver, which uses a stub resolver and is outside this fixtures-only run",

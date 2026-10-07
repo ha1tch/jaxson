@@ -1,13 +1,13 @@
-{"kind": "host", "when": "2026-10-05 09:20:06", "profile": "engine", "examples": ["rolling-quota"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v70-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 100, "engine": "shaxon", "ms": 0.3131, "steps": 473, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 100, "engine": "pyshacl", "ms": 76.64355600002182, "repeats": 10, "lift_ms": 12.158471000020654, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 100, "engine": "jena", "ms": 8.4665, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 1000, "engine": "shaxon", "ms": 0.2751, "steps": 4073, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 1000, "engine": "pyshacl", "ms": 117.20661200001814, "repeats": 10, "lift_ms": 182.58781700001236, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 1000, "engine": "jena", "ms": 16.2993, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 4000, "engine": "shaxon", "ms": 0.8407, "steps": 16073, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 4000, "engine": "pyshacl", "ms": 349.81106000009277, "repeats": 10, "lift_ms": 382.8416930000458, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 4000, "engine": "jena", "ms": 11.6455, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 20000, "engine": "shaxon", "ms": 2.9753, "steps": 80073, "repeats": 10, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 20000, "engine": "pyshacl", "ms": 2422.477795999953, "repeats": 10, "lift_ms": 2451.0463359999903, "allow": false}
-{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 20000, "engine": "jena", "ms": 24.6722, "repeats": 10, "allow": false}
+{"kind": "host", "when": "2026-10-07 09:09:48", "profile": "engine", "examples": ["rolling-quota"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v77-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 100, "engine": "shaxon", "ms": 0.2135, "steps": 473, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 100, "engine": "pyshacl", "ms": 66.08731800019996, "repeats": 10, "lift_ms": 9.192862000190871, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 100, "engine": "jena", "ms": 7.4727, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 1000, "engine": "shaxon", "ms": 0.3727, "steps": 4073, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 1000, "engine": "pyshacl", "ms": 138.47951900015687, "repeats": 10, "lift_ms": 177.62983800002985, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 1000, "engine": "jena", "ms": 15.5984, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 4000, "engine": "shaxon", "ms": 0.8163, "steps": 16073, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 4000, "engine": "pyshacl", "ms": 447.2666220001429, "repeats": 10, "lift_ms": 443.3034379999299, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 4000, "engine": "jena", "ms": 18.9349, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 20000, "engine": "shaxon", "ms": 3.6061, "steps": 80073, "repeats": 10, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 20000, "engine": "pyshacl", "ms": 2522.6141299999654, "repeats": 10, "lift_ms": 2446.9047360000786, "allow": false}
+{"kind": "cell", "profile": "engine", "example": "rolling-quota", "events": 20000, "engine": "jena", "ms": 63.3623, "repeats": 10, "allow": false}

@@ -1,13 +1,13 @@
-{"kind": "host", "when": "2026-10-05 09:34:41", "profile": "engine", "examples": ["four-eyes-release"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v70-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 100, "engine": "shaxon", "ms": 1.6823, "steps": 1546, "repeats": 10, "allow": true}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 100, "engine": "pyshacl", "ms": 58.57656600005612, "repeats": 10, "lift_ms": 11.598161000165419, "allow": true}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 100, "engine": "jena", "ms": 7.075, "repeats": 10, "allow": true}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 1000, "engine": "shaxon", "ms": 121.676, "steps": 15101, "repeats": 10, "allow": true}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 1000, "engine": "pyshacl", "ms": 2019.3496970000524, "repeats": 10, "lift_ms": 119.37470999987454, "allow": true}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 1000, "engine": "jena", "ms": 6.4889, "repeats": 10, "allow": true}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 4000, "engine": "shaxon", "ms": 2851.4064, "steps": 60339, "repeats": 10, "allow": true}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 4000, "engine": "pyshacl", "ms": 35430.126309999876, "repeats": 7, "lift_ms": 547.9572740000549, "allow": true}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 4000, "engine": "jena", "ms": 8.1662, "repeats": 10, "allow": true}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 20000, "engine": "shaxon", "ms": 79334.2912, "steps": 301568, "repeats": 1, "allow": true}
+{"kind": "host", "when": "2026-10-07 09:13:55", "profile": "engine", "examples": ["four-eyes-release"], "sizes": [100, 1000, 4000, 20000], "budget_s": 120.0, "repeat": 3, "engine_runs": 10, "python": "3.13.16", "platform": "Linux-6.18.44-fc-v77-x86_64-with-glibc2.39", "machine": "x86_64", "cpus": 2, "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz", "go": "go1.27.1 linux/amd64", "java": "openjdk version \"21.0.12.1\" 2026-08-18", "pyshacl": "0.40.1", "rdflib": "7.6.0"}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 100, "engine": "shaxon", "ms": 0.3196, "steps": 1546, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 100, "engine": "pyshacl", "ms": 71.27332599998226, "repeats": 10, "lift_ms": 8.655094999994617, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 100, "engine": "jena", "ms": 5.1024, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 1000, "engine": "shaxon", "ms": 1.3919, "steps": 15101, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 1000, "engine": "pyshacl", "ms": 2312.288218000049, "repeats": 10, "lift_ms": 153.16908499994497, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 1000, "engine": "jena", "ms": 5.617, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 4000, "engine": "shaxon", "ms": 6.8787, "steps": 60339, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 4000, "engine": "pyshacl", "ms": 38740.39966200007, "repeats": 6, "lift_ms": 426.9862740000008, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 4000, "engine": "jena", "ms": 12.3859, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 20000, "engine": "shaxon", "ms": 31.0125, "steps": 301568, "repeats": 10, "allow": true}
 {"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 20000, "engine": "pyshacl", "ms": null, "skipped": "projected single run over the 120 s budget"}
-{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 20000, "engine": "jena", "ms": 19.4487, "repeats": 10, "allow": true}
+{"kind": "cell", "profile": "engine", "example": "four-eyes-release", "events": 20000, "engine": "jena", "ms": 35.702, "repeats": 10, "allow": true}
