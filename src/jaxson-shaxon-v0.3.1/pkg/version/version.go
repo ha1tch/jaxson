@@ -9,4 +9,4 @@ package version
 
 // Version is the module version. Keep in step with VERSION and the top
 // entry of CHANGELOG.md.
-const Version = "0.3.1"
+const Version = "0.3.1-p000.r003"

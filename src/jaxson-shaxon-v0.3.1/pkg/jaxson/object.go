@@ -29,6 +29,7 @@ package jaxson
 // never written.
 
 import (
+	"math/big"
 	"sort"
 	"unique"
 )
@@ -199,12 +200,16 @@ func (o *Object) Range(fn func(name string, v any)) {
 // representation (objects as *Object). A value with no map in it is returned
 // as it is, not copied; arrays that contain a map are copied. An *Object in
 // the value is kept. The argument is not changed.
-func Data(v any) any {
-	d, _ := toData(v, nil)
+func Data(v any) any { return DataMode(v, Strict) }
+
+// DataMode is Data in the given numeric mode. In relaxed mode a number handed
+// in that is not a Real is a float64 if a float64 can hold it.
+func DataMode(v any, mode NumericMode) any {
+	d, _ := toData(v, nil, mode)
 	return d
 }
 
-func toData(v any, in map[string]Key) (any, bool) {
+func toData(v any, in map[string]Key, mode NumericMode) (any, bool) {
 	switch t := v.(type) {
 	case map[string]any:
 		if in == nil {
@@ -217,7 +222,7 @@ func toData(v any, in map[string]Key) (any, bool) {
 				key = MakeKey(k)
 				in[k] = key
 			}
-			d, _ := toData(x, in)
+			d, _ := toData(x, in, mode)
 			o.ents = append(o.ents, objEnt{key, d})
 		}
 		if len(o.ents) > objIndexAt {
@@ -230,7 +235,7 @@ func toData(v any, in map[string]Key) (any, bool) {
 	case []any:
 		var out []any
 		for i, x := range t {
-			d, changed := toData(x, in)
+			d, changed := toData(x, in, mode)
 			if changed && out == nil {
 				out = make([]any, len(t))
 				copy(out, t[:i])
@@ -241,6 +246,18 @@ func toData(v any, in map[string]Key) (any, bool) {
 		}
 		if out != nil {
 			return out, true
+		}
+	case *big.Rat:
+		if mode == Relaxed {
+			if f, isFloat := fitMode(t, mode).(float64); isFloat {
+				return f, true
+			}
+		} else {
+			checkHostRat(t) // a number handed in as a Rat must be a Real (core design, section 2)
+		}
+	default:
+		if r, ok := hostNumber(v, mode); ok {
+			return r, true
 		}
 	}
 	return v, false

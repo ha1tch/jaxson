@@ -60,7 +60,7 @@ func Render(v any, f Format) (string, error) {
 
 func isScalar(v any) bool {
 	switch v.(type) {
-	case nil, bool, string, *big.Rat:
+	case nil, bool, string, *big.Rat, float64:
 		return true
 	}
 	return false
@@ -78,8 +78,8 @@ func scalarText(v any) string {
 		return "false"
 	case string:
 		return t
-	case *big.Rat:
-		return jaxson.Show(t) // show()'s *big.Rat case is exactly FormatDecimal, unwrapped
+	case *big.Rat, float64:
+		return jaxson.Show(t) // show()'s number cases, unwrapped
 	}
 	return fmt.Sprintf("%v", v)
 }

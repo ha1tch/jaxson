@@ -12,7 +12,7 @@ A Jaxson program is a JSON document. A complete package carries five things: the
 
 The program is a list of instructions drawn from a closed set of eight, reading and writing through four named roots (`input`, `state`, `output`, `local`). Calculation happens in **compute islands**: small pure expressions whose operands are bound up front, so they have no way to read state. Around that core sit a handful of deliberate choices:
 
-- Numbers are exact decimals. `0.1 + 0.2` is `0.3`, and nothing is ever rounded silently.
+- In strict mode, the default, numbers are exact decimals. `0.1 + 0.2` is `0.3`, and nothing is ever rounded silently.
 - There is no coercion, no truthiness and no autovivification. Present-`null` and absent are always distinct.
 - Contracts are closed by default: anything the schema does not name is rejected.
 - Every loop iterates a finite snapshot, and a declared step limit is counted semantically. Every program therefore terminates, and exceeds its limit at exactly the same point on every runtime.
@@ -30,4 +30,4 @@ Jaxson descends from queryfy (contracts at the boundary), jsonplate (a document 
 
 ### What it is not for
 
-Jaxson is deliberately not a general-purpose language. It has no jumps or `while`, no regular expressions, no floating point or transcendental functions, no locale-dependent string handling and no I/O. Text processing, numerical science and anything needing unbounded iteration belong elsewhere. Where more is needed, the intended route is a later profile behind explicit extension names, so that the core stays total and portable.
+Jaxson is deliberately not a general-purpose language. It has no jumps or `while`, no regular expressions, no floating point (outside an optional relaxed numeric mode) or transcendental functions, no locale-dependent string handling and no I/O. Text processing, numerical science and anything needing unbounded iteration belong elsewhere. Where more is needed, the intended route is a later profile behind explicit extension names, so that the core stays total and portable.

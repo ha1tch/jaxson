@@ -43,13 +43,65 @@ MAX_DIGITS = 38
 
 # ---------------------------------------------------------------- numbers
 
+MAX_SCALE = 200  # most digits a Real has after the decimal point (Jaxson core design, section 2)
+
+
+def number_out_of_range(lit: str) -> bool:
+    """True if the JSON number literal is not a Real: more than MAX_DIGITS digits
+    once written as an integer coefficient and a power of ten, or more than
+    MAX_SCALE digits after the point. It reads the text once and builds no value,
+    so the cost of a literal is proportional to its length however large its
+    exponent."""
+    i, n = 0, len(lit)
+    if i < n and lit[i] == "-":
+        i += 1
+    sig = trail = frac = 0  # significant digits, trailing zeros among them, digits after the point
+    point = False
+    while i < n:
+        c = lit[i]
+        if c == ".":
+            point = True
+            i += 1
+            continue
+        if c < "0" or c > "9":
+            break
+        if point:
+            frac += 1
+        if c == "0":
+            if sig > 0:
+                sig += 1
+                trail += 1
+        else:
+            sig += 1
+            trail = 0
+        i += 1
+    if sig == 0:
+        return False  # zero
+    exp = 0
+    if i < n and lit[i] in "eE":
+        i += 1
+        neg = False
+        if i < n and lit[i] in "+-":
+            neg = lit[i] == "-"
+            i += 1
+        digits = lit[i:]
+        exp = int(digits) if len(digits) <= 10 else 1 << 30
+        if neg:
+            exp = -exp
+    coeff = sig - trail
+    x = exp - frac + trail
+    if x >= 0:
+        return coeff + x > MAX_DIGITS
+    return -x > MAX_SCALE or coeff > MAX_DIGITS
+
+
 def dec_parts(r: Fraction):
     n = r
     s = 0
     while n.denominator != 1:
         n *= 10
         s += 1
-        if s > 200:
+        if s > MAX_SCALE:
             return None, 0
     return n.numerator, s
 
@@ -57,7 +109,7 @@ def dec_parts(r: Fraction):
 def check_num(r: Fraction) -> Fraction:
     coeff, _ = dec_parts(r)
     if coeff is None or len(str(abs(coeff))) > MAX_DIGITS:
-        exec_fail("NUMERIC_OVERFLOW", f"number exceeds {MAX_DIGITS} digits")
+        exec_fail("NUMERIC_OVERFLOW", f"not a Real: more than {MAX_DIGITS} digits, or more than {MAX_SCALE} after the point (relaxed mode rounds it to a float64)")
     return r
 
 
@@ -999,8 +1051,16 @@ def run_package(pkg):
         return None, e
 
 
+def _read_number(lit):
+    if number_out_of_range(lit):
+        fail("PARSE_ERROR", "", f"number out of range: a Real has at most {MAX_DIGITS} digits and {MAX_SCALE} after the point; relaxed mode reads a larger number as a float64")
+    if not lit.lstrip("-").split("e")[0].split("E")[0].replace(".", "").strip("0"):
+        return Fraction(0)  # zero, however large its exponent: do not build 10**exp
+    return Fraction(lit)
+
+
 def loads(text):
-    return json.loads(text, parse_float=Fraction, parse_int=Fraction)
+    return json.loads(text, parse_float=_read_number, parse_int=_read_number)
 
 
 def to_jsonable(v):

@@ -23,16 +23,23 @@ import (
 )
 
 // Number is an exact decimal number. The zero value is 0. Numbers are
-// immutable and safe to share between goroutines.
+// immutable and safe to share between goroutines. Compare Numbers with Cmp,
+// not ==: a Number holds a pointer, so two equal Numbers are not ==, and are
+// different keys in a Go map. JSON works both ways: a Number marshals as a JSON
+// number, and unmarshals only from one that is a Real.
 type Number struct{ r *big.Rat }
 
 var jsonNumRe = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$`)
 
 // ParseNumber reads s as a JSON number. It is an error if s is not one, or
-// if the number has more than 38 significant digits (the language's limit).
+// if it is not a Real: more than 38 digits, or more than 200 digits after the
+// point (Jaxson core design, section 2).
 func ParseNumber(s string) (Number, error) {
 	if !jsonNumRe.MatchString(s) {
 		return Number{}, errors.New("not a JSON number: " + s)
+	}
+	if numberOutOfRange([]byte(s)) {
+		return Number{}, errors.New(msgOutOfRange)
 	}
 	r, ok := new(big.Rat).SetString(s)
 	if !ok {
@@ -51,6 +58,9 @@ func NumberFromInt64(i int64) Number { return Number{new(big.Rat).SetInt64(i)} }
 // NumberFromRat returns a Number equal to r, which is copied. It reports
 // false if r is not a finite decimal of at most 38 digits.
 func NumberFromRat(r *big.Rat) (Number, bool) {
+	if r == nil {
+		return Number{}, false
+	}
 	c, _, ok := decParts(r)
 	if !ok || len(new(big.Int).Abs(c).String()) > maxDigits {
 		return Number{}, false
@@ -60,7 +70,9 @@ func NumberFromRat(r *big.Rat) (Number, bool) {
 
 // AsNumber converts a number as the machine holds it (a *big.Rat), or a
 // Number, to a Number. It reports false for any other value, and for a Rat
-// that is not a decimal within the language's limits.
+// that is not a decimal within the language's limits. A float64, which a
+// relaxed run can return (core design, section 2), is not a Number: use it as
+// the float64 it is.
 func AsNumber(v any) (Number, bool) {
 	switch t := v.(type) {
 	case Number:
@@ -118,3 +130,28 @@ func (n Number) MarshalJSON() ([]byte, error) { return []byte(n.String()), nil }
 
 // MarshalText is String, so a Number is also usable as a map key in JSON.
 func (n Number) MarshalText() ([]byte, error) { return []byte(n.String()), nil }
+
+// UnmarshalJSON reads a JSON number that is a Real (see ParseNumber). A JSON
+// null leaves n as it is, as encoding/json expects of an unmarshaler.
+func (n *Number) UnmarshalJSON(b []byte) error {
+	if string(b) == "null" {
+		return nil
+	}
+	v, err := ParseNumber(string(b))
+	if err != nil {
+		return err
+	}
+	*n = v
+	return nil
+}
+
+// UnmarshalText reads a number written as text, so a Number can be a JSON
+// object key that was marshalled by MarshalText.
+func (n *Number) UnmarshalText(b []byte) error {
+	v, err := ParseNumber(string(b))
+	if err != nil {
+		return err
+	}
+	*n = v
+	return nil
+}

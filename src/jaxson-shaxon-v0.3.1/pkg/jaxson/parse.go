@@ -87,6 +87,7 @@ type scanner struct {
 	keys map[string]string // interned object keys
 	data bool              // build *Object, not map[string]any
 	pkg  bool              // the top-level object's "input" member is built as data
+	rlx  bool              // a number that is not a Real is a float64 (relaxed numeric mode)
 	kk   map[string]Key    // Keys made so far (data mode)
 }
 
@@ -531,11 +532,82 @@ func (p *scanner) number() any {
 		}
 		return decimalRat(mant, pow10[scale])
 	}
+	if numberOutOfRange(b[start:i]) {
+		if p.rlx {
+			if f, ok := parseFloatLiteral(string(b[start:i])); ok {
+				return f
+			}
+			fail("PARSE_ERROR", "", "%s", msgNoFloat)
+		}
+		fail("PARSE_ERROR", "", "%s", msgOutOfRange)
+	}
 	r, ok := new(big.Rat).SetString(string(b[start:i]))
 	if !ok {
 		fail("PARSE_ERROR", "", "bad number %s", b[start:i])
 	}
 	return r
+}
+
+// numberOutOfRange reports whether the JSON number literal lit, written as an
+// integer coefficient and a power of ten, has more than maxDigits digits or
+// needs a scale above maxScale: the limits that make a number a Real (Jaxson
+// core design, section 2). It reads the text once and allocates nothing, so
+// the cost of a literal is bounded by its length however large its exponent.
+func numberOutOfRange(lit []byte) bool {
+	i := 0
+	if i < len(lit) && lit[i] == '-' {
+		i++
+	}
+	sig, trail, frac := 0, 0, 0 // significant digits, trailing zeros among them, digits after the point
+	point := false
+	for ; i < len(lit); i++ {
+		c := lit[i]
+		if c == '.' {
+			point = true
+			continue
+		}
+		if c < '0' || c > '9' {
+			break
+		}
+		if point {
+			frac++
+		}
+		if c == '0' {
+			if sig > 0 {
+				sig++
+				trail++
+			}
+			continue
+		}
+		sig++
+		trail = 0
+	}
+	if sig == 0 {
+		return false // zero
+	}
+	exp := 0
+	if i < len(lit) && (lit[i] == 'e' || lit[i] == 'E') {
+		i++
+		neg := false
+		if i < len(lit) && (lit[i] == '+' || lit[i] == '-') {
+			neg = lit[i] == '-'
+			i++
+		}
+		for ; i < len(lit); i++ {
+			if exp < 1<<30 {
+				exp = exp*10 + int(lit[i]-'0')
+			}
+		}
+		if neg {
+			exp = -exp
+		}
+	}
+	coeff := sig - trail // digits of the coefficient, trailing zeros removed
+	x := exp - frac + trail
+	if x >= 0 {
+		return coeff+x > maxDigits
+	}
+	return -x > maxScale || coeff > maxDigits
 }
 
 // decimalRat is mant/den in lowest terms, where den is a power of ten. The

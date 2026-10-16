@@ -59,6 +59,9 @@ func checkAgree(t testing.TB, raw []byte) {
 	got, e1 := ParseJSON(raw)
 	want, e2 := parseJSONReference(raw)
 	if (e1 == nil) != (e2 == nil) {
+		if e2 == nil && isOutOfRange(e1) && referenceHasNonReal(raw) {
+			return // strict mode (Jaxson core design, section 2): the reference reads a number that is not a Real, the scanner rejects it
+		}
 		t.Fatalf("accept/reject differs on %q:\n scanner: %v\n reference: %v", clip(raw), e1, e2)
 	}
 	checkDataModes(t, raw, got, e1)

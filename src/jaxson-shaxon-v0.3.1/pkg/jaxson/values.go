@@ -23,12 +23,27 @@ var numRe = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+)?$`)
 
 const maxDigits = 38
 
+// maxScale is the most digits a Real has after the decimal point (Jaxson core
+// design, section 2).
+const maxScale = 200
+
+// ratMayBeReal is a constant-time test that rejects a Rat too large to be a
+// Real without building its digits: a coefficient of at most 38 digits is
+// below 2^127, and the reduced denominator of a decimal with at most
+// maxScale fractional digits divides 10^maxScale, which is below 2^665.
+func ratMayBeReal(r *big.Rat) bool {
+	return r.Num().BitLen() <= 127 && r.Denom().BitLen() <= 665
+}
+
 // decParts returns the coefficient and the minimal scale of a decimal Rat.
 func decParts(r *big.Rat) (*big.Int, int, bool) {
+	if !ratMayBeReal(r) {
+		return nil, 0, false
+	}
 	n := new(big.Rat).Set(r)
 	s := 0
 	for !n.IsInt() {
-		if s > 200 {
+		if s >= maxScale {
 			return nil, 0, false
 		}
 		n.Mul(n, ten)
@@ -40,7 +55,7 @@ func decParts(r *big.Rat) (*big.Int, int, bool) {
 func checkNum(r *big.Rat) *big.Rat {
 	c, _, ok := decParts(r)
 	if !ok || len(new(big.Int).Abs(c).String()) > maxDigits {
-		execFail("NUMERIC_OVERFLOW", "number exceeds %d digits", maxDigits)
+		execFail("NUMERIC_OVERFLOW", "%s", msgNotReal)
 	}
 	return r
 }
@@ -95,6 +110,9 @@ func roundRat(x *big.Rat, scale int, mode string) *big.Rat {
 func norm(v any) any {
 	switch t := v.(type) {
 	case json.Number:
+		if numberOutOfRange([]byte(t.String())) {
+			fail("PARSE_ERROR", "", "%s", msgOutOfRange)
+		}
 		r, ok := new(big.Rat).SetString(t.String())
 		if !ok {
 			fail("PARSE_ERROR", "", "bad number %s", t)
@@ -164,8 +182,11 @@ func Equal(a, b any) bool {
 		y, ok := b.(string)
 		return ok && x == y
 	case *big.Rat:
-		y, ok := b.(*big.Rat)
+		y, ok := numberRat(b)
 		return ok && x.Cmp(y) == 0
+	case float64:
+		y, ok := numberRat(b)
+		return ok && floatRat(x).Cmp(y) == 0
 	case []any:
 		y, ok := b.([]any)
 		if !ok || len(x) != len(y) {
@@ -230,7 +251,7 @@ func TypeName(v any) string {
 		return "null"
 	case bool:
 		return "boolean"
-	case *big.Rat:
+	case *big.Rat, float64:
 		return "number"
 	case string:
 		return "string"
@@ -260,6 +281,8 @@ func show(v any) string {
 		return string(b)
 	case *big.Rat:
 		return FormatDecimal(t)
+	case float64:
+		return formatFloat(t)
 	case []any:
 		parts := make([]string, len(t))
 		for i, x := range t {
@@ -293,8 +316,12 @@ func show(v any) string {
 func Order(a, b any) int {
 	switch x := a.(type) {
 	case *big.Rat:
-		if y, ok := b.(*big.Rat); ok {
+		if y, ok := numberRat(b); ok {
 			return x.Cmp(y)
+		}
+	case float64:
+		if y, ok := numberRat(b); ok {
+			return floatRat(x).Cmp(y)
 		}
 	case string:
 		if y, ok := b.(string); ok {

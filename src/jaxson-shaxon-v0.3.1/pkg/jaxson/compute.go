@@ -11,6 +11,7 @@ package jaxson
 // close to zero. Behaviour of every existing operator is unchanged.
 
 import (
+	"math"
 	"math/big"
 	"strings"
 	"unicode/utf8"
@@ -49,14 +50,19 @@ func evalArgs(m *Machine, a []any, env map[string]any) []any {
 }
 
 func minMax(op string, v []any) any {
-	best := num(v[0])
+	bestR := num(v[0])
+	best := v[0]
 	for _, x := range v[1:] {
-		c := num(x).Cmp(best)
+		r := num(x)
+		c := r.Cmp(bestR)
 		if (op == "min" && c < 0) || (op == "max" && c > 0) {
-			best = num(x)
+			bestR, best = r, x
 		}
 	}
-	return new(big.Rat).Set(best)
+	if _, isRat := best.(*big.Rat); isRat {
+		return new(big.Rat).Set(bestR)
+	}
+	return best // a float stays a float
 }
 
 func hasGetOr(op string, v []any) any {
@@ -105,26 +111,32 @@ func CoreOperators() map[string]OperatorDef {
 			for _, x := range v {
 				s.Add(s, num(x))
 			}
-			return checkNum(s)
+			return m.fit(s)
 		}},
 		"sub": {Name: "sub", Fn: func(m *Machine, v []any) any {
 			s := new(big.Rat).Set(num(v[0]))
 			for _, x := range v[1:] {
 				s.Sub(s, num(x))
 			}
-			return checkNum(s)
+			return m.fit(s)
 		}},
 		"mul": {Name: "mul", Fn: func(m *Machine, v []any) any {
 			s := big.NewRat(1, 1)
 			for _, x := range v {
 				s.Mul(s, num(x))
 			}
-			return checkNum(s)
+			return m.fit(s)
 		}},
 		"neg": {Name: "neg", Fn: func(m *Machine, v []any) any {
+			if f, ok := v[0].(float64); ok {
+				return -f
+			}
 			return new(big.Rat).Neg(num(v[0]))
 		}},
 		"abs": {Name: "abs", Fn: func(m *Machine, v []any) any {
+			if f, ok := v[0].(float64); ok {
+				return math.Abs(f)
+			}
 			return new(big.Rat).Abs(num(v[0]))
 		}},
 		"min": {Name: "min", Fn: func(m *Machine, v []any) any {
@@ -138,7 +150,7 @@ func CoreOperators() map[string]OperatorDef {
 			if y.Sign() == 0 {
 				execFail("DIV_ZERO", "modulo by zero")
 			}
-			return new(big.Rat).SetInt(new(big.Int).Rem(x, y))
+			return m.fit(new(big.Rat).SetInt(new(big.Int).Rem(x, y)))
 		}},
 		"div": {Name: "div", Fn: func(m *Machine, v []any) any {
 			x, y := num(v[0]), num(v[1])
@@ -149,14 +161,14 @@ func CoreOperators() map[string]OperatorDef {
 			if len(v) == 4 {
 				mode = str(v[3])
 			}
-			return checkNum(roundRat(new(big.Rat).Quo(x, y), scaleOf(v[2]), mode))
+			return m.fit(roundRat(new(big.Rat).Quo(x, y), scaleOf(v[2]), mode))
 		}},
 		"round": {Name: "round", Fn: func(m *Machine, v []any) any {
 			mode := "half_even"
 			if len(v) == 3 {
 				mode = str(v[2])
 			}
-			return checkNum(roundRat(num(v[0]), scaleOf(v[1]), mode))
+			return m.fit(roundRat(num(v[0]), scaleOf(v[1]), mode))
 		}},
 		"eq": {Name: "eq", Fn: func(m *Machine, v []any) any {
 			return Equal(v[0], v[1])
@@ -207,6 +219,9 @@ func CoreOperators() map[string]OperatorDef {
 			return nil
 		}},
 		"to_string": {Name: "to_string", Fn: func(m *Machine, v []any) any {
+			if f, ok := v[0].(float64); ok {
+				return formatFloat(f)
+			}
 			return FormatDecimal(num(v[0]))
 		}},
 		"to_number": {Name: "to_number", Fn: func(m *Machine, v []any) any {
@@ -214,8 +229,16 @@ func CoreOperators() map[string]OperatorDef {
 			if !numRe.MatchString(s) {
 				execFail("BAD_NUMBER", "not a JSON number: %q", s)
 			}
+			if numberOutOfRange([]byte(s)) {
+				if m.numMode == Relaxed {
+					if f, ok := parseFloatLiteral(s); ok {
+						return f
+					}
+				}
+				execFail("NUMERIC_OVERFLOW", "%s", msgNotReal)
+			}
 			r, _ := new(big.Rat).SetString(s)
-			return checkNum(r)
+			return m.fit(r)
 		}},
 		"list": {Name: "list", Fn: func(m *Machine, v []any) any {
 			out := make([]any, len(v)) // v may be scratch space: do not keep it

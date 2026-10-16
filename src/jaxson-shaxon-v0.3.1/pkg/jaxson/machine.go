@@ -98,14 +98,22 @@ type Machine struct {
 	// exists so a host package (Shaxon) can build its own mutation-path
 	// log without duplicating the four mutation instructions.
 	OnMutate func(root string, segs []any)
+
+	// numMode is the numeric mode (Jaxson core design, section 2); strict unless set.
+	numMode NumericMode
 }
 
-// NewMachine constructs a Machine ready to run a program against the
+// NewMachine is NewMachineMode in strict numeric mode.
+func NewMachine(input, state, output any, limit int, instructions map[string]InstructionDef, operators map[string]OperatorDef) *Machine {
+	return NewMachineMode(input, state, output, limit, instructions, operators, Strict)
+}
+
+// NewMachineMode constructs a Machine ready to run a program against the
 // given input/state/output roots, with the given step limit. A nil
 // instructions or operators table defaults to CoreInstructions() /
 // CoreOperators() — the common case for a Jaxson-only caller; a host
 // package passes its own extended tables (core plus its own entries).
-func NewMachine(input, state, output any, limit int, instructions map[string]InstructionDef, operators map[string]OperatorDef) *Machine {
+func NewMachineMode(input, state, output any, limit int, instructions map[string]InstructionDef, operators map[string]OperatorDef, mode NumericMode) *Machine {
 	if instructions == nil {
 		instructions = CoreInstructions()
 	}
@@ -113,10 +121,10 @@ func NewMachine(input, state, output any, limit int, instructions map[string]Ins
 		operators = CoreOperators()
 	}
 	return &Machine{
-		input: Data(input), state: Data(state), output: Data(output),
+		input: DataMode(input, mode), state: DataMode(state, mode), output: DataMode(output, mode),
 		locals: make([]localVar, 0, 8), limit: int64(limit), costs: UnitTable(),
 		instructions: instructions, operators: operators,
-		tree: treeDefault,
+		tree: treeDefault, numMode: mode,
 	}
 }
 
@@ -305,7 +313,7 @@ func (m *Machine) read(p []any) any {
 func (m *Machine) own(v any) any { return Clone(v) }
 
 func num(x any) *big.Rat {
-	r, ok := x.(*big.Rat)
+	r, ok := numberRat(x)
 	if !ok {
 		execFail("TYPE_ERROR", "expected number, got %s", TypeName(x))
 	}

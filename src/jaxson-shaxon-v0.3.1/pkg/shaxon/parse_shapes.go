@@ -677,12 +677,12 @@ func parseKeywords(name string, raw map[string]any, s *ShapeDecl) {
 	if v, has := raw["min"]; has {
 		f := mustNumber(name+".min", v)
 		s.Keywords.Min = &f
-		s.Keywords.MinRat = v.(*big.Rat)
+		s.Keywords.MinRat, _ = jaxson.AsRat(v)
 	}
 	if v, has := raw["max"]; has {
 		f := mustNumber(name+".max", v)
 		s.Keywords.Max = &f
-		s.Keywords.MaxRat = v.(*big.Rat)
+		s.Keywords.MaxRat, _ = jaxson.AsRat(v)
 	}
 	if v, has := raw["int"]; has {
 		b, ok := v.(bool)
@@ -863,7 +863,7 @@ func mustNonNegInt(ctx string, v any) int64 {
 }
 
 func mustNumber(ctx string, v any) float64 {
-	r, ok := v.(*big.Rat)
+	r, ok := jaxson.AsRat(v)
 	if !ok {
 		failLoad("%s must be a number", ctx)
 	}

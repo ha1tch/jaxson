@@ -1,0 +1,390 @@
+=== TOSID MEDICAL KNOWLEDGE SYSTEM ===
+Integrating: Biochemical + Chemistry + Pharma + Medicine
+
+DEBUG: Checking loaded entities...
+Total entities loaded: 46
+  Glucose (biochemical)
+  Insulin (biochemical)
+  Serotonin (biochemical)
+  Dopamine (biochemical)
+  Cortisol (biochemical)
+  Hemoglobin (biochemical)
+  Vitamin D3 (biochemical)
+  Vitamin B12 (biochemical)
+  Glycolysis Pathway (biochemical)
+  Serotonin Synthesis Pathway (biochemical)
+  Iron (chemistry)
+  Zinc (chemistry)
+  Magnesium (chemistry)
+  Calcium (chemistry)
+  Aspirin (chemistry)
+  Ibuprofen (chemistry)
+  Paracetamol (chemistry)
+  Ferrous Sulfate (chemistry)
+  Magnesium Oxide (chemistry)
+  Ascorbic Acid (chemistry)
+  Iron-Vitamin C Interaction (chemistry)
+  Calcium-Iron Interaction (chemistry)
+  Aspirin 325mg Tablet (pharma)
+  Ibuprofen 200mg Capsule (pharma)
+  Paracetamol 500mg Tablet (pharma)
+  Iron Supplement 65mg (pharma)
+  Magnesium Supplement 400mg (pharma)
+  Vitamin C 500mg Tablet (pharma)
+  Vitamin D3 2000 IU (pharma)
+  Vitamin B12 1000mcg Sublingual (pharma)
+  Iron + Vitamin C Combination (pharma)
+  GMP Manufacturing Facility Alpha (pharma)
+  Type 2 Diabetes (medicine)
+  Iron Deficiency Anemia (medicine)
+  Major Depressive Disorder (medicine)
+  Tension Type Headache (medicine)
+  Viral Upper Respiratory Infection (medicine)
+  Vitamin D Deficiency (medicine)
+  Vitamin B12 Deficiency (medicine)
+  Fever (medicine)
+  Headache (medicine)
+  Fatigue (medicine)
+  Muscle Pain (medicine)
+  Fever Treatment Guideline (medicine)
+  Headache Treatment Guideline (medicine)
+  Anemia Treatment Guideline (medicine)
+
+Knowledge Base Statistics:
+- Biochemical entities: 10
+- Chemistry entities: 12
+- Pharmaceutical products: 10
+- Medical conditions/symptoms: 14
+
+
+=== CROSS-DOMAIN ENTITY ANALYSIS ===
+
+BIOCHEMICAL \uFFFD\uFFFD\uFFFD PHARMACEUTICAL CONNECTIONS:
+- Hemoglobin \uFFFD\uFFFD\uFFFD Iron Supplement 65mg (element_replacement)
+- Hemoglobin \uFFFD\uFFFD\uFFFD Iron Supplement 65mg (functional_support)
+- Hemoglobin \uFFFD\uFFFD\uFFFD Iron + Vitamin C Combination (functional_support)
+- Vitamin D3 \uFFFD\uFFFD\uFFFD Vitamin D3 2000 IU (vitamin_replacement)
+- Vitamin D3 \uFFFD\uFFFD\uFFFD Vitamin D3 2000 IU (functional_support)
+- Vitamin B12 \uFFFD\uFFFD\uFFFD Vitamin B12 1000mcg Sublingual (vitamin_replacement)
+- Vitamin B12 \uFFFD\uFFFD\uFFFD Vitamin B12 1000mcg Sublingual (functional_support)
+
+SYMPTOM \uFFFD\uFFFD\uFFFD DIRECT TREATMENT CONNECTIONS:
+- pain \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (cox_inhibition)
+- pain \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (symptomatic_relief)
+- fever \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (cox_inhibition)
+- fever \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (symptomatic_relief)
+- inflammation \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (cox_inhibition)
+- inflammation \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (symptomatic_relief)
+- cardiovascular_protection \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (cox_inhibition)
+- cardiovascular_protection \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (symptomatic_relief)
+- headache \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (cox_inhibition)
+- headache \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (symptomatic_relief)
+- head_pain \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (cox_inhibition)
+- head_pain \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (symptomatic_relief)
+- muscle_pain \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (cox_inhibition)
+- muscle_pain \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (symptomatic_relief)
+- body_aches \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (cox_inhibition)
+- body_aches \uFFFD\uFFFD\uFFFD Aspirin 325mg Tablet (symptomatic_relief)
+- pain \uFFFD\uFFFD\uFFFD Ibuprofen 200mg Capsule (symptomatic_relief)
+- fever \uFFFD\uFFFD\uFFFD Ibuprofen 200mg Capsule (symptomatic_relief)
+- inflammation \uFFFD\uFFFD\uFFFD Ibuprofen 200mg Capsule (symptomatic_relief)
+- headache \uFFFD\uFFFD\uFFFD Ibuprofen 200mg Capsule (symptomatic_relief)
+- head_pain \uFFFD\uFFFD\uFFFD Ibuprofen 200mg Capsule (symptomatic_relief)
+- muscle_pain \uFFFD\uFFFD\uFFFD Ibuprofen 200mg Capsule (symptomatic_relief)
+- body_aches \uFFFD\uFFFD\uFFFD Ibuprofen 200mg Capsule (symptomatic_relief)
+- pain \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (cox3_inhibition)
+- pain \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (symptomatic_relief)
+- fever \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (cox3_inhibition)
+- fever \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (symptomatic_relief)
+- headache \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (cox3_inhibition)
+- headache \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (symptomatic_relief)
+- head_pain \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (cox3_inhibition)
+- head_pain \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (symptomatic_relief)
+- muscle_pain \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (cox3_inhibition)
+- muscle_pain \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (symptomatic_relief)
+- body_aches \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (cox3_inhibition)
+- body_aches \uFFFD\uFFFD\uFFFD Paracetamol 500mg Tablet (symptomatic_relief)
+- iron_deficiency \uFFFD\uFFFD\uFFFD Iron Supplement 65mg (symptomatic_relief)
+- anemia \uFFFD\uFFFD\uFFFD Iron Supplement 65mg (symptomatic_relief)
+- magnesium_deficiency \uFFFD\uFFFD\uFFFD Magnesium Supplement 400mg (symptomatic_relief)
+- muscle_cramps \uFFFD\uFFFD\uFFFD Magnesium Supplement 400mg (symptomatic_relief)
+- constipation \uFFFD\uFFFD\uFFFD Magnesium Supplement 400mg (symptomatic_relief)
+- irregular_heartbeat \uFFFD\uFFFD\uFFFD Magnesium Supplement 400mg (symptomatic_relief)
+- vitamin_c_deficiency \uFFFD\uFFFD\uFFFD Vitamin C 500mg Tablet (symptomatic_relief)
+- immune_support \uFFFD\uFFFD\uFFFD Vitamin C 500mg Tablet (symptomatic_relief)
+- iron_absorption_aid \uFFFD\uFFFD\uFFFD Vitamin C 500mg Tablet (symptomatic_relief)
+- vitamin_d_deficiency \uFFFD\uFFFD\uFFFD Vitamin D3 2000 IU (symptomatic_relief)
+- bone_health \uFFFD\uFFFD\uFFFD Vitamin D3 2000 IU (symptomatic_relief)
+- mood_support \uFFFD\uFFFD\uFFFD Vitamin D3 2000 IU (symptomatic_relief)
+- sleep_disorders \uFFFD\uFFFD\uFFFD Vitamin D3 2000 IU (symptomatic_relief)
+- depression \uFFFD\uFFFD\uFFFD Vitamin D3 2000 IU (symptomatic_relief)
+- b12_deficiency \uFFFD\uFFFD\uFFFD Vitamin B12 1000mcg Sublingual (symptomatic_relief)
+- pernicious_anemia \uFFFD\uFFFD\uFFFD Vitamin B12 1000mcg Sublingual (symptomatic_relief)
+- fatigue \uFFFD\uFFFD\uFFFD Vitamin B12 1000mcg Sublingual (symptomatic_relief)
+
+
+=== PATIENT CASE ANALYSIS ===
+
+=== TREATMENT REPORT FOR case1 ===
+Symptoms: [fatigue,shortness_of_breath,pale_skin]
+
+RECOMMENDED TREATMENTS:
+- Iron Supplement 65mg
+  For: fatigue
+  Mechanism: element_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Iron Supplement 65mg
+  For: fatigue
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Iron + Vitamin C Combination
+  For: fatigue
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: fatigue
+  Mechanism: vitamin_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: fatigue
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: fatigue
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Iron Supplement 65mg
+  For: shortness_of_breath
+  Mechanism: element_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Iron Supplement 65mg
+  For: shortness_of_breath
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Iron + Vitamin C Combination
+  For: shortness_of_breath
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Iron Supplement 65mg
+  For: pale_skin
+  Mechanism: element_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Iron Supplement 65mg
+  For: pale_skin
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Iron + Vitamin C Combination
+  For: pale_skin
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+DRUG INTERACTIONS: None detected
+
+ESTIMATED DAILY COST: $2.31
+
+=== TREATMENT REPORT FOR case2 ===
+Symptoms: [headache,fever]
+
+RECOMMENDED TREATMENTS:
+- Aspirin 325mg Tablet
+  For: headache
+  Mechanism: cox_inhibition
+  Type: symptomatic_relief | Confidence: moderate
+
+- Aspirin 325mg Tablet
+  For: headache
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Ibuprofen 200mg Capsule
+  For: headache
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Paracetamol 500mg Tablet
+  For: headache
+  Mechanism: cox3_inhibition
+  Type: symptomatic_relief | Confidence: moderate
+
+- Paracetamol 500mg Tablet
+  For: headache
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Aspirin 325mg Tablet
+  For: fever
+  Mechanism: cox_inhibition
+  Type: symptomatic_relief | Confidence: moderate
+
+- Aspirin 325mg Tablet
+  For: fever
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Ibuprofen 200mg Capsule
+  For: fever
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Paracetamol 500mg Tablet
+  For: fever
+  Mechanism: cox3_inhibition
+  Type: symptomatic_relief | Confidence: moderate
+
+- Paracetamol 500mg Tablet
+  For: fever
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+DRUG INTERACTIONS:
+- Ibuprofen 200mg Capsule + Aspirin 325mg Tablet: antagonistic (moderate significance)
+- Paracetamol 500mg Tablet + Aspirin 325mg Tablet: neutral (low significance)
+
+ESTIMATED DAILY COST: $0.52
+
+=== TREATMENT REPORT FOR case3 ===
+Symptoms: [depression,sleep_disorders,fatigue]
+
+RECOMMENDED TREATMENTS:
+- Vitamin D3 2000 IU
+  For: depression
+  Mechanism: vitamin_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin D3 2000 IU
+  For: depression
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin D3 2000 IU
+  For: depression
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Vitamin D3 2000 IU
+  For: sleep_disorders
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Iron Supplement 65mg
+  For: fatigue
+  Mechanism: element_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Iron Supplement 65mg
+  For: fatigue
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Iron + Vitamin C Combination
+  For: fatigue
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: fatigue
+  Mechanism: vitamin_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: fatigue
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: fatigue
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+DRUG INTERACTIONS: None detected
+
+ESTIMATED DAILY COST: $1.27
+
+=== TREATMENT REPORT FOR case4 ===
+Symptoms: [muscle_cramps,irregular_heartbeat]
+
+RECOMMENDED TREATMENTS:
+- Magnesium Supplement 400mg
+  For: muscle_cramps
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Magnesium Supplement 400mg
+  For: irregular_heartbeat
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+DRUG INTERACTIONS: None detected
+
+ESTIMATED DAILY COST: $0.40
+
+=== TREATMENT REPORT FOR case5 ===
+Symptoms: [fatigue,memory_problems,weakness]
+
+RECOMMENDED TREATMENTS:
+- Iron Supplement 65mg
+  For: fatigue
+  Mechanism: element_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Iron Supplement 65mg
+  For: fatigue
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Iron + Vitamin C Combination
+  For: fatigue
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: fatigue
+  Mechanism: vitamin_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: fatigue
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: fatigue
+  Mechanism: symptomatic_relief
+  Type: symptomatic_relief | Confidence: moderate
+
+- Vitamin B12 1000mcg Sublingual
+  For: memory_problems
+  Mechanism: vitamin_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: memory_problems
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: weakness
+  Mechanism: vitamin_replacement
+  Type: deficiency_correction | Confidence: high
+
+- Vitamin B12 1000mcg Sublingual
+  For: weakness
+  Mechanism: functional_support
+  Type: deficiency_correction | Confidence: high
+
+DRUG INTERACTIONS: None detected
+
+ESTIMATED DAILY COST: $2.27
+
+=== ANALYSIS COMPLETE ===

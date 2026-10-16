@@ -1,0 +1,21 @@
+{
+  "schema": "gorepoman.workspace.board/1",
+  "name": "order",
+  "title": "Pending work, in order",
+  "subtitle": "Waves 3 to 7. Each column opens when the one before it closes; the detail of each item says which dependencies are technical and which are ordering only.",
+  "scope": {"projects": []},
+  "axis": "dependency_order",
+  "columns": [
+    {"label": "1. Confirm", "note": "Wave 7"},
+    {"label": "2. Release", "note": "Wave 4"},
+    {"label": "3. G11-2a", "note": "Wave 3"},
+    {"label": "4. G11-2b", "note": "Wave 3"},
+    {"label": "5. G11-2c", "note": "Wave 3"},
+    {"label": "6. G11-2d", "note": "Wave 3"},
+    {"label": "7. Small items", "note": "Waves 5 and 6"},
+    {"label": "8. G11 layer 3", "note": "Wave 3, postponed"},
+    {"label": "9. Conformance", "note": "Wave 6"},
+    {"label": "10. Engine and tooling", "note": "Wave 5"}
+  ],
+  "overflow": {"hidden": true}
+}

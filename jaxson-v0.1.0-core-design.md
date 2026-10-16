@@ -37,19 +37,37 @@ queryfy, jsonplate and ual's compute islands are ancestors, not dependencies. Ja
 
 - `jaxson` is mandatory. A runtime that does not implement that version fails with `VERSION_ERROR` before doing anything else.
 - `limits` is optional, and part of the contract (section 9).
-- A produced result is not a package member. A test fixture adds one more member, `expect`, holding either `{"output": ...}` or `{"error": {"category": ..., "code": ...}}`. Expected values and produced values never share a name.
+- A produced result is not a package member. A test fixture adds one more member, `expect`, holding either `{"output": ...}` or `{"error": {"category": ..., "code": ...}}`. Expected values and produced values never share a name. A fixture that tests how a runtime reads a package gives it as text in `packageText`, in place of the package members; the runtime is handed that text as it would be handed a file.
 - Duplicate object keys anywhere in a package are a `PARSE_ERROR`.
 
 ## 2. Values and numbers
 
-Values are JSON values. Numbers are **exact decimals**, not floats.
+Values are JSON values. In strict mode, the engine default, numbers are **exact decimals**, not floats; relaxed mode (below) is the only exception.
 
 - A JSON number is read as the exact decimal it spells. `0.1 + 0.2` is `0.3`.
-- Magnitude limit: at most 38 significant digits when written as a plain decimal (no exponent). An operation whose exact result exceeds that fails with `NUMERIC_OVERFLOW`. Nothing is ever rounded silently.
+- Real limit: a number is a **Real** if, written as a plain decimal (no exponent, no trailing fractional zeros), it has at most 38 digits once leading zeros are removed and at most 200 digits after the decimal point. In strict mode every number is a Real. An operation whose exact result is not a Real fails with `NUMERIC_OVERFLOW`. Nothing is ever rounded silently.
 - Equality is by value: `1`, `1.0` and `1.00` are the same number. Negative zero does not exist.
 - Serialisation is canonical: no exponent, no trailing zeros, no leading `+`.
 - The only operations that can lose digits are `div` and `round`, and both take an explicit scale and rounding mode.
-- No host numeric type is visible. A Go runtime uses `big.Rat` or a scaled `big.Int`; a Rust runtime uses whatever it likes; results are identical.
+- No host numeric type is visible. A Go runtime uses `big.Rat` or a scaled `big.Int`; a Rust runtime uses whatever it likes; in strict mode results are identical.
+
+### Numeric modes
+
+The engine has two numeric modes.
+
+- **Strict** (the engine default). Every number is a Real.
+  - A JSON number is read as the exact decimal it spells, exponent notation included: `1e3` is `1000`.
+  - A JSON number that is not a Real is a `PARSE_ERROR`, wherever it appears: in the package, in `input`, or in a document handed to a runtime entry point. The runtime builds no value for it, and rejects it in time proportional to the length of its text, however large its exponent or digit string.
+  - A running program therefore holds only Reals. A host that passes numbers other than as JSON text converts them under the same rule, and reports `NUMERIC_OVERFLOW` for one that is not a Real. A host float converts through the shortest decimal that reads back as the same binary64, so `0.1` is `0.1`, not its binary expansion; NaN and infinity are `NUMERIC_OVERFLOW`.
+  - There are no floats, and no host numeric type is visible. Results are identical on every runtime and architecture (section 9).
+- **Relaxed** (optional, off by default). The engine enables it with a switch of the runtime or of the host API, never with a package member. A number is a Real or a float.
+  - A number that fits the strict range is a Real, in either mode: `0.5`, `1e37` and `-12.25` are Reals in relaxed mode too.
+  - A number that does not fit is a **float**, an IEEE 754 binary64 value, if a binary64 can hold it. That is a JSON number beyond the Real limits, such as `1e300`, or an integer of 50 digits, which is rounded to the nearest binary64; the number `to_number` reads from such a string; a number a host hands in; and the result of an operation beyond the limits.
+  - A number that no binary64 can hold, one too large or one that would round to zero, is an error: `PARSE_ERROR` for a literal, and `NUMERIC_OVERFLOW` for a result or a number a host hands in. A float is never zero, infinite or NaN.
+  - A float and a Real are both numbers. They compare, order and test equal by their exact values, and a float satisfies the `number` type and the `min` and `max` of a schema. A float is never a path segment or an array index, since no array is that long: using one is a `TYPE_ERROR`.
+  - An operation with a float operand, or whose result is not a Real, is computed on the exact values and gives the binary64 nearest the exact result, unless that result is a Real. A binary64 result whose exact value is a Real is that Real: `1e300 - 1e300` is the Real `0`, and `1e300 * 1e-300` is the Real `1`.
+  - A float is written as a JSON number in the shortest form that reads back as the same binary64: plain digits from `1e-6` up to `1e21`, otherwise an exponent, for example `1e+300`. `to_string` writes the same text.
+  - **Determinism across architectures is not guaranteed in relaxed mode**, and a runtime that offers the mode says so in its documentation.
 
 ## 3. Roots and paths
 
@@ -168,7 +186,7 @@ Operations (v1 closed set):
 | strings | `concat`, `len` (code points), `to_string` (canonical number), `to_number` (strict JSON grammar) |
 | collections | `list`, `get` (missing is `MISSING_PATH`), `get_or`, `has`, `keys` (sorted), `len`, `type_of` |
 
-Not included, on purpose: loops, locale-dependent string operations, floating point, transcendental functions, regular expressions. A later profile can add them behind explicit extension names; the core stays total and portable.
+Not included, on purpose: loops, locale-dependent string operations, floating point (apart from the optional relaxed numeric mode, section 2), transcendental functions, regular expressions. A later profile can add them behind explicit extension names; the core stays total and portable.
 
 ## 8. Contracts
 
@@ -200,6 +218,7 @@ A worthwhile v1.1 idea rather than a v1 obligation: since schemas are data and m
 - Limits are part of the contract. A runtime either accepts the declared limits or rejects the package before starting. It never applies a limit the package did not declare, so a time or memory cutoff cannot change a result.
 - Default `steps` is 100000 when `limits` is absent.
 - No clock, no randomness, no ambient state. Object member order is never observable: `keys` is sorted, and equality ignores order.
+- This holds in strict numeric mode (section 2). In relaxed mode determinism across architectures is not guaranteed. A runtime conforms when its default is strict mode, and every determinism guarantee in this document, and in any profile built on it, is a guarantee of strict mode.
 
 ## 10. Errors
 
@@ -207,7 +226,7 @@ Each failure has a category and, for execution errors, a stable code.
 
 | Category | Raised when | Codes |
 |---|---|---|
-| `PARSE_ERROR` | Not JSON, or duplicate keys | |
+| `PARSE_ERROR` | Not JSON, duplicate keys, a number that is not a Real (strict mode), or a number that no binary64 can hold (relaxed mode) | |
 | `VERSION_ERROR` | `jaxson` missing or unsupported; unsupported limits | |
 | `SCHEMA_ERROR` | A contract schema is malformed | |
 | `PROGRAM_ERROR` | Static validation fails | |
@@ -269,7 +288,7 @@ This document replaces or fills in parts of an earlier five-part draft, which is
 
 The points where the design is least settled.
 
-1. **Exact decimals with a 38-digit bound** versus IEEE doubles. Decimals are the safer default for a determinism claim and for anything that touches money, but they make a JavaScript runtime more work.
+1. **Exact decimals with a 38-digit bound** versus IEEE doubles. Decimals are the safer default for a determinism claim and for anything that touches money, but they make a JavaScript runtime more work. Numeric modes (section 2) settle the default: strict, with exact decimals, is the engine default; relaxed, which allows IEEE doubles beyond the Real limits, is an optional switch and gives up cross-architecture determinism.
 2. **Closed objects by default.** It makes contracts stricter than most people expect. The strictness is intended for a contract language, but it will surprise authors used to JSON Schema.
 3. **`$opt` omitting the member.** It is the neatest way found so far to keep present-`null` and absent apart in output, but it is a new idea and deserves fixtures from real payloads before it is frozen.
 4. **No string path syntax in the core.** It costs verbosity for a gain in unambiguity, and rests on a surface syntax being written.
@@ -279,6 +298,8 @@ The points where the design is least settled.
 
 - `jaxrun.go`: about 1,300 lines of Go (`math/big` for numbers, no dependencies), a deliberately plain interpreter of the above. It is a specification check, not a product.
 - `fixtures.json`: 28 golden fixtures in the package format with `expect`. All 28 pass. I confirmed that each failure fixture fails for its intended reason (the runner prints the message), and that corrupting an expected value makes the runner fail.
+- `jaxson-v0.1.0-strict-numbers-fixtures.json`: 11 conformance fixtures for strict numeric mode (section 2), written after the 28 above and run by the Go runtime and the Python port. Most give the package as `packageText`.
+- `jaxson-v0.1.0-relaxed-numbers-fixtures.json`: 14 conformance fixtures for relaxed numeric mode (section 2), run by the Go runtime with the relaxed switch on. The file itself holds numbers beyond the Real limits, so a runtime reads it in relaxed mode; a runtime that does not offer relaxed mode does not run it.
 
 What the fixtures cover: the summing example, `$tpl` with `$opt` (absent omitted, `null` kept), null versus missing, exact decimals and all three rounding modes, closed objects, input and output contract failures, snapshot iteration, nested loops with `index`, binding shadowing, literal-contains-form, `$lit`, the declared step limit, array delete shifting, short-circuit and lazy `select`, dynamic path segments, `halt`, code-point length, a root-array input, keys no string path could name, write-to-input, unknown instruction, unsupported version, malformed schema, no coercion, numeric overflow, and `$opt` outside a template.
 

@@ -3,7 +3,7 @@
 Go implementation of Jaxson, a JSON instruction language for deterministic
 stateful computation, and Shaxon, its validation layer, implemented to version 0.3.1 of the Shaxon specification.
 
-Module: `github.com/ha1tch/jaxson`. Version: see `VERSION`.
+Module: `github.com/ha1tch/jaxson`. Version: see `VERSION`. A version is `X.Y.Z-pNNN.rMMM`: `X.Y.Z` is the Shaxon specification version the code implements, and the suffix counts releases of the implementation at that spec level, in zero-padded counters (the `r` keeps the suffix valid SemVer and makes it sort as text as well as as numbers), so `0.3.1-p000.r001` is the first. A new spec version resets the suffix.
 
 ## Requirements
 
@@ -18,9 +18,9 @@ Module: `github.com/ha1tch/jaxson`. Version: see `VERSION`.
 | `pkg/jaxtools` | Host tooling: `Session`, `Carry`, package and turn loading, output rendering |
 | `pkg/version` | Implementation version |
 | `examples/navywars` | Navy Wars written with the builder; `go run ./examples/navywars/cmd` emits its JSON |
-| `cmd/jaxrun` | Run one package and print the result |
-| `cmd/jaxplay` | Drive a multi-turn package (REPL or scripted turns) |
-| `cmd/shaxonrun` | Run a Shaxon package: `shaxonrun [-pretty] [-steps] package.json [input.json]` |
+| `cmd/jaxrun` | Run one package and print the result: `jaxrun [-relaxed] package.json` |
+| `cmd/jaxplay` | Drive a multi-turn package (REPL or scripted turns); takes `-relaxed` too |
+| `cmd/shaxonrun` | Run a Shaxon package: `shaxonrun [-pretty] [-steps] [-relaxed] package.json [input.json]` |
 | `pkg/shaxon` | The Shaxon dialect: shapes, indices, relations, `validate`, `check`, `shaxon.Run`, `shaxon.Validate`; 196 conformance fixtures (`shaxon-v0.3.1-fixtures.json`, see `FIXTURES.md`) |
 | `examples/shaxon` | Shaxon packages to try with `shaxonrun`; `examples/shaxon/authz` has five access-by-trail examples |
 | `examples/shacl` | The same five examples as SHACL-SPARQL shapes, run through pyshacl and Apache Jena, with a timing harness (`bench.sh`, `scale.py`, `report.py`), set-up scripts for Linux and macOS, and the recorded results; see its `SETUP.md` |

@@ -453,6 +453,9 @@ func keyFlag(v any) (flagKey, bool) {
 			return flagKey{'n', strconv.FormatInt(t.Num().Int64(), 10)}, true
 		}
 		return flagKey{'n', t.RatString()}, true
+	case float64:
+		r, _ := jaxson.AsRat(t) // a float's exact value is never a Real's, so its key is its own
+		return flagKey{'n', r.RatString()}, true
 	case bool:
 		if t {
 			return flagKey{'t', ""}, true
@@ -470,7 +473,7 @@ func keyRank(v any) int {
 		return 0
 	case bool:
 		return 1
-	case *big.Rat:
+	case *big.Rat, float64:
 		return 2
 	}
 	return 3
@@ -491,8 +494,8 @@ func compareKeys(a, b any) int {
 			return -1
 		}
 		return 1
-	case *big.Rat:
-		return x.Cmp(b.(*big.Rat))
+	case *big.Rat, float64:
+		return jaxson.Order(x, b)
 	case string:
 		return jaxson.Order(x, b.(string))
 	}

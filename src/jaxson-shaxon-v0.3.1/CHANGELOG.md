@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased
+## 0.3.1-p000.r003 - 2026-10-15
+
+### Added
+- `examples/medical/`: two Prolog medical knowledge systems re-implemented on Jaxson and
+  Shaxon and compared with the originals' own output. The first coordinator's five cases
+  are identical; a Shaxon check of its knowledge base finds 24 problems. For medical3
+  0.10.0 a bottom-up Jaxson evaluator compiled from its vocabulary matches all 94
+  assessments and 58 recommendation-tier rows, five knowledge-only overlays and the
+  contract properties C4, C5 and C6, except one phantom conclusion that comes from a
+  cycle defect in medical3 itself. The generated packages are included, so the Jaxson
+  side runs without Prolog.
+
+## 0.3.1-p000.r002 - 2026-10-15
+
+### Changed
+- Wave 7 confirmations (T-01, T-02): `Validate(pkg, shape, doc)` stands, and
+  `Number` stays the Real-only view; a relaxed result is a `*big.Rat` or a
+  `float64`, and `AsNumber` reports false for the latter. Recorded in the
+  tracker, Phase 7.
+- `AsNumber`'s documentation says a float64, which a relaxed run can return, is
+  not a `Number`, and a test pins it.
+
+## 0.3.1-p000.r001 - 2026-10-15
 
 ### Specification (severity)
 - Core section 7 now says a `warning` or `info` finding, of a shape or of a
@@ -11,7 +33,83 @@
   comparison tables no longer call severity plainly "covered". The Layer 2 and
   3 proposal (`docs/proposals/extends-narrowing.md`) compares the two in full.
 
+### Specification (numbers)
+- The Jaxson core design (section 2) now defines a **Real** (at most 38 digits
+  and at most 200 digits after the point) and two numeric modes. Strict, the
+  engine default, rejects a JSON number that is not a Real as `PARSE_ERROR`
+  without building a value for it. Relaxed is an optional engine switch: a
+  number that does not fit is an IEEE 754 float64, and determinism across
+  architectures is not guaranteed. `jaxson-intro.md`, `README.md`,
+  `shaxon-v0.3.1-core.md` and the Walk proposal now say so (T-29). The
+  implementation does not enforce the strict rule at parse time yet (T-25).
+
 ### Changed
+- Strict numeric mode in the runtime and in the Python port (core design,
+  section 2; T-25). A JSON number that is not a Real (more than 38 digits, or
+  more than 200 digits after the point) is now a `PARSE_ERROR`, "number out of
+  range", found from the literal's text before any value is built. A 4 MB
+  document of `1e999999` is refused in under a millisecond (about 3.5 hours
+  before, by extrapolation), and a 1 MB literal costs 2.6 ms and 1 MB, not
+  1.3 s and 2.2 GB. The same rule covers `Normalize`, `ParseNumber` and the
+  `to_number` operator (`NUMERIC_OVERFLOW`); a `*big.Rat` is tested by size in
+  constant time. Behaviour change: a document with a number of more than 38
+  digits, such as `1e66`, used to parse and fail only when arithmetic touched
+  it; it now fails at parse. The scale limit is 200 digits after the point (the
+  runtime accepted 201 through a loop quirk; the Python port always stopped at
+  200).
+- Numbers handed in as Go values (T-28). `Data`, and so `Run` and
+  `shaxon.Validate`, convert the `int`, `uint` and `float` types, `json.Number`
+  and `jaxson.Number` to the machine's numbers, a float through its shortest
+  decimal, and fail `NUMERIC_OVERFLOW` for NaN, infinity, or a value that is not
+  a Real. Before, such a value was reported as "expected number, got unknown".
+  `TestDataLegacyRoundTrip` used 1/3, which is not a decimal and so not a number
+  of the language; it now uses 1/4.
+- Relaxed numeric mode (core design, section 2; T-30). A number that does not
+  fit the strict range is an IEEE 754 float64 instead of an error: a literal
+  beyond the limits, a string read by `to_number`, a number handed in as a Go
+  value, or the result of an operation. A float and a Real compare and order by
+  exact value; an operation with a float is done exactly and rounded once to the
+  nearest float64, and a float that is itself a Real is that Real. A value no
+  float64 can hold is still `PARSE_ERROR` or `NUMERIC_OVERFLOW`. Strict stays
+  the default and is unchanged. `jaxrun` and `shaxonrun` take `-strict`, the
+  default, and `-relaxed`, which overrides it; `-strict -relaxed` and
+  `-strict=false` are errors. The mode is carried by `Profile.Numbers`, not a
+  global. New API: `jaxson.NumericMode` (`Strict`, `Relaxed`, `ModeFromFlags`),
+  `ParseJSONMode`, `ParseDataMode`, `ParsePackageMode`, `DataMode`,
+  `NewMachineMode`, `Machine.SetNumericMode`, `AsRat`, `shaxon.RunMode`,
+  `RunJSONMode`, `ValidateMode` and `jaxtools.NumericFlags`. Tests:
+  `relaxed_test.go` in both packages and `format_float_test.go`. `jaxplay` takes
+  the switches too. The Python port is strict only. This runtime computes
+  relaxed results exactly and rounds once, so they are reproducible across
+  architectures, though the standard does not require it.
+- Versioning (T-04): a version is `X.Y.Z-pNNN.rMMM`, where `X.Y.Z` is the Shaxon specification
+  version implemented and the suffix counts releases of the implementation at that
+  level, in zero-padded counters so that it sorts as text as well as as numbers;
+  this is `0.3.1-p000.r001`. `VERSION`, `pkg/version` and the register header are kept in
+  step by `repoman syncver`, configured in `.repoman.json`.
+- `.gitignore` ignores repoman's `.ed-journal.json`, so an edit journal can no longer
+  be left in the tree as an untracked file (T-03).
+- `jaxtools.LoadPackage` and `LoadTurns` read with the language's own reader
+  (`jaxson.ParseJSON`), with `LoadPackageMode` and `LoadTurnsMode` for a mode. A
+  duplicate key is now an error, and a number that is not a Real is an error
+  instead of a panic from `Normalize`.
+- Range errors name the limit and the way out: `number out of range: a Real has
+  at most 38 digits and 200 after the point; relaxed mode reads a larger number
+  as a float64` for a literal, and `not a Real: ...` (`NUMERIC_OVERFLOW`) for a
+  result; in relaxed mode a value no float64 can hold says so. The Python port's
+  messages match.
+- `jaxson.Number` (T-26, T-27): `NumberFromRat(nil)` and `AsNumber` of a nil
+  `*big.Rat` return false instead of panicking. `Number` unmarshals from JSON
+  under the same rule (`UnmarshalJSON`, `UnmarshalText`), and its documentation
+  says to compare with `Cmp`, not `==`.
+- New tests: `strict_numbers_test.go`, `host_numbers_test.go` (both packages),
+  `number_json_test.go`, `examples/showcase/tools/test_strict_numbers.py`, and 11
+  conformance fixtures (`jaxson-v0.1.0-strict-numbers-fixtures.json`, run by
+  `strict_fixtures_test.go` and `examples/showcase/tools/run_strict_fixtures.py`).
+  Relaxed mode has 14 more fixtures (`jaxson-v0.1.0-relaxed-numbers-fixtures.json`,
+  run by `relaxed_fixtures_test.go`).
+  The differential tests against `encoding/json` accept the one disagreement
+  strict mode creates, a number that is not a Real.
 - A shape that extends another can now only narrow it (ruling G11, layer 1).
   `extends` carries the parent's `kind`, reference target (`index`,
   `relation`, `of`/`by`), primitive keywords, `items` and `qualified`. Where
@@ -162,6 +260,18 @@
 - TRACKER: Phase 6 section, spec findings S1 to S8 (S3, whether validation is
   pure, is analysed there; ruled: the core says nothing about it), and a
   dormant-guards row for the mutation check.
+
+- `pkg/shaxon`: the static layer (plan phase 2, core sections 2 to 4d).
+  `ParseRegistries(pkg)` parses and statically validates `shapes`, `indices`,
+  `relations` and `computes` without any input. `extends` is resolved by
+  default merging plus the override mechanism (`closedOverride`,
+  `andOverride`, `orOverride`, `xoneOverride`, `notOverride`, `checkOverride`,
+  and a per-item `override` in `fields` and `requiredIds`); an `extends`
+  cycle is always `SHAX_SHAPE_ERROR`. Also checked: `limits.maxShapeDepth`
+  reachability, and keyword-versus-kind legality and cross-keyword ordering
+  after the merge. `extends` is valid only on named top-level shapes.
+  `jaxson.OperatorDef` gained `MinArity` and `MaxArity`. 32 tests in
+  `registries_test.go`; the full record is in TRACKER.md, "Phase 2".
 
 - `pkg/shaxon`: shape evaluation (plan phase 3). `Evaluator` checks a focus
   node against a named shape and returns a `Report` of `Violation` records
@@ -400,8 +510,8 @@
   step-cost design. CM-1 and CM-2 are in; the `weighted-1` table, value-copy
   charging (CM-3) and host functions (CM-4) are not started and nothing
   depends on them.
-- Phase 2 (`pkg/shaxon` registries and parser) has no entry in this file;
-  TRACKER.md is its record.
+- Phase 2 (`pkg/shaxon` registries and parser) is summarised in one entry under Added;
+  TRACKER.md holds the full record.
 
 ## 0.3.1 - 2026-09-27
 

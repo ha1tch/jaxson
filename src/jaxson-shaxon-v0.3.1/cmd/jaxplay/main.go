@@ -92,11 +92,17 @@ func run(args []string) int {
 	carryKey := fs.String("carry", "", "input key to splice carried state under (package-specific; empty disables carrying)")
 	carryWhole := fs.Bool("carry-whole", false, "with -carry, splice the previous turn's whole output under key, instead of just output[key] (the default)")
 	turnsPath := fs.String("turns", "", "JSON file of per-turn input objects to run non-interactively, instead of reading turns from stdin")
+	numeric := jaxtools.NumericFlags(fs)
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	mode, err := numeric()
+	if err != nil {
+		fmt.Println("jaxplay:", err)
+		return 2
+	}
 	if fs.NArg() != 1 {
-		fmt.Println("usage: jaxplay [-format text|markdown|json] [-carry key] [-carry-whole] [-turns turns.json] <package.json>")
+		fmt.Println("usage: jaxplay [-strict | -relaxed] [-format text|markdown|json] [-carry key] [-carry-whole] [-turns turns.json] <package.json>")
 		return 2
 	}
 	switch *format {
@@ -107,15 +113,17 @@ func run(args []string) int {
 	}
 	f := jaxtools.Format(*format)
 
-	pkg, err := jaxtools.LoadPackage(fs.Arg(0))
+	pkg, err := jaxtools.LoadPackageMode(fs.Arg(0), mode)
 	if err != nil {
 		fmt.Println(err)
 		return 2
 	}
-	sess := jaxtools.NewSession(pkg)
+	prof := jaxson.CoreProfile()
+	prof.Numbers = mode
+	sess := jaxtools.NewSessionWith(pkg, prof.Run)
 
 	if *turnsPath != "" {
-		return runScripted(sess, *turnsPath, f, *carryKey, *carryWhole)
+		return runScripted(sess, *turnsPath, f, *carryKey, *carryWhole, mode)
 	}
 	return runInteractive(sess, f, *carryKey, *carryWhole)
 }
@@ -155,8 +163,8 @@ func printResult(turn int, out any, f jaxtools.Format) {
 	fmt.Printf("--- turn %d ---\n%s", turn, rendered)
 }
 
-func runScripted(sess *jaxtools.Session, path string, f jaxtools.Format, carryKey string, carryWhole bool) int {
-	turns, err := jaxtools.LoadTurns(path)
+func runScripted(sess *jaxtools.Session, path string, f jaxtools.Format, carryKey string, carryWhole bool, mode jaxson.NumericMode) int {
+	turns, err := jaxtools.LoadTurnsMode(path, mode)
 	if err != nil {
 		fmt.Println(err)
 		return 2

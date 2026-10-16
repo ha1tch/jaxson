@@ -2,7 +2,7 @@
 
 **Jaxson** language 0.1.0 · **Shaxon** specification 0.3.1 · Go implementation 0.3.1
 
-Jaxson is a small, closed language for writing **deterministic logic as JSON**. A package bundles an input, a program, and contracts for the input and the output. Any conforming runtime gives it the same result, or the same error, using exact decimals, no coercion, guaranteed termination and no I/O. The step count is part of the result: a run that exceeds its declared limit does so at the same point on every runtime.
+Jaxson is a small, closed language for writing **deterministic logic as JSON**. A package bundles an input, a program, and contracts for the input and the output. Any conforming runtime, in the default strict numeric mode, gives it the same result, or the same error, using exact decimals, no coercion, guaranteed termination and no I/O. The step count is part of the result: a run that exceeds its declared limit does so at the same point on every runtime.
 
 ```json
 {
@@ -27,7 +27,7 @@ Jaxson computes; Shaxon validates. Shaxon is a **dialect** mounted on Jaxson, no
 
 Because of that, validation and computation are phases of one execution model. They share one step budget, one error model and one definition of a path or operand, so the guarantee Jaxson gives (same package and input, same result and same step count, on every conforming runtime) holds for a validation report as well as for a computed value. Shaxon's constraint layer is derived from SHACL's model of node shapes, property constraints, severities, qualified counts and logical combinators, redesigned around a JSON tree instead of an RDF graph. Constraints that SHACL would send to SPARQL or a JavaScript extension are written in the same total, step-bounded sublanguage that runs the computation. Shaxon is not SHACL written in JSON.
 
-Where each stands: the Jaxson core is specified in `jaxson-v0.1.0-core-design.md` and checked by 28 golden fixtures. The current Shaxon specification is v0.3.1 (`shaxon-v0.3.1-core.md`), checked by 175 conformance fixtures. Both documents are labelled proposals, and the Go implementation runs both end to end. A later Walk profile (`shaxon-v0.3.2-walk-proposal.md`) is proposed and not implemented. The points the specification left open were settled by writing the implementation's behaviour into it and pinning each with a fixture (tracker rows P1, V1, V3, G11, R1, S4, S6, S9); known limits are in `shaxon-v0.3.1-limitations.md`.
+Where each stands: the Jaxson core is specified in `jaxson-v0.1.0-core-design.md` and checked by 28 golden fixtures, 11 strict-number fixtures and 14 relaxed-number fixtures. The current Shaxon specification is v0.3.1 (`shaxon-v0.3.1-core.md`), checked by 196 conformance fixtures. Both documents are labelled proposals, and the Go implementation runs both end to end. A later Walk profile (`shaxon-v0.3.2-walk-proposal.md`) is proposed and not implemented. The points the specification left open were settled by writing the implementation's behaviour into it and pinning each with a fixture (tracker rows P1, V1, V3, G11, R1, S4, S6, S9); known limits are in `shaxon-v0.3.1-limitations.md`.
 
 ## Try it
 
@@ -53,7 +53,7 @@ go run ./cmd/shaxonrun -pretty examples/shaxon/orders.json
 
 | What | Evidence |
 |------|----------|
-| Jaxson language | 28 golden fixtures plus 29 showcase cases, each with an expected result |
+| Jaxson language | 28 golden fixtures, 11 strict-number fixtures, 14 relaxed-number fixtures and 29 showcase cases, each with an expected result |
 | Shaxon specification | 196 conformance fixtures, each with a note saying what a wrong runtime would do differently; written to be read by any implementation (`pkg/shaxon/FIXTURES.md`) |
 | The fixtures themselves | 71 deliberately broken engine variants (mutants) judged by the fixtures: 69 rejected, 2 recorded with the reason they survive |
 | The compiler | Compiled and tree-interpreted runs compared over every fixture and example, including at tightened step limits, for result, error and step count |
@@ -67,6 +67,7 @@ Decisions taken where a specification was silent, and what is still open, are in
 ## Examples and harnesses
 
 - `examples/showcase/`: twelve worked Jaxson packages across everyday logic, finance and machine-learning operations, with 29 fixture cases and a coverage report.
+- `examples/medical/`: two Prolog medical knowledge systems re-implemented on Jaxson and Shaxon and checked against the originals' own output, with a bottom-up Jaxson evaluator compiled from the second system's vocabulary.
 - `examples/game/` and `src/jaxson-shaxon-v0.3.1/examples/navywars`: a game written first as hand-built packages and then ported to the Go builder.
 - `src/jaxson-shaxon-v0.3.1/examples/shaxon/`: Shaxon packages to run, including five access-control examples (rolling quota, chinese wall, delegation chain, four-eyes release, break glass), each with a case file.
 - `src/jaxson-shaxon-v0.3.1/examples/shacl/authz/`: the SHACL side of those five, the lift from JSON to RDF, a rule-mutation check, and the timing harness (`bench.sh`, `scale.py`, `report.py`) with set-up scripts for Linux and macOS and the recorded results.
@@ -75,7 +76,7 @@ Decisions taken where a specification was silent, and what is still open, are in
 
 | Path | Contents |
 |------|----------|
-| `jaxson-intro.md`, `jaxson-v0.1.0-core-design.md`, `jaxson-v0.1.0-fixtures.json` | The Jaxson introduction, core design and its 28 golden fixtures |
+| `jaxson-intro.md`, `jaxson-v0.1.0-core-design.md`, `jaxson-v0.1.0-fixtures.json` | The Jaxson introduction, core design and its 28 golden fixtures (the 11 strict-number and 14 relaxed-number fixtures are in `src/jaxson-shaxon-v0.3.1/pkg/jaxson/`) |
 | `shaxon-v0.3.1-*.md` | The current Shaxon specification: core, limitations, editorial, and the proposal it followed |
 | `shaxon-v0.3.2-walk-proposal.md` | Proposal for a later version (the Walk profile); not implemented |
 | `docs/` | [Implementation status](docs/IMPLEMENTATION-STATUS.md), [precedents](docs/PRECEDENTS.md), and the six-part SHACL comparison (`shacl-01` to `shacl-06`) |

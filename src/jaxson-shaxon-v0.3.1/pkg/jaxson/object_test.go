@@ -136,7 +136,7 @@ func TestObjectEqualAcrossRepresentations(t *testing.T) {
 }
 
 func TestDataLegacyRoundTrip(t *testing.T) {
-	m := map[string]any{"n": nil, "t": true, "arr": []any{big.NewRat(1, 3), map[string]any{}}, "o": map[string]any{"x": "y"}}
+	m := map[string]any{"n": nil, "t": true, "arr": []any{big.NewRat(1, 4), map[string]any{}}, "o": map[string]any{"x": "y"}}
 	back := Legacy(Data(m))
 	if !sameValue(back, m) {
 		t.Fatal("round trip changed the value")

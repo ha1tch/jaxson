@@ -402,7 +402,7 @@ continues against the new model.
 
 ### 6.1 Numeric conventions
 
-- All numbers are exact decimals or integers; there are no floats anywhere.
+- A walk package runs in strict numeric mode (Jaxson core §2, the engine default). All numbers are exact decimals or integers; there are no floats anywhere.
 - Every division specifies **scale 4** and **omits the rounding mode**, so
   the language default (`half_even`) applies everywhere and mixing modes is
   impossible. The showcase's `half_up` is a money convention and does not

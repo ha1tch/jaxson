@@ -524,7 +524,8 @@ func keywordFailure(sd *ShapeDecl, val any) string {
 	case "string":
 		return jaxson.CheckStringLen(val.(string), ratOfCount(k.MinLen), ratOfCount(k.MaxLen), k.Enum)
 	case "number":
-		if why := jaxson.CheckNumber(val.(*big.Rat), k.WantInt, k.MinRat, k.MaxRat); why != "" {
+		num, _ := jaxson.AsRat(val)
+		if why := jaxson.CheckNumber(num, k.WantInt, k.MinRat, k.MaxRat); why != "" {
 			return why
 		}
 		return enumFailure(k.Enum, val)

@@ -1,0 +1,76 @@
+[
+  {
+    "name": "relaxed-float-literal-is-accepted",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":1e300},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 1e300}
+  },
+  {
+    "name": "relaxed-50-digit-integer-rounds-to-a-float",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":12345678901234567890123456789012345678901234567890},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 12345678901234567890123456789012345678901234567890}
+  },
+  {
+    "name": "relaxed-real-stays-a-real",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":1e37},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 10000000000000000000000000000000000000}
+  },
+  {
+    "name": "relaxed-float-plus-float",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"a\":1e300,\"b\":2e300},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$compute\":{\"with\":{\"a\":{\"$path\":[\"input\",\"a\"]},\"b\":{\"$path\":[\"input\",\"b\"]}},\"expr\":[\"add\",{\"$v\":\"a\"},{\"$v\":\"b\"}]}}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 3e300}
+  },
+  {
+    "name": "relaxed-float-minus-itself-is-the-real-zero",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"a\":1e300,\"b\":1e300},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$compute\":{\"with\":{\"a\":{\"$path\":[\"input\",\"a\"]},\"b\":{\"$path\":[\"input\",\"b\"]}},\"expr\":[\"sub\",{\"$v\":\"a\"},{\"$v\":\"b\"}]}}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 0}
+  },
+  {
+    "name": "relaxed-result-beyond-the-strict-range-is-a-float",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"a\":1e20,\"b\":1e20},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$compute\":{\"with\":{\"a\":{\"$path\":[\"input\",\"a\"]},\"b\":{\"$path\":[\"input\",\"b\"]}},\"expr\":[\"mul\",{\"$v\":\"a\"},{\"$v\":\"b\"}]}}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 1e40}
+  },
+  {
+    "name": "relaxed-float-times-its-inverse-is-the-real-one",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"a\":1e300,\"b\":1e-300},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$compute\":{\"with\":{\"a\":{\"$path\":[\"input\",\"a\"]},\"b\":{\"$path\":[\"input\",\"b\"]}},\"expr\":[\"mul\",{\"$v\":\"a\"},{\"$v\":\"b\"}]}}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 1}
+  },
+  {
+    "name": "relaxed-float-is-greater-than-a-real",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"a\":1e300,\"b\":5},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$compute\":{\"with\":{\"a\":{\"$path\":[\"input\",\"a\"]},\"b\":{\"$path\":[\"input\",\"b\"]}},\"expr\":[\"gt\",{\"$v\":\"a\"},{\"$v\":\"b\"}]}}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": true}
+  },
+  {
+    "name": "relaxed-float-equals-itself",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"a\":1e300,\"b\":1e300},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$compute\":{\"with\":{\"a\":{\"$path\":[\"input\",\"a\"]},\"b\":{\"$path\":[\"input\",\"b\"]}},\"expr\":[\"eq\",{\"$v\":\"a\"},{\"$v\":\"b\"}]}}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": true}
+  },
+  {
+    "name": "relaxed-max-keeps-the-float",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"a\":1e300,\"b\":5},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$compute\":{\"with\":{\"a\":{\"$path\":[\"input\",\"a\"]},\"b\":{\"$path\":[\"input\",\"b\"]}},\"expr\":[\"max\",{\"$v\":\"a\"},{\"$v\":\"b\"}]}}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 1e300}
+  },
+  {
+    "name": "relaxed-literal-beyond-float64-is-a-parse-error",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":1e309},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"error": {"category": "PARSE_ERROR"}}
+  },
+  {
+    "name": "relaxed-literal-that-rounds-to-zero-is-a-parse-error",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":1e-999999},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"error": {"category": "PARSE_ERROR"}}
+  },
+  {
+    "name": "relaxed-product-beyond-float64-overflows",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"a\":1e200,\"b\":1e200},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$compute\":{\"with\":{\"a\":{\"$path\":[\"input\",\"a\"]},\"b\":{\"$path\":[\"input\",\"b\"]}},\"expr\":[\"mul\",{\"$v\":\"a\"},{\"$v\":\"b\"}]}}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"error": {"category": "EXECUTION_ERROR", "code": "NUMERIC_OVERFLOW"}}
+  },
+  {
+    "name": "relaxed-to-number-gives-a-float",
+    "jaxson": "1.0",
+    "input": {"s": "999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"},
+    "inputSchema": {"type": "any"},
+    "program": [{"op": "set", "path": ["output"], "value": {"$compute": {"with": {"s": {"$path": ["input", "s"]}}, "expr": ["to_number", {"$v": "s"}]}}}],
+    "outputSchema": {"type": "any"},
+    "expect": {"output": 1e300}
+  }
+]

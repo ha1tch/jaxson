@@ -12,7 +12,7 @@ treats validation and computation as phases of one execution model rather
 than as two systems bridged at an API boundary, and every rule in this
 document that could otherwise leave a runtime a choice (index reuse, section
 3; combinator evaluation, section 4) is written to remove that choice, so
-that determinism holds by construction rather than by convention.
+that determinism holds by construction rather than by convention. It holds in Jaxson's strict numeric mode, the engine default (Jaxson core, sections 2 and 9).
 
 Jaxson computes; SHACL validates. Shaxon's constraint layer is derived from
 SHACL's model — node shapes, property constraints, severity levels, qualified
@@ -55,7 +55,7 @@ Everything not called out below carries over from Jaxson unchanged.
   `if`, `assert`, `halt`), plus one new instruction added in section 8 (`check`).
 - The compute sublanguage: closed operator set, `with`-bound operands, no reach
   into state.
-- Exact-decimal numbers, the 38-digit magnitude bound, and `div`/`round` as the
+- Exact-decimal numbers (the Jaxson core's Reals, in its strict numeric mode), and `div`/`round` as the
   only digit-losing operations.
 - Step-counted termination as the semantic resource bound.
 - The error-category discipline: stable categories, stable codes within

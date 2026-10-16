@@ -77,7 +77,7 @@ func (pr Profile) Run(p map[string]any) (out any, err *Err) {
 	}
 	// The machine holds objects as *Object; the input arrives as maps unless
 	// the reader already built it that way (ParsePackage), which Data accepts.
-	input := Data(p["input"])
+	input := DataMode(p["input"], pr.Numbers)
 	if hasIn {
 		if msg := validate(p["inputSchema"], input, "$"); msg != "" {
 			fail("INPUT_ERROR", "", "%s", msg)
@@ -85,7 +85,7 @@ func (pr Profile) Run(p map[string]any) (out any, err *Err) {
 	}
 	// input is never written (no instruction may name it), and reads of it
 	// are shared with the machine, so it needs no private copy.
-	m := NewMachine(input, NewObject(0), nil, limit, instructions, CoreOperators())
+	m := NewMachineMode(input, NewObject(0), nil, limit, instructions, CoreOperators(), pr.Numbers)
 	m.SetForms(forms)
 	h.Start(m)
 	h.AfterInput(m)

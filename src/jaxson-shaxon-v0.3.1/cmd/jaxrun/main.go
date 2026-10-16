@@ -9,23 +9,36 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	"github.com/ha1tch/jaxson/pkg/jaxson"
+	"github.com/ha1tch/jaxson/pkg/jaxtools"
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Println("usage: jaxrun <package.json>")
+	numeric := jaxtools.NumericFlags(flag.CommandLine)
+	flag.Usage = func() {
+		fmt.Println("usage: jaxrun [-strict | -relaxed] <package.json>")
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+	mode, err := numeric()
+	if err != nil {
+		fmt.Println("jaxrun:", err)
 		os.Exit(2)
 	}
-	raw, err := os.ReadFile(os.Args[1])
+	if flag.NArg() != 1 {
+		flag.Usage()
+		os.Exit(2)
+	}
+	raw, err := os.ReadFile(flag.Arg(0))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(2)
 	}
-	v, perr := jaxson.ParseJSON(raw)
+	v, perr := jaxson.ParseJSONMode(raw, mode)
 	if perr != nil {
 		fmt.Println(perr.Error())
 		os.Exit(1)
@@ -36,7 +49,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	out, e := jaxson.Run(pkg)
+	prof := jaxson.CoreProfile()
+	prof.Numbers = mode
+	out, e := prof.Run(pkg)
 	if e != nil {
 		fmt.Printf("%s\n", e.Error())
 		os.Exit(1)

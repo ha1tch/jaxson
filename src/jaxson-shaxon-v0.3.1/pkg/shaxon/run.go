@@ -99,7 +99,10 @@ func profile(capture *hooks) jaxson.Profile {
 
 // Run executes a decoded Shaxon package (values as jaxson.ParseJSON or
 // jaxson.Normalize make them).
-func Run(pkg map[string]any) (res Result, err *jaxson.Err) {
+func Run(pkg map[string]any) (res Result, err *jaxson.Err) { return RunMode(pkg, jaxson.Strict) }
+
+// RunMode is Run in the given numeric mode (Jaxson core design, section 2).
+func RunMode(pkg map[string]any, mode jaxson.NumericMode) (res Result, err *jaxson.Err) {
 	h := &hooks{}
 	// Static replaces the package's program with its expansion (aggregate
 	// sugar); do that on a copy, not on the caller's package.
@@ -107,7 +110,9 @@ func Run(pkg map[string]any) (res Result, err *jaxson.Err) {
 	for k, v := range pkg {
 		cp[k] = v
 	}
-	out, err := profile(h).Run(cp)
+	pr := profile(h)
+	pr.Numbers = mode
+	out, err := pr.Run(cp)
 	if err != nil {
 		return Result{}, err
 	}
@@ -124,8 +129,11 @@ func Run(pkg map[string]any) (res Result, err *jaxson.Err) {
 
 // RunJSON is Run on raw JSON: duplicate keys and anything that is not one
 // JSON object are a PARSE_ERROR.
-func RunJSON(raw []byte) (Result, *jaxson.Err) {
-	v, err := jaxson.ParsePackage(raw) // the input member is parsed straight into Objects
+func RunJSON(raw []byte) (Result, *jaxson.Err) { return RunJSONMode(raw, jaxson.Strict) }
+
+// RunJSONMode is RunJSON in the given numeric mode.
+func RunJSONMode(raw []byte, mode jaxson.NumericMode) (Result, *jaxson.Err) {
+	v, err := jaxson.ParsePackageMode(raw, mode) // the input member is parsed straight into Objects
 	if err != nil {
 		return Result{}, err
 	}
@@ -133,7 +141,7 @@ func RunJSON(raw []byte) (Result, *jaxson.Err) {
 	if !ok {
 		return Result{}, &jaxson.Err{Cat: "PARSE_ERROR", Msg: "a package must be a JSON object"}
 	}
-	return Run(pkg)
+	return RunMode(pkg, mode)
 }
 
 // hooks is the per-run state of one Shaxon run.

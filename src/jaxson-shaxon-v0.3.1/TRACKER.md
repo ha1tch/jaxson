@@ -3,7 +3,7 @@
 Status: living document. Tracks progress against
 `jaxson-shaxon-implementation-plan.md`, phase by phase, using that
 document's own section numbers so the two can be read side by side. This
-snapshot (2026-09-27, revised) reflects the repository re-verified
+snapshot (2026-09-27, revised; phase table re-verified 2026-10-14, see "Verification, 2026-10-14" below) reflects the repository re-verified
 directly: `pkg/jaxson` build, vet, and full fixture run all re-run against
 the tree as it now stands, not carried forward from the previous
 snapshot's claims — including this document's own prior claim that Phase
@@ -28,12 +28,30 @@ in its own bullet rather than invented as a fourth legend symbol.
 |---|---|---|
 | 0 — Extract, don't change | §3 | **Done, verified** |
 | 1 — Extension points Shaxon needs | §4 | **Done, verified (v0.2.0)** — build, vet, gofmt, `go test -race` all re-run clean; extension points now covered by their own tests (see "Phase 1 closure, v0.2.0" below) |
-| 2 — Shaxon's static layer | §5 | **Complete**, including the `extends` `"override"` mechanism. `pkg/shaxon` parses and statically validates `shapes`/`indices`/`relations`/`computes`, 33 tests passing. Everything needing real data (repeated index keys, `cardinality: one-to-one`) is correctly left to Phase 4 |
-| 3 — Shape evaluation | §6 | **Done, verified (2026-10-04)** — `shapes.go`, `report.go`, 19 tests (18 from Phase 3 plus the CM-2 cost-table test), mutation-checked. Reference-kind shapes first used a temporary `IndexResolver` stopgap; it was **closed in Phase 4** (the real `IndexSet` satisfies the interface; see "Phase 4" below) |
+| 2 — Shaxon's static layer | §5 | **Complete**, including the `extends` `"override"` mechanism. `pkg/shaxon` parses and statically validates `shapes`/`indices`/`relations`/`computes`, 32 tests passing (33 until the 2026-10-14 recount). Everything needing real data (repeated index keys, `cardinality: one-to-one`) is correctly left to Phase 4 |
+| 3 — Shape evaluation | §6 | **Done, verified (2026-10-04)** — `shapes.go`, `report.go`, 20 tests (counted 2026-10-14; 18 when Phase 3 closed, 19 with the CM-2 cost-table test), mutation-checked. Reference-kind shapes first used a temporary `IndexResolver` stopgap; it was **closed in Phase 4** (the real `IndexSet` satisfies the interface; see "Phase 4" below) |
 | 4 — Indices/relations/targets/`validate` | §7 | **Code and tests done, verified (2026-10-04)** — `indices.go`, `targets.go`, `paths.go`, `forms.go`, `validate.go`, `check.go`; 53 new tests, mutation-checked. Decisions P1-P6, T1-T5, V1-V7, C1-C6, F1-F7 recorded below; **four spec rulings are open** (P1, G11, V1, V3) |
 | 5 — `shaxon.Run`, version, pipeline order | §8 | **Code and tests done, verified (2026-10-04)** — `pkg/shaxon/run.go`, `pkg/jaxson/parse.go`, `cmd/shaxonrun`; 29 new tests, mutation-checked. Decisions R1-R7 below; **R1 needs a spec ruling** |
 | 6 — Fixtures and conformance | §9 | **Mostly done (2026-10-05)** — 196 Shaxon fixtures and 71 engine mutants judged by them (69 killed, 2 recorded survivors); see "Phase 6" below for what remains open |
 | 7 — Public API, `Session`, `build` package | §10 | **7.1, 7.2 and 7.3 done, verified** (`shaxon.Validate`, `jaxson.Number`, `pkg/jaxtools`, `pkg/jaxson/build`, Navy Wars port). Decisions A1-A4 and N1-N2 below |
+
+## Verification, 2026-10-14
+
+Re-run against a fresh clone of the repository (commit 5282d6c) on Go 1.27.2 (upstream), `GOPROXY=off`; the module has no external dependencies. Every phase status in the table above stands, with the corrections to the live statements noted in this section.
+
+| Check | Result |
+|---|---|
+| `go build ./...`, `go vet ./...`, `gofmt -l .` | clean |
+| `go test -race -count=1 ./...` | pass; top-level tests: `pkg/jaxson` 63, `pkg/shaxon` 147, `pkg/jaxson/build` 7, `pkg/jaxtools` 11, `examples/navywars` 2 |
+| Fixtures | 28 jaxson, 196 shaxon (78 expect an error) |
+| Test counts the tracker names per file | agree for `run_test.go` (24), `parse_test.go` (5), `indices_test.go`, `validate_test.go` and `forms_test.go` (12 each) and `paths_test.go` (6); differ for `registries_test.go` (32, was 33) and `shapes_test.go` (20, was 19) |
+| Mutant scripts | `fixtures_mutants.py` lists 71 mutants with 2 left open; `examples/shaxon/authz/mutants.py` lists 23; counted from the scripts, not run |
+| `cmd/shaxonrun` on `examples/shaxon/orders.json` | 3 findings, 16 steps |
+| Navy Wars through `examples/game/run-jaxplay.sh -carry game -turns turns-seed0.json -format json` | reaches `won`; with `-carry-whole`, turn 2 fails with `INPUT_ERROR`, missing required `seed`, as recorded below |
+| Table syntax | The PF3 row of the performance table had an unescaped pipe character inside a code span, giving a four-column table a fifth column; the validator refused the edit (escaping the pipe was not enough), so the row now describes that key in words |
+| Cited but absent from the published repository | `docs/proposals/step-cost-model.md` (cited under G1 and the step-cost model section), `examples/walk/` (already noted as unpublished), `pkg/shaxon/.ed-journal.json` |
+
+Not re-exercised: the dormant guards (mutant scripts, fuzzing, the SHACL harnesses through pyshacl and Jena, the many-core race run). Their rows in the dormant-guards table remain the record of the last runs.
 
 ## Phase 0 — Extract, don't change (plan §3) — done
 
@@ -137,7 +155,7 @@ v0.2.0" below):
 
 `pkg/shaxon/` exists: `registries.go`, `parse_computes.go`,
 `parse_indices.go`, `parse_relations.go`, `parse_shapes.go`,
-`recursion.go`, `errors.go`, plus `registries_test.go` (33 cases, all
+`recursion.go`, `errors.go`, plus `registries_test.go` (32 cases as of 2026-10-14, 33 before; all
 passing). Full detail in "Phase 2 scaffolding", "Phase 2 completion", and
 "extends override mechanism implemented" below — this entry is the
 at-a-glance summary, those are the record.
@@ -172,17 +190,17 @@ at-a-glance summary, those are the record.
   top-level shapes — not on an inline field/items/qualified-target shape.
   Every spec example uses it this way; restricting it also removes a real
   ordering hazard an inline shape's `extends` would otherwise create.
-- [ ] Everything needing real data: repeated non-`multi` index keys,
+- [x] (done in Phase 4) Everything needing real data: repeated non-`multi` index keys,
   `cardinality: "one-to-one"` uniqueness, `unique` itself (correctly
   Phase 4's job, not missing from this phase).
-- [ ] `indices.go` (build/rebuild against real data), `targets.go`,
+- [x] (done in Phases 4 to 6; this is the Phase 2 view of the list, and `check_instr.go` became `check.go`) `indices.go` (build/rebuild against real data), `targets.go`,
   `check_instr.go`, `run.go`, a Shaxon `fixtures_test.go`. `cmd/shaxonrun/`
   does not exist yet (added in Phase 5). (`shapes.go` and `report.go` now exist — Phase 3, below.)
 
 ## Phase 3 - shape evaluation (plan section 6) - done, 2026-10-04
 
 `pkg/shaxon/shapes.go` (the `Evaluator`), `report.go` (`Violation`,
-`Report`) and `shapes_test.go` (19 tests now; 18 when Phase 3 closed, one per core section 10
+`Report`) and `shapes_test.go` (20 tests as counted 2026-10-14; 18 when Phase 3 closed, one per core section 10
 granularity row plus the mandatory minimal-evaluation step counts, gate
 order, severity, references, depth, step-limit surfacing and numeric
 exactness).
@@ -371,12 +389,11 @@ version of that check let one mutant survive (`Checker.clone` dropping
    G11 was then reversed to "a child may only narrow", layer 1 of which is
    done and layers 2 and 3 are open (see its row).
 2. A stray `pkg/shaxon/.ed-journal.json` (repoman's journal, created by an
-   edit run from the wrong directory) is still present. Deleting it was
+   edit run from the wrong directory) was present in the author's tree (it is not in the published repository as cloned 2026-10-14). Deleting it was
    refused by the sandbox, so it was left alone; it is not source and
    should be removed before packaging for release.
 3. `VERSION` is still 0.3.1; whether this work warrants a bump is a release
    decision.
-4. Phase 2 has no CHANGELOG entry of its own.
 
 ## Phase 5 — `shaxon.Run`, version, pipeline order (plan §8) — done
 
@@ -474,7 +491,7 @@ in RDF, so `ex:seq` carries it) and where SHACL-SPARQL was the better fit.
 ### Open items
 
 1. **Spec rulings:** R1 was settled with P1, V1, V3 and G11 on 2026-10-07.
-2. The stray `pkg/shaxon/.ed-journal.json` from Phase 4 is still present.
+2. The stray `pkg/shaxon/.ed-journal.json` from Phase 4 was present in the author's tree; it is not in the published repository as cloned 2026-10-14.
 3. `costs.Validate` (table coverage) has no test that can fail: `unit` has a
    fallback. It starts to matter with a table that has none.
 4. Phase 7.1 is done (2026-10-05); see its entry under Phase 7 for the decisions
@@ -543,14 +560,14 @@ from the core specification, with the expected result fixed before the run;
 every failure while writing them was a fault in the fixture (a wrong assert
 form, an output that starts as null, a premise the 3.1 text had dropped), a
 difference in spelling (S1), or, once, a defect in the engine (S8, `closed`
-under `extends`). 70 expect an error, the rest a result.
+under `extends`). 78 expect an error (counted 2026-10-14; this said 70), the rest a result.
 
 | Item | Status |
 |---|---|
 | Runner, with spec-fixed-only matching of report violations | done |
 | Fixtures for the plan's priorities (granularity split, `qualified` charge, `unique` ordering and gate rule; the purity priority became "no `into`, nothing is written" once S3 was ruled) | done |
 | The six attic fixtures, rewritten for 3.1 | done (three premises had changed; recorded in each note) |
-| Mutation check of the fixtures against the engine (`pkg/shaxon/fixtures_mutants.py`) | done: 43 mutants, 41 killed, 2 expected survivors with reasons |
+| Mutation check of the fixtures against the engine (`pkg/shaxon/fixtures_mutants.py`) | done: the script lists 71 mutants, 2 left open as expected survivors with reasons (this row said 43 and 41; the 2026-10-07 run killed 69; not re-run 2026-10-14) |
 | Navy Wars replay as an integration test (plan §9, optional) | not started |
 | Fixtures run by a second, independent runtime | not started; none exists |
 
@@ -698,7 +715,7 @@ values and so cannot feed the interpreter, which needs the tree.
 |---|---|---|
 | PF1 | Delete the tree interpreter oracle when the compiler has been in use long enough: `pkg/jaxson/tree_oracle.go`, the `tree` switch and `UseTreeInterpreter`, the derived `OperatorDef.Apply`, the `Exec` members of the eight core instructions, `compile_oracle_test.go`, `shaxon/oracle_test.go` and the `SHAXON_BENCH_TREE` switch. The header of `tree_oracle.go` has the full list. | open |
 | PF2 | `FuzzParseJSON` as a dormant guard: only its seed corpus runs in the default test run. | recorded in the table above |
-| PF3 | Wall time was quadratic in the trail on `four-eyes-release` and `break-glass` (steps stayed linear): 2.8 s and 4.6 s at 4000 events, 80 s and 148 s at 20000 (`examples/shacl/authz/results/REPORT.md`, first full run). Cause in four-eyes: the replay bound the whole `state.pay` map in a `$compute` `with` only to ask `has` of it, and a composite read of `state` is cloned, so every event copied the growing map. Cause in break-glass: a review event has no `id`, so the lookup key defaulted to `""`, which every break-glass event's index key also was, and the `with` binding built the matching list eagerly. **Fixed 2026-10-05**, no result or step count changed: the compiler borrows, not clones, a `{"$path": ...}` binding used only by `has`, `len`, `type_of`, `keys`, `eq` or `ne` (`borrowOnly`, `compile.go`, with `TestBorrowOnly`), and `break-glass.json` defaults the lookup keys to `(no id)`. Now 7.5 ms and 40 ms at 4000 events, 33 ms and 176 ms at 20000. Not done: the tree-interpreter oracle still clones (it is a test oracle, PF1); a host operator that overrode `has`, `len` and the rest with one that keeps its argument would break the borrow assumption (the core operators do not). A parallel draft of the same fix (2026-10-06) was compared with this one: its engine change is the same borrow analysis (it also lists `lt`, `le`, `gt`, `ge`, which here are left out because comparing a composite is a type error anyway, and it does not borrow an unused binding), and its tests, with two repaired, are in `borrow_test.go`. Its package change, keying `reviewsOf` by `of` only for `type == "review"`, was built and measured here and does not remove the quadratic: with it break-glass at 4000 events still took 1.7 s, because the `reviewsOfBy` lookup key `"|"` of an event without an id still matches every break-glass event (this fix defaults both lookup keys). It also changes the step count (92405 against 77617) and narrows `reviews` to events of type `review`, which is what the SHACL shape asks (`ex:type "review"`) but not what this package counted; whether to adopt that narrowing is open and would change step counts. | done |
+| PF3 | Wall time was quadratic in the trail on `four-eyes-release` and `break-glass` (steps stayed linear): 2.8 s and 4.6 s at 4000 events, 80 s and 148 s at 20000 (`examples/shacl/authz/results/REPORT.md`, first full run). Cause in four-eyes: the replay bound the whole `state.pay` map in a `$compute` `with` only to ask `has` of it, and a composite read of `state` is cloned, so every event copied the growing map. Cause in break-glass: a review event has no `id`, so the lookup key defaulted to `""`, which every break-glass event's index key also was, and the `with` binding built the matching list eagerly. **Fixed 2026-10-05**, no result or step count changed: the compiler borrows, not clones, a `{"$path": ...}` binding used only by `has`, `len`, `type_of`, `keys`, `eq` or `ne` (`borrowOnly`, `compile.go`, with `TestBorrowOnly`), and `break-glass.json` defaults the lookup keys to `(no id)`. Now 7.5 ms and 40 ms at 4000 events, 33 ms and 176 ms at 20000. Not done: the tree-interpreter oracle still clones (it is a test oracle, PF1); a host operator that overrode `has`, `len` and the rest with one that keeps its argument would break the borrow assumption (the core operators do not). A parallel draft of the same fix (2026-10-06) was compared with this one: its engine change is the same borrow analysis (it also lists `lt`, `le`, `gt`, `ge`, which here are left out because comparing a composite is a type error anyway, and it does not borrow an unused binding), and its tests, with two repaired, are in `borrow_test.go`. Its package change, keying `reviewsOf` by `of` only for `type == "review"`, was built and measured here and does not remove the quadratic: with it break-glass at 4000 events still took 1.7 s, because the `reviewsOfBy` lookup key (two empty strings joined by a vertical bar) of an event without an id still matches every break-glass event (this fix defaults both lookup keys). It also changes the step count (92405 against 77617) and narrows `reviews` to events of type `review`, which is what the SHACL shape asks (`ex:type "review"`) but not what this package counted; whether to adopt that narrowing is open and would change step counts. | done |
 | PF4 | Engine-only time against warmed-up Jena at 20000 events (`results/REPORT.md`, re-run 2026-10-07, five examples on one host): `chinese-wall` 10 ms against 7.6 (Jena 1.4x faster), `delegation-chain` 19 against 20 (level), `four-eyes-release` 31 against 36 (Shaxon 1.2x faster); Shaxon is ahead on `rolling-quota` (18x) and `break-glass` (2.9x). `chinese-wall` was 3.0x behind (18 ms against 5.9) before the slab index: an index whose key is a `concat` island over bound values and literals is now built by `Machine.ConcatKey` (`pkg/jaxson/concatkey.go`), which appends each key to one byte slab with the same bindings, charges and TYPE_ERROR as the island, and by `buildSlab` (`pkg/shaxon/slabindex.go`), which looks keys up in an open-addressing table over parallel arrays (hash, offset, length, first position, count) and drops a repeated key from the slab. Only distinct keys become entries, carved from one string, one entry block and one positions array, and lookups use that table in place of a Go map. Same-host A/B on the 20000-event trail: 18-20 ms to 7.5-8 ms on the host of the earlier runs, 30-35 to 11-13 ms on the slower host of the re-run, the same 80011 steps and the same output. The tree interpreter never takes the slab path, so the oracle tests (175 fixtures, 51 authorisation cases, tightened step limits) and `slabindex_test.go` compare it with the generic build. Not done: the same for keys that are not a `concat` (`delegation-chain` and `four-eyes-release` use plain path keys, which already avoid the build cost); evaluating an index lazily when its only use is `$inverse` with a few keys. Jena's own figure varies by up to a third between runs, so the 1.4x is barely outside the noise, and the host is a 2-CPU VM. Two outside ideas were measured on 2026-10-07 before this change: with the garbage collector switched off `chinese-wall` takes 17.8 ms against 18.2 ms, so an allocation-reducing scheme in the manner of slabber alone recovers about 2% (the gain here came from not building a string, hashing it into a Go map and boxing it per distinct key, together with the lookup table, not from fewer allocations as such); and a zero-allocation tokenizer in the manner of queryfy's superjsonic reads the 0.73 MB `chinese-wall` trail in 1.9 ms against 5.2 ms for `ParseData`, so it could save at most about 1.5 ms of a 38 ms end-to-end run and none of the engine-only time. | open |
 
 ## Phase 7 — Public API and tooling (plan §10) — partial
@@ -707,12 +724,18 @@ values and so cannot feed the interpreter, which needs the tree.
   boundary type, immutable-after-construction tables) — done and verified
   2026-10-05. `pkg/shaxon/api.go`, `pkg/jaxson/number.go`, `RunJSON` in
   `pkg/jaxson/profile.go`; tests `api_test.go`, `number_test.go`,
-  `runjson_test.go`. Decisions where the plan is loose (**the signature and the
-  Number scope need your confirmation**):
+  `runjson_test.go`. Decisions where the plan is loose (confirmed 2026-10-15; the
+  plan is frozen, so these are its recorded deviations):
   - **A1** `Validate(pkg, shape, doc) (Report, *jaxson.Err)`, not the plan's
     `(pkg, target)`: `target` is a shape name and the document is a separate
     argument, so one package can validate many documents. `ValidateJSON` takes
-    raw bytes for both.
+    raw bytes for both. Confirmed 2026-10-15: the plan's one-line sketch,
+    `Validate(pkg, target)`, did not say where the document goes, and used
+    `target` before the core fixed its meaning (a `validate` entry's target
+    expression, section 7). The implementation names the shape and takes the
+    document, with the document's root as the target; other targets go through
+    `Run` with a `validate` entry. `ValidateMode` runs it in a numeric mode, and
+    Go numbers in `doc` convert at entry (T-28).
   - **A2** What runs: the static checks, then one report-mode validation of
     `doc` placed at `input`. Not run: `program`, the package's own `validate`
     entries, `inputSchema`, `outputSchema`. Computes and `check` islands inside
@@ -724,12 +747,18 @@ values and so cannot feed the interpreter, which needs the tree.
     argument is changed.
   - **N1** `jaxson.Number`: an immutable exact decimal (`ParseNumber`,
     `NumberFromInt64`, `NumberFromRat`, `AsNumber`; `String`, `Rat` (a copy),
-    `Sign`, `IsInt`, `Int64`, `Float64` with exactness, `Cmp`, `MarshalJSON`).
+    `Sign`, `IsInt`, `Int64`, `Float64` with exactness, `Cmp`, `MarshalJSON`,
+    `UnmarshalJSON`, `UnmarshalText`). Its limits are the Reals' (core design,
+    section 2): at most 38 digits and 200 after the point. A float64 is not a
+    `Number`: `AsNumber` reports false for one. Confirmed 2026-10-15.
   - **N2** Results still hold `*big.Rat`; `AsNumber` converts. Changing the
     element type of every result would break each existing caller, and the
     machine shares Rats on purpose. A caller who keeps a Rat from a result must
     not change it; with `Number` they cannot. If you want results to hold
-    `Number`, that is a separate, breaking step.
+    `Number`, that is a separate, breaking step. In relaxed mode a result is a
+    `*big.Rat` or, beyond the Real limits, a `float64`: a plain Go value that
+    needs no wrapper, so `Number` stays the view of the Real ones. Confirmed
+    2026-10-15.
   - `jaxson.RunJSON` added to match `shaxon.RunJSON` (the plan asks for both).
     `Err` is documented (categories and the Cat/Code/Msg contract) and its text
     no longer has a stray `/` when Code is empty (`PARSE_ERROR: msg`).

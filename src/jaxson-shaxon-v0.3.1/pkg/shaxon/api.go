@@ -12,7 +12,9 @@ package shaxon
 //	A1  Validate(pkg, shape, doc). pkg declares the vocabulary: shapes, and
 //	    whatever indices, relations and computes those shapes refer to. doc is
 //	    the document, in the value model Run takes (maps, arrays, *big.Rat,
-//	    strings, booleans, nil) or already as Objects. shape is the name of a
+//	    strings, booleans, nil) or already as Objects; Go numbers (the int, uint
+//	    and float types, json.Number and jaxson.Number) are converted, and one
+//	    that is not a Real is NUMERIC_OVERFLOW. shape is the name of a
 //	    declared shape.
 //	A2  What runs: the package's static checks (the same ones Run makes), then
 //	    one report-mode validation of doc, which sits at the root `input`.
@@ -33,6 +35,12 @@ import "github.com/ha1tch/jaxson/pkg/jaxson"
 // Validate checks doc against the shape named shape, which pkg declares, and
 // returns the report of every finding. See the decisions A1 to A4 above.
 func Validate(pkg map[string]any, shape string, doc any) (Report, *jaxson.Err) {
+	return ValidateMode(pkg, shape, doc, jaxson.Strict)
+}
+
+// ValidateMode is Validate in the given numeric mode (Jaxson core design,
+// section 2).
+func ValidateMode(pkg map[string]any, shape string, doc any, mode jaxson.NumericMode) (Report, *jaxson.Err) {
 	run := make(map[string]any, len(pkg)+3)
 	for k, v := range pkg {
 		switch k {
@@ -48,7 +56,7 @@ func Validate(pkg map[string]any, shape string, doc any) (Report, *jaxson.Err) {
 		"shape":  shape,
 		"mode":   "report",
 	}}
-	res, err := Run(run)
+	res, err := RunMode(run, mode)
 	if err != nil {
 		return Report{}, err
 	}

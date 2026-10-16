@@ -1,0 +1,12 @@
+# repoman edit journals are local scratch and never part of the repository
+.ed-journal.json
+
+# run outputs of examples/medical/run_all.sh
+examples/medical/medical/run_out.json
+examples/medical/medical/kb_report.json
+examples/medical/medical3/data/export_raw.txt
+examples/medical/medical3/data/m3_out.json
+examples/medical/medical3/export_lib.pl
+examples/medical/medical3/overlay_*.pl
+examples/medical/medical3/ov_pkg.json
+__pycache__/

@@ -79,7 +79,7 @@ func checkSchema(s any) {
 	}
 }
 
-func ratOf(v any) *big.Rat { r, _ := v.(*big.Rat); return r }
+func ratOf(v any) *big.Rat { r, _ := numberRat(v); return r }
 
 // ---------------------------------------------------------------- primitive keyword checks
 //
@@ -168,7 +168,8 @@ func validate(s, v any, path string) string {
 	switch t {
 	case "number":
 		i, _ := m["int"].(bool)
-		if msg := CheckNumber(v.(*big.Rat), i, ratOf(m["min"]), ratOf(m["max"])); msg != "" {
+		r, _ := numberRat(v)
+		if msg := CheckNumber(r, i, ratOf(m["min"]), ratOf(m["max"])); msg != "" {
 			return path + ": " + msg
 		}
 	case "string":

@@ -21,17 +21,24 @@ import (
 	"os"
 
 	"github.com/ha1tch/jaxson/pkg/jaxson"
+	"github.com/ha1tch/jaxson/pkg/jaxtools"
 	"github.com/ha1tch/jaxson/pkg/shaxon"
 )
 
 func main() {
 	pretty := flag.Bool("pretty", false, "indent the result")
 	steps := flag.Bool("steps", false, "print the step count to standard error")
+	numeric := jaxtools.NumericFlags(flag.CommandLine)
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: shaxonrun [-pretty] [-steps] <package.json> [input.json]")
+		fmt.Fprintln(os.Stderr, "usage: shaxonrun [-pretty] [-steps] [-strict | -relaxed] <package.json> [input.json]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+	mode, err := numeric()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "shaxonrun:", err)
+		os.Exit(2)
+	}
 	if flag.NArg() < 1 || flag.NArg() > 2 {
 		flag.Usage()
 		os.Exit(2)
@@ -41,7 +48,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	v, perr := jaxson.ParsePackage(raw)
+	v, perr := jaxson.ParsePackageMode(raw, mode)
 	if perr != nil {
 		fmt.Fprintln(os.Stderr, perr.Error())
 		os.Exit(1)
@@ -57,7 +64,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
-		iv, perr := jaxson.ParseData(in)
+		iv, perr := jaxson.ParseDataMode(in, mode)
 		if perr != nil {
 			fmt.Fprintln(os.Stderr, "input:", perr.Error())
 			os.Exit(1)
@@ -65,7 +72,7 @@ func main() {
 		pkg["input"] = iv
 	}
 
-	res, rerr := shaxon.Run(pkg)
+	res, rerr := shaxon.RunMode(pkg, mode)
 	if rerr != nil {
 		fmt.Fprintln(os.Stderr, rerr.Error())
 		os.Exit(1)

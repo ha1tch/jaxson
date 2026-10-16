@@ -1,0 +1,61 @@
+[
+  {
+    "name": "strict-38-digit-number-is-accepted",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":99999999999999999999999999999999999999},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 99999999999999999999999999999999999999}
+  },
+  {
+    "name": "strict-39-digit-number-is-a-parse-error",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":999999999999999999999999999999999999999},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"error": {"category": "PARSE_ERROR"}}
+  },
+  {
+    "name": "strict-exponent-within-the-limit-is-accepted",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":1e37},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 10000000000000000000000000000000000000}
+  },
+  {
+    "name": "strict-exponent-beyond-the-limit-is-a-parse-error",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":1e38},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"error": {"category": "PARSE_ERROR"}}
+  },
+  {
+    "name": "strict-huge-exponent-is-a-parse-error",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":1e999999},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"error": {"category": "PARSE_ERROR"}}
+  },
+  {
+    "name": "strict-tiny-exponent-is-a-parse-error",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":1e-999999},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"error": {"category": "PARSE_ERROR"}}
+  },
+  {
+    "name": "strict-200-fraction-digits-are-accepted",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001}
+  },
+  {
+    "name": "strict-201-fraction-digits-are-a-parse-error",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"error": {"category": "PARSE_ERROR"}}
+  },
+  {
+    "name": "strict-zero-with-a-huge-exponent-is-accepted",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{\"n\":0e999999},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$path\":[\"input\",\"n\"]}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"output": 0}
+  },
+  {
+    "name": "strict-number-in-the-program-text-is-checked",
+    "packageText": "{\"jaxson\":\"1.0\",\"input\":{},\"inputSchema\":{\"type\":\"any\"},\"program\":[{\"op\":\"set\",\"path\":[\"output\"],\"value\":{\"$lit\":1e66}}],\"outputSchema\":{\"type\":\"any\"}}",
+    "expect": {"error": {"category": "PARSE_ERROR"}}
+  },
+  {
+    "name": "strict-to-number-beyond-the-limit-overflows",
+    "jaxson": "1.0",
+    "input": {"s": "999999999999999999999999999999999999999"},
+    "inputSchema": {"type": "any"},
+    "program": [{"op": "set", "path": ["output"], "value": {"$compute": {"with": {"s": {"$path": ["input", "s"]}}, "expr": ["to_number", {"$v": "s"}]}}}],
+    "outputSchema": {"type": "any"},
+    "expect": {"error": {"category": "EXECUTION_ERROR", "code": "NUMERIC_OVERFLOW"}}
+  }
+]

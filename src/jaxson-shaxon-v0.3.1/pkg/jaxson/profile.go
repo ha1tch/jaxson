@@ -38,6 +38,10 @@ type Profile struct {
 	// malformed in any way beyond the version gate: Begin should capture,
 	// not judge. Nil means the core, as does a nil return.
 	Begin func(p map[string]any) Hooks
+
+	// Numbers is the numeric mode (Jaxson core design, section 2): Strict, the
+	// zero value, or Relaxed.
+	Numbers NumericMode
 }
 
 // CoreProfile is the core Jaxson language.
@@ -170,7 +174,7 @@ func RunJSON(raw []byte) (out any, err *Err) { return CoreProfile().RunJSON(raw)
 
 // RunJSON is Run on raw JSON; see the package-level RunJSON.
 func (pr Profile) RunJSON(raw []byte) (out any, err *Err) {
-	v, err := ParsePackage(raw)
+	v, err := ParsePackageMode(raw, pr.Numbers)
 	if err != nil {
 		return nil, err
 	}

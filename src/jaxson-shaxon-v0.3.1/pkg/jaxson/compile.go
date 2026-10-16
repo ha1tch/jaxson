@@ -135,6 +135,9 @@ func (c *Compiler) path(p []any, scratch bool) func(*Machine) (string, []any) {
 			case *big.Rat:
 				out[i] = boxInt(m.toIndex(u))
 			default:
+				if _, isFloat := v.(float64); isFloat {
+					execFail("TYPE_ERROR", "a path segment must be a string or an integer, got a float, which is never an index")
+				}
 				execFail("TYPE_ERROR", "a path segment must be a string or an integer, got %s", TypeName(v))
 			}
 		}
