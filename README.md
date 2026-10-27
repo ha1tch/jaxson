@@ -59,7 +59,8 @@ go run ./cmd/shaxonrun -pretty examples/shaxon/orders.json
 | The compiler | Compiled and tree-interpreted runs compared over every fixture and example, including at tightened step limits, for result, error and step count |
 | The parser | Differential tests of `ParseData` against a reference parser; a fuzz target recorded as a dormant guard |
 | Concurrency and hygiene | About 460 tests and subtests, run under the race detector, with `go vet` clean |
-| Access-by-trail examples | Five packages with 51 cases; the same rules written as SHACL-SPARQL and run through pyshacl and Apache Jena, which reach the same verdicts; 19 mutants of the rules, all caught by the shared cases |
+| Access-by-trail examples | Five packages with 51 cases; the same rules written as SHACL-SPARQL and run through pyshacl and Apache Jena, which reach the same verdicts; 19 mutants of the rules, all caught by the shared cases; two of the five also written in SHACL Core alone, with the same verdicts and reasons on the 15 case files and on 4,100 random trails each |
+| accessgraph | Eight evaluators agree on every decision at the current id width, among them Soufflé and CozoDB (a ninth, a Go Datalog library, agreed at four digits and is retired); nine planted faults caught on the real runner; the same step count on two runtimes on every database compared, up to 5,000 users; the program asserts its declared limits; an integrity gate checked against 732 planted defects |
 | Speed | A reproducible harness against pyshacl and Jena on trails up to 20000 events, below |
 
 Decisions taken where a specification was silent, and what is still open, are in `src/jaxson-shaxon-v0.3.1/TRACKER.md`; every change is in its `CHANGELOG.md`.
@@ -68,6 +69,7 @@ Decisions taken where a specification was silent, and what is still open, are in
 
 - `examples/showcase/`: twelve worked Jaxson packages across everyday logic, finance and machine-learning operations, with 29 fixture cases and a coverage report.
 - `examples/medical/`: two Prolog medical knowledge systems re-implemented on Jaxson and Shaxon and checked against the originals' own output, with a bottom-up Jaxson evaluator compiled from the second system's vocabulary.
+- `examples/accessgraph/`: an inference example in the authorization domain. It decides whether a user may act on a resource from nested groups, role inheritance, a resource tree, allow and deny grants and bounded delegation, and names the supporting grant. The limits on nesting are declared once and enforced by the reference, the generator and the program itself, a data-integrity gate checks a database before use, and the decisions are checked against a reference, a naive fixpoint and seven other evaluators, including Soufflé and CozoDB, with a record of steps and time to 5,000 users and tools to fetch two external datasets.
 - `examples/game/` and `src/jaxson-shaxon-v0.3.1/examples/navywars`: a game written first as hand-built packages and then ported to the Go builder.
 - `src/jaxson-shaxon-v0.3.1/examples/shaxon/`: Shaxon packages to run, including five access-control examples (rolling quota, chinese wall, delegation chain, four-eyes release, break glass), each with a case file.
 - `src/jaxson-shaxon-v0.3.1/examples/shacl/authz/`: the SHACL side of those five, the lift from JSON to RDF, a rule-mutation check, and the timing harness (`bench.sh`, `scale.py`, `report.py`) with set-up scripts for Linux and macOS and the recorded results.
@@ -81,6 +83,7 @@ Decisions taken where a specification was silent, and what is still open, are in
 | `shaxon-v0.3.2-walk-proposal.md` | Proposal for a later version (the Walk profile); not implemented |
 | `docs/` | [Implementation status](docs/IMPLEMENTATION-STATUS.md), [precedents](docs/PRECEDENTS.md), and the six-part SHACL comparison (`shacl-01` to `shacl-06`) |
 | `examples/showcase/` | Twelve worked Jaxson packages with fixtures |
+| `examples/accessgraph/` | Access decisions derived from a permission graph, its declared limits, integrity gate, checks and scale record, a status report, and the data provisioning tools |
 | `examples/game/` | The earliest Navy Wars game as Jaxson packages, with the Python and shell scaffolding that built and ran it |
 | `src/jaxson-shaxon-v0.3.1/` | The current Go implementation: `pkg/jaxson`, `pkg/shaxon`, `pkg/jaxtools`, three commands, and its own examples; its [README](src/jaxson-shaxon-v0.3.1/README.md) has the package layout, [TRACKER](src/jaxson-shaxon-v0.3.1/TRACKER.md) the status and decisions, [CHANGELOG](src/jaxson-shaxon-v0.3.1/CHANGELOG.md) what changed |
 | `src/jaxson-v0.1.0/`, `attic/`, `shaxon-v0.3.0-*.md` | The first Go implementation, earlier drafts and the previous Shaxon specification, kept for history |

@@ -1,0 +1,56 @@
+@prefix sh:  <http://www.w3.org/ns/shacl#> .
+@prefix ex:  <https://example.org/authz#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# SHACL Core only: no sh:sparql, no SPARQL targets, no rules. The same data
+# graph as break-glass.shapes.ttl (lift.py, unchanged): ex:events holds
+# breakglass events (ex:type, ex:id, ex:actor) and review events (ex:type,
+# ex:of, ex:reviewer); ex:request holds ex:actor.
+#
+# Two ideas carry the rules. The sets in SHACL are sets: a path's value nodes
+# are distinct, so counting events by an actor is a cardinality constraint on
+# a path. And a plain literal is a node, so an inverse path leads from the
+# actor "rhea" to every node that has ex:actor "rhea", which joins an event to
+# the request without a query.
+
+# Each earlier break-glass by the requesting actor must have a review by
+# someone else. The focus node is the event. "Violating" is the negation of
+# three things in turn: it is not a break-glass; it is by another actor; or
+# it has a review whose reviewers are not just the actor.
+ex:UNREVIEWED_BREAK_GLASS a sh:NodeShape ;
+    sh:targetObjectsOf ex:events ;
+    sh:message "an earlier break-glass by this actor has no review by anyone else" ;
+    sh:or (
+        [ sh:not [ sh:property [ sh:path ex:type ; sh:hasValue "breakglass" ] ] ]
+        [ sh:not [ sh:property [
+              sh:path ( [ sh:inversePath ex:events ] ex:request ex:actor ) ;
+              sh:equals ex:actor ] ] ]
+        [ sh:and (
+              [ sh:property [
+                    sh:path ( ex:id [ sh:inversePath ex:of ] ex:reviewer ) ;
+                    sh:minCount 1 ] ]
+              [ sh:not [ sh:property [
+                    sh:path ( ex:id [ sh:inversePath ex:of ] ex:reviewer ) ;
+                    sh:equals ex:actor ] ] ] ) ]
+    ) .
+
+# The budget: the requesting actor may have used break-glass at most once
+# before. The value nodes of (ex:actor, inverse ex:actor) are every node with
+# the same actor, the request included; only break-glass events are counted.
+ex:RequestShape a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:property ex:BREAK_GLASS_BUDGET .
+
+ex:BREAK_GLASS_BUDGET a sh:PropertyShape ;
+    sh:path ( ex:actor [ sh:inversePath ex:actor ] ) ;
+    sh:qualifiedValueShape [ sh:property [ sh:path ex:type ; sh:hasValue "breakglass" ] ] ;
+    sh:qualifiedMaxCount 1 ;
+    sh:message "break-glass budget (2) is used up" .
+
+# Structure of the request, as the Shaxon package's closed Request shape
+# states it.
+ex:RequestStructure a sh:NodeShape ;
+    sh:targetObjectsOf ex:request ;
+    sh:closed true ;
+    sh:ignoredProperties ( ) ;
+    sh:property [ sh:path ex:actor ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] .

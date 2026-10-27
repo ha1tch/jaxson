@@ -1,0 +1,33 @@
+{
+  "program_sha256": "d765f0f2eae184f6f643e839d28c9efcf991f65e2121a879b40e22638791312f",
+  "coef": {
+    "const": 0.0,
+    "closure": 3.325421474383403,
+    "resources": 3.2394992293939797,
+    "build": 0.0,
+    "hops": 7.995979731660945,
+    "req_held": 0.6578331053473968,
+    "req_deny": 4.35224802488969,
+    "requests": 30.31204385934794
+  },
+  "margin": 1.25,
+  "calibration": {
+    "databases": 73,
+    "worst_measured_over_predicted": 1.1888,
+    "held_out_databases": 28,
+    "held_out_exceeded": 0,
+    "held_out_worst_measured_over_predicted": 1.0674,
+    "unseen_real_shaped": [
+      {
+        "variant": "flat",
+        "measured": 220106734,
+        "predicted": 370299033
+      },
+      {
+        "variant": "nested",
+        "measured": 220150664,
+        "predicted": 370402317
+      }
+    ]
+  }
+}

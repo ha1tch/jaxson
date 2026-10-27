@@ -1,5 +1,242 @@
 # Changelog
 
+## 0.3.1-p000.r021 - 2026-10-27
+
+### Added
+- `examples/accessgraph/FINDINGS.md`, two sections and two summary rows: the existing declarative
+  languages (Soufflé, Starlark, CEL, Rego, Cedar, SpiceDB and OpenFGA, SQL) against the three kinds
+  of test, rules, validation and contract, and Shaxon against SHACL and others for the validation
+  role, from the authorization examples already in the tree. The finding: no existing language covers
+  the rules, the validation and the contract together, and only the SHACL comparison is measured.
+
+## 0.3.1-p000.r020 - 2026-10-27
+
+### Added
+- `examples/accessgraph/engines/starlark/` and `run_starlark.py`: the access-decision rules in
+  Starlark, run through starlark-go. It agrees with the reference on generated databases and
+  on both Amazon variants. `engines/cel/`: a probe of CEL's static cost estimate on a
+  membership closure. `FINDINGS.md` has a new section 5 with both results: Starlark's step
+  budget is enforced and deterministic but not derived before the run, and it does not refuse
+  data that is too deep; CEL's estimate is a sound bound that grows 87 times for every round
+  of a closure. Starlark is also in the timing sweep and the Amazon runner.
+
+## 0.3.1-p000.r019 - 2026-10-27
+
+### Changed
+- The accessgraph cost model is rebuilt (`cost.py`, `cost_model.json`, `calibrate.py`): its
+  features follow the program's loops (the held table over every user, each delegation hop
+  over its delegator's held entries, each request's scan), fitted on 73 synthetic databases,
+  18 of them stretching one dimension at a time because generated databases alone cannot
+  identify the terms. Held out: 28 synthetic databases, including 5,000 users and one with
+  the Amazon data's proportions, none over their limit. The two Amazon databases are covered:
+  the program runs inside its derived limit on both, using 48%; the model over-predicts there
+  by 1.68 times. They were looked at after each of four fits and decided between versions, so
+  they are validation data, not an untouched test. `test_cost.py` checks them when present
+  and `check_amazon.py` saves their step counts. Closes T-41 (docs/RESOLVED.md).
+
+## 0.3.1-p000.r018 - 2026-10-27
+
+### Added
+- `examples/accessgraph/agogo/` (the Go ports of the reference, their tests and a cross-check
+  against `oracle.py`) and `examples/accessgraph/engines/` (the Soufflé, CozoDB and retired Go
+  Datalog encodings, the timing sweep, the fault-planting comparison and the runner for the
+  Amazon variants), moved in from the loose archives so that the numbers in `FINDINGS.md` can
+  be reproduced. About 2,000 lines. Paths are relative or set by environment variables, built
+  binaries are ignored by git, and each directory has a README.
+
+## 0.3.1-p000.r017 - 2026-10-27
+
+### Added
+- accessgraph on real-shaped data (`provision/amazon_to_db.py`, `provision/check_amazon.py`):
+  the Amazon Access Samples as two databases of 36,063 users and 430,188 grants, flat and
+  nested (270 covering edges, 10,134 implied memberships dropped, true group depth 5), with
+  a record of everything added to the data. Seven evaluators agree with the reference on
+  10,000 decisions on both variants; the integrity gate passes both. The results are in
+  `FINDINGS.md`, section 5. Closes T-39 (docs/RESOLVED.md).
+
+### Changed
+- The derived step limit did not hold on this data: the program needed 2.21 times the
+  prediction and stopped at its declared limit, as it should when exceeded. The README and
+  `FINDINGS.md` now say so, and T-41 is filed for the model; T-42 for exposing the step
+  count in `jaxrun`, which the measurement needed a scratch build for.
+
+## 0.3.1-p000.r016 - 2026-10-27
+
+### Changed
+- Register: T-36 is closed with a scope change (the Amazon-scale case moves to T-39, since
+  only T-39's adapter can produce that data; the other engines at the new presets are
+  recorded as run) and T-32 is closed on a decision (stage 2 is not built; the program's
+  own assertion is the always-on backstop and the gate's depth check stays opt-in). T-39
+  takes the Amazon-scale run and the measurement of the gate's depth cost at that scale.
+  Both closures are in docs/RESOLVED.md. README and the two reconciliation banners follow.
+
+## 0.3.1-p000.r015 - 2026-10-27
+
+### Added
+- The accessgraph declared step limit is derived from the data before the run
+  (`cost.py`, `cost_model.json`, `calibrate.py`, `test_cost.py`): features from counts and
+  closure sizes, fitted on 55 databases up to 1,000 users with a margin of 1.20, and
+  checked on 27 databases the fit never saw, including 5,000 users, none over their limit.
+  A limit exceeded stops both runtimes with `RESOURCE_ERROR/STEPS`; the model refuses to
+  run when the generated program has changed. `scale.py` and `check.py` no longer raise
+  the limit and report measured against declared steps. Closes T-38 (docs/RESOLVED.md).
+
+### Changed
+- `gen.build` derives the limit by default (it was a fixed 5,000,000, which 5,000 users
+  exceed). `calibrate.py` needs numpy; nothing else does.
+
+## 0.3.1-p000.r014 - 2026-10-27
+
+### Added
+- `examples/accessgraph/FINDINGS.md`: what the work has and has not shown. Speed is stated
+  as not the fastest (slower than compiled Soufflé, about 5 times at 12 users growing to
+  about 10 times at 5,000, and slower than plain Python and Go implementations; faster
+  than CozoDB from 60 users up, about 2 to 5 times), with a table measured at five sizes
+  on the current program; the cost of the fixed limits; and what agreement between
+  evaluators shows.
+
+### Changed
+- The README no longer carries its "What it does not show" paragraph; it points to
+  `FINDINGS.md`.
+
+## 0.3.1-p000.r013 - 2026-10-27
+
+### Added
+- The id width is policy (`policy.ID_WIDTH`, six digits): grant and delegation ids are
+  `G000001` and `D000001`, so a database can hold up to 999,999 of each, where four
+  digits stopped at 9,999. A database with a grant or delegation id of another width is
+  refused by the reference, the generator, the builder and the integrity gate, so a
+  mixed-width database is rejected and not mis-ordered; the Go oracles enforce it too.
+  `test_policy.py` answers a database of 10,068 grants identically on the reference and
+  both runtimes. The integrity gate has two more rules (24), checked against 732 planted
+  defects. Closes T-37 (docs/RESOLVED.md).
+
+### Changed
+- The Go Datalog engine's encoding is retired at six-digit ids: it gave wrong answers, and
+  four six-digit segments do not fit 64 bits. Soufflé and CozoDB still agree with the
+  reference. The accessgraph and root READMEs say so.
+
+## 0.3.1-p000.r012 - 2026-10-27
+
+### Changed
+- The accessgraph README is brought up to date: what it is and why it matters (the data,
+  the program and the gate are JSON under one contract; a cost limit on its own is not new,
+  since CEL and Starlark have one), the declared limits, nine mutants, new step and time
+  tables (10,533 to 10,229,845 steps), a fresh comparison of all nine evaluators at 5,000
+  users, and the known limits after T-31. The root README lists the declared limits, the
+  integrity gate and the SHACL Core result.
+- Checked again on the current program before the README repeated them: identical step
+  counts on the stand-in and the real runner for nine databases from 12 to 5,000 users;
+  the reference against a naive fixpoint on 200 databases (28,000 decisions); the
+  reference, stand-in and real runner on 150 databases (31,320 decisions, 0 mismatches).
+
+## 0.3.1-p000.r011 - 2026-10-27
+
+### Changed
+- Documentation only. The register no longer names the closed T-31 as a blocker of
+  T-32, T-36, T-37 and T-38; T-38 records CEL and Starlark as prior art for a cost
+  declared before the run and enforced. The related-work proposal and the accessgraph part 1
+  status report carry dated reconciliation banners; their content is unchanged.
+- The accessgraph and root READMEs are deliberately not updated; they wait for the final
+  README update.
+
+## 0.3.1-p000.r010 - 2026-10-26
+
+### Added
+- `examples/accessgraph/policy.py` and `test_policy.py`: the example's limits (3 delegation
+  hops, 16 group rounds, 8 role rounds, resource depth 6) are declared once, not measured per
+  database. The generated program is the same for every database. The reference and the
+  generator work within the limits, and the program asserts with one extra round per closure
+  that its input fits, failing with `ASSERTION_FAILED` on both runtimes instead of answering
+  from a truncated closure. Each limit is accepted exactly at its value and refused one past
+  it. Closes T-31 (docs/RESOLVED.md).
+
+### Changed
+- Fixed rounds cost steps: 10,533 at 12 users (was 5,336) and 10,229,845 at 5,000 (was
+  8,377,283). `mutants.py` now has nine mutants: round mutants silent (the answers must
+  differ) and asserted (the program must refuse). `integrity.py` accepts `--limits policy`.
+- The example README is not updated for this on purpose; it waits for the final README
+  update.
+
+## 0.3.1-p000.r009 - 2026-10-26
+
+### Added
+- `examples/accessgraph/integrity.py`, `integrity.json` and `test_integrity.py`: a
+  data-integrity gate for accessgraph databases, written as a Shaxon package (T-32, stage 1).
+  It reports dangling references, bad effects and repeated ids at the exact path of the
+  offending element. 200 databases with 769 planted defects of 22 kinds give findings equal
+  to the plan, removing any of its 22 rules makes the test fail, and it costs 2 to 4% of the
+  inference program's steps. With depth limits passed in it also reports every user, role
+  and resource deeper than the limit, equal to independently computed truth, at 30 to 50%
+  of the program's steps.
+
+### Changed
+- T-32 is partial: the limits to enforce wait on T-31 and T-37. The accessgraph README
+  and status report say so.
+
+## 0.3.1-p000.r008 - 2026-10-26
+
+### Added
+- `examples/shacl/authz/chinese-wall.core.shapes.ttl`, `break-glass.core.shapes.ttl`,
+  `core_cases.py` and `./run.sh core`: the two examples written in SHACL Core alone, with
+  an audit that every `sh:` term is Core. Both are expressible. They agree with Shaxon on
+  verdict and reasons on the 15 case files and on 4,100 random trails per package, and
+  with the SHACL-SPARQL versions on 800 each. The one difference is that Shaxon refuses a
+  request for an unknown company and both SHACL versions allow it. In pyshacl, Core
+  validated the same trails faster than SHACL-SPARQL (break-glass at 4,000 events: 5.6 s
+  against 45 s). Closes T-20 (docs/RESOLVED.md).
+
+### Changed
+- The authz README no longer says SHACL Core cannot compare values across nodes; it
+  records the Core result. The accessgraph README and status report carry the same
+  correction.
+- `.venv` and `.jena` under `examples/shacl/authz` are ignored by git.
+- T-22: the default `setup.sh` branch ran end to end and is partial, not closed.
+
+## 0.3.1-p000.r007 - 2026-10-26
+
+### Added
+- `examples/accessgraph/`: an inference example in the authorization domain. It decides
+  whether a user may act on a resource from nested groups, role inheritance, a resource
+  tree, allow and deny grants and delegation chains of at most three links, and names
+  the supporting grant. It has a seeded generator with five presets (to 5,000 users),
+  a top-down reference, a naive fixpoint, the generated Jaxson program, a stand-in
+  interpreter, a checker, a script that plants six faults, a scale record and a
+  part 1 status report. The reference, the stand-in and the real runner agree on 150
+  databases (31,320 decisions); all six faults are caught; the step count is 5,336
+  at 12 users and 8,377,283 at 5,000, which exceeds the declared default of 5,000,000
+  (T-38). Eight other evaluators agree with the reference, among them Soufflé,
+  CozoDB and a Go Datalog library.
+- `examples/accessgraph/provision/`: fetches and verifies two external datasets, the
+  UCI Amazon Access Samples and the OpenFGA sample stores at a pinned commit, and reads
+  the 4.8 GB access matrix from its compressed stream instead of extracting it. The
+  data directory is ignored by git.
+- Five accessgraph rows in the dormant guards table of the tracker.
+
+### Changed
+- The root README lists the example; the related-work proposal and two register
+  statements no longer say the example is outside the tree.
+
+## 0.3.1-p000.r006 - 2026-10-26
+
+### Added
+- Register items T-37 to T-40 (fixed-width ids, the declared step limit, a run on
+  real-shaped data, third-party expected answers) and wave 10.
+
+### Changed
+- T-36 is widened to cover 5,000 users and the Amazon-scale case, and is partial.
+
+## 0.3.1-p000.r005 - 2026-10-25
+
+### Added
+- `docs/proposals/accessgraph-related-work-and-roadmap.md`: a survey of comparable
+  systems, where the accessgraph example is stronger and weaker, and the work ahead.
+
+## 0.3.1-p000.r004 - 2026-10-25
+
+### Added
+- Register items T-31 to T-36 for the accessgraph example, grouped as waves 8 and 9.
+
 ## 0.3.1-p000.r003 - 2026-10-15
 
 ### Added

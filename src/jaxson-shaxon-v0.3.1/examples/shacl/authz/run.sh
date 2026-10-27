@@ -11,11 +11,14 @@
 #   ./run.sh no-structure   pyshacl with the structure shapes dropped; passes when exactly
 #                           the 6 malformed-request cases differ (the fail-open result)
 #   ./run.sh mutants        break each SHACL rule in turn; exit 0 if every mutant is caught
+#   ./run.sh core           chinese-wall and break-glass in SHACL Core only: audit, the case files and
+#                           random trails against Shaxon (set SHAXONRUN to a built shaxonrun)
+#   ./run.sh core-timing    Core against SHACL-SPARQL on large trails
 #   ./run.sh timing         Shaxon, pyshacl and (if present) Jena at 100, 1000 and 4000 events,
 #                           in both profiles: end-to-end (the RDF lift counted) and engine-only
 #   ./run.sh timing-end-to-end   only the first profile
 #   ./run.sh timing-engine       only the second: validation alone, the lift left out
-#   ./run.sh all            cases, no-structure, mutants, then jena if installed
+#   ./run.sh all            cases, no-structure, mutants, core audit and cases, then jena if installed
 #
 # Environment: PYTHON (default .venv/bin/python), JENA_LIB (default .jena/lib).
 set -eu
@@ -74,6 +77,18 @@ case "$target" in
     jena) need_jena; "$PYTHON" run_cases.py --processor jena ;;
     no-structure) no_structure ;;
     mutants) "$PYTHON" mutants.py ;;
+    core)
+        status=0
+        "$PYTHON" core_cases.py audit || status=1
+        "$PYTHON" core_cases.py cases || status=1
+        if [ -n "${SHAXONRUN:-}" ] || command -v shaxonrun >/dev/null 2>&1; then
+            "$PYTHON" core_cases.py random 300 || status=1
+        else
+            echo "### random: skipped, set SHAXONRUN to a built shaxonrun"
+        fi
+        exit "$status"
+        ;;
+    core-timing) "$PYTHON" core_cases.py timing ;;
     timing) "$PYTHON" scale.py ;;
     timing-end-to-end) "$PYTHON" scale.py --profile end-to-end ;;
     timing-engine) "$PYTHON" scale.py --profile engine ;;
@@ -82,6 +97,8 @@ case "$target" in
         summarise "cases (pyshacl)" "$PYTHON" run_cases.py || status=1
         echo "### no-structure"; no_structure || status=1
         summarise "mutants" "$PYTHON" mutants.py || status=1
+        summarise "core audit" "$PYTHON" core_cases.py audit || status=1
+        summarise "core cases" "$PYTHON" core_cases.py cases || status=1
         if have_jena; then
             summarise "cases (jena)" "$PYTHON" run_cases.py --processor jena || status=1
         else

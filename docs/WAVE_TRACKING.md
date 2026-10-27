@@ -3,17 +3,21 @@
 ## 1. Progress at a glance
 
 ```
-Wave 0  Extract, don't change       ████████████████████   100%  (6/6 items)
-Wave 1  Extension points Shaxon needs  ████████████████████   100%  (6/6 items)
-Wave 2  Shaxon's static layer       ████████████████████   100%  (9/9 items)
-Wave 3  Shape evaluation            ████████░░░░░░░░░░░░    38%  (5/13 items)
-Wave 4  Indices, relations, targets, validate  ████████████████████   100%  (7/7 items)
-Wave 5  shaxon.Run, version, pipeline order  █████████░░░░░░░░░░░    47%  (8/17 items)
-Wave 6  Fixtures and conformance    ███████████░░░░░░░░░    57%  (4/7 items)
-Wave 7  Public API, Session, build package  ████████████████████   100%  (5/5 items)
+Wave 0   Extract, don't change       ████████████████████   100%  (6/6 items)
+Wave 1   Extension points Shaxon needs  ████████████████████   100%  (6/6 items)
+Wave 2   Shaxon's static layer       ████████████████████   100%  (9/9 items)
+Wave 3   Shape evaluation            ████████░░░░░░░░░░░░    38%  (5/13 items)
+Wave 4   Indices, relations, targets, validate  ████████████████████   100%  (7/7 items)
+Wave 5   shaxon.Run, version, pipeline order  █████████░░░░░░░░░░░    47%  (8/17 items)
+Wave 6   Fixtures and conformance    ███████████░░░░░░░░░    57%  (4/7 items)
+Wave 7   Public API, Session, build package  ████████████████████   100%  (5/5 items)
+Wave 8   accessgraph: policy limits and data integrity  ████████████████████   100%  (2/2 items)
+Wave 9   accessgraph: coverage, independence and scale  █████░░░░░░░░░░░░░░░    25%  (1/4 items)
+Wave 10  accessgraph: real-shaped data and scale  ███████████████░░░░░    75%  (3/4 items)
+Wave 11  accessgraph: findings from real-shaped data  ██████████░░░░░░░░░░    50%  (1/2 items)
 ```
 
-Overall by item count: 50 of 70 items ≈ **71%**
+Overall by item count: 57 of 82 items ≈ **70%**
 
 ### Wave 0 — Extract, don't change (6 items, ideal 0.0d, added 2026-10-14)
 
@@ -140,6 +144,44 @@ Overall by item count: 50 of 70 items ≈ **71%**
 | 70 | Confirm the N1 and N2 `Number` scope | ✓ | not yet filed |
 
 **Wave 7: 5/5, done.**
+
+### Wave 8 — accessgraph: policy limits and data integrity (2 items, ideal 2.0d, added 2026-10-25)
+
+| # | Summary | Status | Register item |
+|---|---|---|---|
+| 71 | Fix group, role and resource depth as policy constants; the oracle evaluates under the same constants | ✓ | T-31 |
+| 72 | Shaxon data-integrity layer with injected-defect ground truth, enforcing references and the fixed limits | ✓ | T-32 |
+**Wave 8: 0.5/2, in progress.**
+
+### Wave 9 — accessgraph: coverage, independence and scale (4 items, ideal 3.0d, added 2026-10-25)
+
+| # | Summary | Status | Register item |
+|---|---|---|---|
+| 73 | Minimum-coverage assertions for delegated and hop-bound decisions; mutants detected on a stated share of databases | ☐ | T-33 |
+| 74 | Second, independent reading of the prose rules compared with the oracle | ☐ | T-34 |
+| 75 | Domain review of the literal delegation rule, with the decision recorded | ☐ | T-35 |
+| 76 | Large preset; steps and wall time recorded on both runtimes | ✓ | T-36 |
+**Wave 9: 0.5/4, in progress.**
+
+### Wave 10 — accessgraph: real-shaped data and scale (4 items, ideal 4.0d, added 2026-10-26)
+
+| # | Summary | Status | Register item |
+|---|---|---|---|
+| 77 | Id width as a policy constant, six digits; the Go Datalog engine encoding retired at the wider widths | ✓ | T-37 |
+| 78 | Declared step limit derived from data-size bounds and calibrated on measured counts | ✓ | T-38 |
+| 79 | Adapter from the Amazon access data to an accessgraph database, flat and nested variants, run on every engine | ✓ | T-39 |
+| 80 | OpenFGA sample stores mapped where they fit, their assertions run as third-party expected answers | ☐ | T-40 |
+
+**Wave 10: 3/4, in progress.**
+
+### Wave 11 — accessgraph: findings from real-shaped data (2 items, ideal 1.5d, added 2026-10-27)
+
+| # | Summary | Status | Register item |
+|---|---|---|---|
+| 81 | Cost model features that follow the program, recalibrated, with the Amazon databases as unseen data | ✓ | T-41 |
+| 82 | A step count that jaxrun can report, without a scratch build | ☐ | T-42 |
+
+**Wave 11: 1/2, in progress.**
 
 ---
 

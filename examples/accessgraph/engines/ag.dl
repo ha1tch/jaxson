@@ -1,0 +1,55 @@
+// Copyright (c) 2026 haitch <h@ual.li>
+// SPDX-License-Identifier: Apache-2.0
+
+.decl user(u:symbol)
+.decl up(m:symbol, g:symbol)
+.decl role(r:symbol)
+.decl inh(r:symbol, s:symbol)
+.decl rperm(r:symbol, a:symbol)
+.decl res(r:symbol)
+.decl par(r:symbol, p:symbol)
+.decl grant(id:symbol, s:symbol, r:symbol, sc:symbol, eff:symbol)
+.decl deleg(id:symbol, f:symbol, t:symbol, r:symbol, sc:symbol)
+.decl req(id:symbol, u:symbol, a:symbol, x:symbol)
+.input user
+.input up
+.input role
+.input inh
+.input rperm
+.input res
+.input par
+.input grant
+.input deleg
+.input req
+
+.decl subj(u:symbol, s:symbol)
+subj(U, U) :- user(U).
+subj(U, G) :- subj(U, H), up(H, G).
+.decl rc(r:symbol, s:symbol)
+rc(R, R) :- role(R).
+rc(R, S) :- rc(R, T), inh(T, S).
+.decl perm(r:symbol, a:symbol)
+perm(R, A) :- rc(R, S), rperm(S, A).
+.decl anc(r:symbol, p:symbol)
+anc(R, R) :- res(R).
+anc(R, P) :- anc(R, C), par(C, P).
+
+.decl sup(u:symbol, r:symbol, sc:symbol, h:number, c:symbol)
+sup(U, R, S, 0, G) :- subj(U, X), grant(G, X, R, S, "allow").
+sup(U, R, S, H + 1, cat(C, cat(">", D))) :- deleg(D, F, U, R, S), sup(F, R, S2, H, C), anc(S, S2), H < 3.
+
+.decl cov(q:symbol, h:number, c:symbol)
+cov(Q, H, C) :- req(Q, U, A, X), sup(U, R, S, H, C), anc(X, S), perm(R, A).
+.decl den(q:symbol, g:symbol)
+den(Q, G) :- req(Q, U, A, X), subj(U, Y), grant(G, Y, R, S, "deny"), anc(X, S), perm(R, A).
+.decl minh(q:symbol, h:number)
+minh(Q, H) :- cov(Q, _, _), H = min h : cov(Q, h, _).
+.decl worse(q:symbol, h:number, c:symbol)
+worse(Q, H, C) :- cov(Q, H, C), cov(Q, H, C2), C2 < C.
+.decl via(q:symbol, c:symbol)
+via(Q, C) :- minh(Q, H), cov(Q, H, C), !worse(Q, H, C).
+.decl supported(q:symbol)
+supported(Q) :- cov(Q, _, _).
+.output via
+.output den
+.output supported

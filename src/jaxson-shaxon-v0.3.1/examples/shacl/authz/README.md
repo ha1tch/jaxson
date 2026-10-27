@@ -7,17 +7,18 @@ reads the Shaxon folder's `<name>.json` (for the default input) and
 `<name>.cases.json` (51 cases), so the inputs and the expected decisions are
 identical.
 
-SHACL Core has no aggregation and cannot compare values across different
-nodes, so all five use SHACL-SPARQL (`sh:sparql`). Whether the two that look
-simplest, `chinese-wall` and `break-glass`, could be written in Core alone was
-not tried.
+All five use SHACL-SPARQL (`sh:sparql`). The two that look simplest,
+`chinese-wall` and `break-glass`, were also written in SHACL Core alone, and
+both are expressible there (see Core only, below). The other three were not
+tried: Core can count value nodes but has no arithmetic, so `rolling-quota`'s
+sums over decimals are not expected to have a Core form.
 
 SPARQL is not SHACL. `sh:sparql` is the separate SHACL-SPARQL extension, and
 the SPARQL query bodies are about two fifths of the shape text (4577 of 11101
 characters, comments removed) and all of the rule logic: the aggregates, the
 cross-node comparisons, `FILTER NOT EXISTS` and the path expressions. What is
-compared with Shaxon below is therefore Shaxon against SHACL-SPARQL, and no
-result here says what SHACL Core alone can or cannot express. Where a result
+compared with Shaxon below is therefore Shaxon against SHACL-SPARQL, and, outside
+the Core only section, no result here says what SHACL Core alone can or cannot express. Where a result
 is a property of SHACL itself (the RDF data model, the unordered report, no
 step budget) the text says so; where it is a property of SPARQL (aggregation,
 joins, negation) it says that.
@@ -31,6 +32,7 @@ joins, negation) it says that.
 ./run.sh jena              # the same cases through Apache Jena SHACL
 ./run.sh no-structure      # the rules alone: the 6 malformed requests get through
 ./run.sh mutants           # break each rule in turn; every mutant must be caught
+./run.sh core              # chinese-wall and break-glass in SHACL Core only: audit, cases, random trails (needs SHAXONRUN)
 ./run.sh timing            # Shaxon, pyshacl and Jena at 100, 1000 and 4000 events, end-to-end and engine-only
 ./run.sh all               # everything that is installed
 ```
@@ -50,6 +52,7 @@ run starts a JVM per case (about 0.7 s each) and needs about 17 MB of jars.
 | `run_cases.py` | Runs every Shaxon case through pyshacl (or Jena, with `--processor jena`) and compares |
 | `mutants.py` | Breaks one rule at a time and checks that `run_cases.py` notices (pyshacl) |
 | `scale.py` | Times Shaxon, pyshacl and Jena on long trails and checks that their verdicts agree |
+| `<name>.core.shapes.ttl` (two), `core_cases.py` | `chinese-wall` and `break-glass` in SHACL Core only, and the harness that checks them |
 | `setup.sh`, `run.sh` | Install the harnesses and launch them; `SETUP.md` explains both |
 | `pom.xml` | Names the Jena jars for Maven to fetch; nothing is built |
 
@@ -114,6 +117,50 @@ is tied to a different way of naming the rule that fired, and in Shaxon the
 `constraintId` is part of the language.
 
 The timings are in the Speed section below, from `./run.sh timing`.
+
+## Core only: chinese-wall and break-glass
+
+`chinese-wall.core.shapes.ttl` and `break-glass.core.shapes.ttl` write the two
+rules in SHACL Core, with no `sh:sparql`, over the same lifted data.
+`core_cases.py audit` checks that every `sh:` term they use is in the Core
+vocabulary; `./run.sh core` runs the audit, the case files and random trails
+against the real Shaxon runner (set `SHAXONRUN` to a built `shaxonrun`).
+
+Both rules are expressible. Two things make it work. The value nodes of a path
+are a set, so counting events by an actor is a cardinality constraint on a
+path. And a plain literal is a node, so an inverse path leads from the actor
+"rhea" to every node that has that actor, which joins an event to the request
+without a query. Core has no existential over a join, so `chinese-wall` is
+written as its contrapositive: every company the actor has touched is either
+the requested company or in another class.
+
+| Check | Result |
+|---|---|
+| Audit | 16 and 19 `sh:` terms used, none outside Core |
+| The 15 case files (8 and 7) | all agree on verdict and reasons |
+| Random trails against Shaxon, seeds 1 to 4 | 4,100 per package; every trail Shaxon decides agrees on verdict and reasons (4,034 for chinese-wall, 4,100 for break-glass) |
+| Core against the SHACL-SPARQL version | 800 trails per package, the same verdict on every one |
+
+Where they differ from Shaxon:
+
+- A request for a company that is not in `classOf` is refused by Shaxon
+  (`EXECUTION_ERROR`) and allowed by both SHACL versions, which have no way to
+  refuse: 66 of the 4,100 chinese-wall trails. It is the fail-open result again,
+  and a property of SHACL, not of Core.
+- pyshacl also reports the helper value shape that `chinese-wall` delegates
+  to; `core_cases.py` leaves it out of the reasons.
+
+Speed, pyshacl, validation only, best of three, on generated trails that are
+not those of `./run.sh timing`, so read the ratio and not the digits:
+
+| Package | Events | SHACL-SPARQL | SHACL Core |
+|---|---|---|---|
+| chinese-wall | 250 | 16 ms | 6 ms |
+| chinese-wall | 1000 | 38 ms | 4 ms |
+| chinese-wall | 4000 | 146 ms | 7 ms |
+| break-glass | 250 | 2726 ms | 332 ms |
+| break-glass | 1000 | 10888 ms | 1389 ms |
+| break-glass | 4000 | 45489 ms | 5552 ms |
 
 ## What differed, measured
 

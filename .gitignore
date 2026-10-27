@@ -1,6 +1,6 @@
 # repoman edit journals are local scratch and never part of the repository
 .ed-journal.json
-
+.DS_Store
 # run outputs of examples/medical/run_all.sh
 examples/medical/medical/run_out.json
 examples/medical/medical/kb_report.json
@@ -9,4 +9,19 @@ examples/medical/medical3/data/m3_out.json
 examples/medical/medical3/export_lib.pl
 examples/medical/medical3/overlay_*.pl
 examples/medical/medical3/ov_pkg.json
+# environments created by examples/shacl/authz/setup.sh
+src/jaxson-shaxon-v0.3.1/examples/shacl/authz/.venv/
+src/jaxson-shaxon-v0.3.1/examples/shacl/authz/.jena/
+
+# data fetched by examples/accessgraph/provision/fetch.sh
+examples/accessgraph/data/
+
+# built binaries of examples/accessgraph/agogo and examples/accessgraph/engines
+examples/accessgraph/agogo/agogo
+examples/accessgraph/engines/ag_compiled
+examples/accessgraph/engines/ag_compiled.cpp
+examples/accessgraph/engines/goeng/dleng
+examples/accessgraph/engines/starlark/starlark_run
+examples/accessgraph/engines/cel/cel_probe
+
 __pycache__/

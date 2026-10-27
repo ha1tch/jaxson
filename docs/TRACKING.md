@@ -1,7 +1,7 @@
 # Open work register
 
-Version: 0.3.1-p000.r003
-Last reviewed: 2026-10-15
+Version: 0.3.1-p000.r021
+Last reviewed: 2026-10-27
 
 Open items only. A closed item moves to `RESOLVED.md` and leaves no row here.
 Status legend: ✓ done · ◐ partial · ☐ not started · ✗ dropped.
@@ -30,11 +30,15 @@ entry is ordering only and not a technical dependency, its detail says so.
 | T-17 | R2: a report written into `output` lands after the schema check | engine | P3 | ☐ | T-15, T-16 |
 | T-18 | Aggregation inside a constraint (check expression or index key) | engine | P3 | ☐ | T-15, T-16 |
 | T-19 | Grouping, `any`/`all` and average not offered | engine | P4 | ☐ | T-15, T-16 |
-| T-20 | SHACL Core alone untested for `chinese-wall` and `break-glass` | shacl-comparison | P3 | ☐ | T-15, T-16 |
 | T-21 | Which `sh:sourceConstraint` reading follows the W3C text | shacl-comparison | P4 | ☐ | T-15, T-16 |
-| T-22 | `setup.sh` install branches unexercised end to end | shacl-comparison | P4 | ☐ | T-15, T-16 |
+| T-22 | `setup.sh` install branches unexercised end to end | shacl-comparison | P4 | ◐ | T-15, T-16 |
 | T-23 | The 21 phase 5 source mutants are not reproducible | tooling | P3 | ☐ | T-15, T-16 |
 | T-24 | repoman provenance flag on `CHANGELOG.md` | tooling | P4 | ☐ | T-15, T-16 |
+| T-33 | accessgraph: delegation and hop-bound decisions thinly covered | accessgraph-coverage | P4 | ☐ | — |
+| T-34 | accessgraph: one shared reading of the prose rules | accessgraph-coverage | P4 | ☐ | — |
+| T-35 | accessgraph: delegation strictness not reviewed by a domain expert | accessgraph-coverage | P4 | ☐ | — |
+| T-40 | accessgraph: third-party expected answers not yet used | accessgraph-real-data | P4 | ☐ | — |
+| T-42 | jaxrun does not report its step count | tooling | P4 | ☐ | — |
 ## Detail
 
 ## extends-narrowing
@@ -165,14 +169,6 @@ Theme: engine · Priority: P4 · Status: ☐ · Blocks/after: T-15, T-16
 
 ## shacl-comparison
 
-### T-20. SHACL Core alone untested for `chinese-wall` and `break-glass`
-
-Theme: shacl-comparison · Priority: P3 · Status: ☐ · Blocks/after: T-15, T-16
-
-**Trigger:** The SHACL comparison uses `sh:sparql` throughout, so it says nothing about Core.
-
-**Scope:** Express both packages in SHACL Core and compare; needs the pyshacl environment. Ordering only after T-15 and T-16.
-
 ### T-21. Which `sh:sourceConstraint` reading follows the W3C text
 
 Theme: shacl-comparison · Priority: P4 · Status: ☐ · Blocks/after: T-15, T-16
@@ -183,11 +179,11 @@ Theme: shacl-comparison · Priority: P4 · Status: ☐ · Blocks/after: T-15, T-
 
 ### T-22. `setup.sh` install branches unexercised end to end
 
-Theme: shacl-comparison · Priority: P4 · Status: ☐ · Blocks/after: T-15, T-16
+Theme: shacl-comparison · Priority: P4 · Status: ◐ · Blocks/after: T-15, T-16
 
 **Trigger:** Venv creation and the pip and Maven fetches have not been run; `--check`, `run.sh` and `scale.py` ran against existing environments.
 
-**Scope:** Run the install branches on a clean machine; this has a real network and disk cost. Ordering only after T-15 and T-16.
+**Scope:** Run the install branches on a clean machine; this has a real network and disk cost. Ordering only after T-15 and T-16. Status on 2026-10-26: the default branch ran end to end in a scratch copy with no environment present (venv created, pyshacl 0.40.1 and rdflib 7.6.0 installed in 23 s, 39 MB, the versions of the recorded comparison), and the earlier baseline of 50 agree, 0 differ, 1 not applicable reproduced. `--check` ran, and the Jena branch exits with a clear message when Maven is missing. Found and fixed: `.venv` and `.jena` were not ignored by git. Outstanding: the Jena fetch through Maven (Maven is not installed here; installing it has a real cost and needs a decision) and the macOS script.
 
 ## tooling
 
@@ -206,4 +202,48 @@ Theme: tooling · Priority: P4 · Status: ☐ · Blocks/after: T-15, T-16
 **Trigger:** Repoman's provenance check run from the repository root reports `CHANGELOG.md` as changed outside repoman after edits made through the `src/` root's journal.
 
 **Scope:** The fix belongs upstream in gorepoman; until then each flag is sanctioned with that reason. Ordering only after T-15 and T-16.
+
+### T-42. jaxrun does not report its step count
+
+Theme: tooling · Priority: P4 · Status: ☐ · Wave: 11
+
+**Trigger:** T-39 needed the exact step count of a run of 220 million steps. The stand-in gives it, at about 130,000 steps a second, which is 20 minutes or more here. `jaxrun` runs at about 4.7 million steps a second and its machine has the counter (`Machine.Steps()`), but `Profile.Run` does not return it and `jaxrun` does not print it. The measurement used a scratch build with one variable and one line added; its counts matched the stand-in on four known databases.
+
+**Scope:** Expose the count: an exported way to read the step total of a run (a field on a result, or a `RunSteps` beside `Run`), and a `-steps` flag in `jaxrun` that prints it on stderr, as `shaxonrun -steps` does. Add a test that the count equals the stand-in's on a small package. This touches the core runtime API, so it is ordered after layer 3 and checked against T-16, which wants a fixture that pins `steps` exactly.
+
+## accessgraph-coverage
+
+### T-33. accessgraph: delegation and hop-bound decisions thinly covered
+
+Theme: accessgraph-coverage · Priority: P4 · Status: ☐ · Wave: 9
+
+**Trigger:** Review of the accessgraph example. Over 60 generated databases about 6% of decisions rest on a delegation (516 of 8,400) and about 0.4% depend on the hop bound (34 of 8,400). The hop-bound mutants (one hop short, one hop extra) were detected on only 10 of 24 databases, so delegation is the least exercised part of the program.
+
+**Scope:** Tune chain and anchored-request generation in the generator, and add minimum-coverage assertions to the oracle tests (delegated decisions, hop-bound flips, deny without support) so a generator change cannot lower them unnoticed. Re-run the mutants and require each to be detected on a stated minimum share of databases.
+
+### T-34. accessgraph: one shared reading of the prose rules
+
+Theme: accessgraph-coverage · Priority: P4 · Status: ☐ · Wave: 9
+
+**Trigger:** Review of the accessgraph example. The reference implementation and the Jaxson program were written by one author from the same prose rules. A shared misreading would pass every comparison. The 13 hand-built cases, derived from the prose, are the only independent safeguard.
+
+**Scope:** Obtain a second, independent reading of the rules: either expectations derived by hand by another reader from the prose alone, or an encoding in a different engine (a Prolog or Datalog rendering, as the medical example has). Compare it with the oracle on the hand-built database and on generated ones. Record any disagreement as a spec question, not as a bug in either side. Third-party expected answers from the OpenFGA sample stores are a further independent check and are tracked as T-40.
+
+### T-35. accessgraph: delegation strictness not reviewed by a domain expert
+
+Theme: accessgraph-coverage · Priority: P4 · Status: ☐ · Wave: 9
+
+**Trigger:** Review of the accessgraph example. Delegation is implemented literally: a delegator must hold the same role, not merely a role that inherits it, so holding `admin` does not allow delegating `editor`. The rule was implemented and tested but never confirmed by anyone who administers real authorisation systems; most such systems would allow it.
+
+**Scope:** Put the rule in front of a domain reviewer and record the decision with its reason. If inheritance-aware delegation is chosen, the change touches the oracle, the naive fixpoint in the tests, the package's role comparison and the hand-built expectations, which are re-derived by hand, not copied from the oracle.
+
+## accessgraph-real-data
+
+### T-40. accessgraph: third-party expected answers not yet used
+
+Theme: accessgraph-real-data · Priority: P4 · Status: ☐ · Wave: 10
+
+**Trigger:** The OpenFGA sample stores (40 stores, 481 tuples, 556 check assertions and 143 list_objects assertions, pinned in the data provisioning script) carry expected answers written by a third party. Their model (relationships) differs from the example's rules, so each store needs a mapping and some will not map.
+
+**Scope:** Map the stores whose models fit the example (nested groups, roles, custom roles) to accessgraph databases and run their assertions through the reference and the Jaxson program. Record which stores map and which do not, and why. A disagreement is a question about the rules, to be settled by a reviewer, not a bug in either side. Related to T-34, which asks for an independent reading of the prose rules.
 

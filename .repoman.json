@@ -1,27 +1,41 @@
 {
   "version_file": "src/jaxson-shaxon-v0.3.1/VERSION",
   "version_targets": [
-    {"file": "src/jaxson-shaxon-v0.3.1/pkg/version/version.go", "match": "const Version = \"([^\"]*)\""},
-    {"file": "docs/TRACKING.md", "match": "(?m)^Version: (\\S+)"}
+    {
+      "file": "src/jaxson-shaxon-v0.3.1/pkg/version/version.go",
+      "match": "const Version = \"([^\"]*)\""
+    },
+    {
+      "file": "docs/TRACKING.md",
+      "match": "(?m)^Version: (\\S+)"
+    }
   ],
   "wave_short_names": {
     "0": "Extract, don't change",
     "1": "Extension points Shaxon needs",
+    "10": "accessgraph: real-shaped data and scale",
+    "11": "accessgraph: findings from real-shaped data",
     "2": "Shaxon's static layer",
     "3": "Shape evaluation",
     "4": "Indices, relations, targets, validate",
     "5": "shaxon.Run, version, pipeline order",
     "6": "Fixtures and conformance",
-    "7": "Public API, Session, build package"
+    "7": "Public API, Session, build package",
+    "8": "accessgraph: policy limits and data integrity",
+    "9": "accessgraph: coverage, independence and scale"
   },
   "wave_visibility": {
     "0": true,
     "1": true,
+    "10": true,
+    "11": true,
     "2": true,
     "3": true,
     "4": true,
     "5": true,
     "6": true,
-    "7": true
+    "7": true,
+    "8": true,
+    "9": true
   }
 }
